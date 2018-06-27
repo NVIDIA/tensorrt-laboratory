@@ -30,7 +30,9 @@
 #include "YAIS/MemoryStack.h"
 #include "YAIS/Pool.h"
 
-#include "glog/logging.h"
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <glog/logging.h>
 
 #include <iostream>
 #include <string>
@@ -43,12 +45,15 @@ using yais::CpuSet;
 using yais::ThreadPool;
 using yais::CudaHostAllocator;
 using yais::CudaDeviceAllocator;
-using yais::MemoryStackWithTracking;
+using yais::MemoryStack;
 using yais::Pool;
 
 
 int main(int argc, char *argv[])
 {
+    auto one_gib = 1024*1024*1024;
+    auto zeroMemory = true;
+
     auto gpu_0 = Affinity::GetDeviceAffinity(0);
 
     // Socket 0 - non-hyperthreads on a DGX-1 or Station
@@ -68,13 +73,13 @@ int main(int argc, char *argv[])
 
     std::shared_ptr<CudaHostAllocator> pinned_0, pinned_1;
 
-    auto future_0 = workers_0->enqueue([&pinned_0]{
-        pinned_0 = CudaHostAllocator::make_shared(1024*1024*1024);
+    auto future_0 = workers_0->enqueue([=, &pinned_0]{
+        pinned_0 = CudaHostAllocator::make_shared(one_gib);
         pinned_0->WriteZeros();
     });
 
-    auto future_1 = workers_1->enqueue([&pinned_1]{
-        pinned_1 = CudaHostAllocator::make_shared(1024*1024*1024);
+    auto future_1 = workers_1->enqueue([=, &pinned_1]{
+        pinned_1 = CudaHostAllocator::make_shared(one_gib);
         pinned_1->WriteZeros();
     });
 
@@ -87,34 +92,32 @@ int main(int argc, char *argv[])
               << pinned_0->Size() << ")";
     future_1.get();
 
-    std::shared_ptr<MemoryStackWithTracking<CudaDeviceAllocator>> gpu_stack_on_socket0;
-    std::shared_ptr<MemoryStackWithTracking<CudaDeviceAllocator>> gpu_stack_on_socket1;
+    std::shared_ptr<MemoryStack<CudaDeviceAllocator>> gpu_stack_on_socket0;
+    std::shared_ptr<MemoryStack<CudaDeviceAllocator>> gpu_stack_on_socket1;
 
-    future_0 = workers_0->enqueue([&gpu_stack_on_socket0]{
+    future_0 = workers_0->enqueue([=, &gpu_stack_on_socket0]{
         CHECK_EQ(cudaSetDevice(0), CUDA_SUCCESS) << "Set Device 0 failed";
-        gpu_stack_on_socket0 = std::make_shared<
-            MemoryStackWithTracking<CudaDeviceAllocator>>(1024*1024*1024);
-        gpu_stack_on_socket0->ResetAllocations(true);
+        gpu_stack_on_socket0 = std::make_shared<MemoryStack<CudaDeviceAllocator>>(one_gib);
+        gpu_stack_on_socket0->Reset(zeroMemory);
     });
 
     future_0.get(); // thread allocating gpu_stack_on_socket0 finished with task
-    
     LOG(INFO) << "Push Binding 0 - 10MB - stack_ptr = " 
         << gpu_stack_on_socket0->Allocate(10*1024*1024);
     LOG(INFO) << "Push Binding 1 - 128MB - stack_ptr = " 
         << gpu_stack_on_socket0->Allocate(128*1024*1024);
-    gpu_stack_on_socket0->ResetAllocations();
+    gpu_stack_on_socket0->Reset();
 
     struct Buffer
     {
         Buffer(
             std::shared_ptr<CudaHostAllocator> pinned_,
-            std::shared_ptr<MemoryStackWithTracking<CudaDeviceAllocator>> gpu_stack_,
+            std::shared_ptr<MemoryStack<CudaDeviceAllocator>> gpu_stack_,
             std::shared_ptr<ThreadPool> workers_
         ) : pinned(pinned_), gpu_stack(gpu_stack_), workers(workers_) {}
 
         std::shared_ptr<CudaHostAllocator> pinned;
-        std::shared_ptr<MemoryStackWithTracking<CudaDeviceAllocator>> gpu_stack;
+        std::shared_ptr<MemoryStack<CudaDeviceAllocator>> gpu_stack;
         std::shared_ptr<ThreadPool> workers;
     };
 
@@ -136,7 +139,7 @@ int main(int argc, char *argv[])
     workers_0.reset();
     workers_1.reset();
 
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::this_thread::sleep_for(std::chrono::seconds(3));
 
     return 0;
 }

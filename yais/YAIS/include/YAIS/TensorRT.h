@@ -346,7 +346,7 @@ class Buffers
      * release the Buffers object back to the pull, the operate on the host memorystack with
      * the inference results.
      */
-    void SwapHostStack(std::unique_ptr<MemoryStackWithTracking<CudaHostAllocator>>);
+    // void SwapHostStack(std::unique_ptr<MemoryStackWithTracking<CudaHostAllocator>>);
 
     /**
      * @brief Resets the Host and Device Stack Pointers to their origins
@@ -436,8 +436,10 @@ class Buffers
     void AsyncD2H(uint32_t, void *, size_t); // binding idx, host dst D2H ptr and custom size
 
   private:
-    std::unique_ptr<MemoryStackWithTracking<CudaHostAllocator>> m_Host;
-    std::unique_ptr<MemoryStackWithTracking<CudaDeviceAllocator>> m_Device;
+    std::shared_ptr<MemoryStack<CudaHostAllocator>> m_HostStack;
+    std::shared_ptr<MemoryStack<CudaDeviceAllocator>> m_DeviceStack;
+    std::shared_ptr<MemoryStackTracker> m_Host;
+    std::shared_ptr<MemoryStackTracker> m_Device;
     cudaStream_t m_Stream;
 };
 
@@ -463,17 +465,8 @@ class ExecutionContext
      * 
      * @param ctx 
      */
-    ExecutionContext(std::shared_ptr<Model> model) : m_Model(model)
-    {
-        m_Context = make_shared(m_Model->m_Engine->createExecutionContext());
-        CHECK_EQ(cudaEventCreateWithFlags(&m_ExecutionContextFinished, cudaEventDisableTiming), CUDA_SUCCESS)
-            << "Failed to Create Execution Context Finished Event";
-    }
-
-    ~ExecutionContext()
-    {
-        CHECK_EQ(cudaEventDestroy(m_ExecutionContextFinished), CUDA_SUCCESS) << "Failed to Destroy Enqueue Event";
-    }
+    ExecutionContext(std::shared_ptr<Model> model);
+    virtual ~ExecutionContext();
 
     /**
      * @brief Enqueue an Inference calculation on a Stream
@@ -486,20 +479,12 @@ class ExecutionContext
      * @param buffers 
      * @param stream 
      */
-    inline void Enqueue(int batch_size, void **buffers, cudaStream_t stream)
-    {
-        // m_Context->setDeviceMemory(device_memory);
-        m_Context->enqueue(batch_size, buffers, stream, nullptr);
-        CHECK_EQ(cudaEventRecord(m_ExecutionContextFinished, stream), CUDA_SUCCESS) << "ExeCtx Event Record Failed";
-    }
+    void Enqueue(int batch_size, void **buffers, cudaStream_t stream);
 
     /**
      * @brief Synchronized on the Completion of the Inference Calculation
      */
-    void Synchronize()
-    {
-        CHECK_EQ(cudaEventSynchronize(m_ExecutionContextFinished), CUDA_SUCCESS) << "ExeCtx Event Sync Failed";
-    }
+    void Synchronize();
 
   private:
     std::shared_ptr<Model> m_Model;

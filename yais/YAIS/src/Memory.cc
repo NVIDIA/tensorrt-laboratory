@@ -26,7 +26,6 @@
  */
 #include "YAIS/Memory.h"
 
-#include <memory>
 #include <cstring>
 
 #include <cuda.h>

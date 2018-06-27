@@ -48,7 +48,7 @@ namespace yais
  * object; however, subsequent specializations like MemoryStacks can use the DefaultAlignment
  * to specialize their function specific to the MemoryType used.
  */
-class Memory
+class IMemory
 {
   public:
     /**
@@ -71,7 +71,17 @@ class Memory
      */
     virtual void WriteZeros() = 0;
 
-    virtual ~Memory() {}
+    /**
+     * @brief Get the default alignment that should be used with this type of memory allocation.
+     * 
+     * @return size_t 
+     */
+    virtual size_t DefaultAlignment() = 0;
+
+    /**
+     * @brief Destroy the Memory object
+     */
+    virtual ~IMemory() {}
 
   protected:
     /**
@@ -85,7 +95,7 @@ class Memory
      *  
      * @param size Size of memory allocation to be performed
      */
-    Memory(size_t size) : m_BytesAllocated(size), m_BasePointer(nullptr) {}
+    IMemory(size_t size) : m_BytesAllocated(size), m_BasePointer(nullptr) {}
 
     void SetBasePointer(void *ptr) { m_BasePointer = ptr; }
 
@@ -100,20 +110,20 @@ class Memory
     void *m_BasePointer;
 };
 
-class HostMemory : public Memory
+class HostMemory : public IMemory
 {
   public:
-    using Memory::Memory;
+    using IMemory::IMemory;
     void WriteZeros() override;
-    static size_t DefaultAlignment();
+    size_t DefaultAlignment() override;
 };
 
-class DeviceMemory : public Memory
+class DeviceMemory : public IMemory
 {
   public:
-    using Memory::Memory;
+    using IMemory::IMemory;
     void WriteZeros() override;
-    static size_t DefaultAlignment();
+    size_t DefaultAlignment() override;
 };
 
 /**

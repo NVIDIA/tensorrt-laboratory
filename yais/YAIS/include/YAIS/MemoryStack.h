@@ -27,11 +27,9 @@
 #ifndef _YAIS_MEMORY_STACK_H_
 #define _YAIS_MEMORY_STACK_H_
 
-#include <memory>
-#include <cstring>
+#include <vector>
 
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include "YAIS/Memory.h"
 #include <glog/logging.h>
 
 namespace yais
@@ -54,12 +52,7 @@ class IMemoryStack
      */
     virtual void *Allocate(size_t size) = 0;
 
-    /**
-     * @brief Reset the memory stack
-     * 
-     * This operation resets the stack pointer to the base pointer of the memory allocation.
-     */
-    virtual void ResetAllocations(bool writeZeros = false) = 0;
+    virtual ~IMemoryStack() {}
 };
 
 /**
@@ -75,17 +68,6 @@ template <class AllocatorType>
 class MemoryStack : public IMemoryStack
 {
   public:
-
-    static std::shared_ptr<MemoryStack<AllocatorType>> make_shared(size_t size, size_t alignment = AllocatorType::DefaultAlignment())
-    {
-        return std::shared_ptr<MemoryStack<AllocatorType>>(new MemoryStack<AllocatorType>(size, alignment));
-    }
-
-    static std::unique_ptr<MemoryStack<AllocatorType>> make_unique(size_t size, size_t alignment = AllocatorType::DefaultAlignment())
-    {
-        return std::unique_ptr<MemoryStack<AllocatorType>>(new MemoryStack<AllocatorType>(size, alignment));
-    }
-
     /**
      * @brief Construct a new MemoryStack object
      * 
@@ -95,11 +77,11 @@ class MemoryStack : public IMemoryStack
      * @param size Size of the memory allocation
      * @param alignment Byte alignment for all pointer pushed on the stack
      */
-    MemoryStack(size_t size, size_t alignment = AllocatorType::DefaultAlignment())
-        : m_Allocator(AllocatorType::make_unique(size)), m_Alignment(alignment), m_CurrentSize(0),
-          m_CurrentPointer(m_Allocator->Data()) {}
+    MemoryStack(size_t size)
+        : m_Allocator(AllocatorType::make_unique(size)), m_Alignment(m_Allocator->DefaultAlignment()), 
+          m_CurrentSize(0), m_CurrentPointer(m_Allocator->Data()) {}
 
-  public:
+    virtual ~MemoryStack() override {}
 
     /**
      * @brief Advances the stack pointer
@@ -110,22 +92,31 @@ class MemoryStack : public IMemoryStack
      * @param size Number of bytes to reserve on the stack
      * @return void* Starting address of the stack reservation
      */
-    void *Allocate(size_t size) override;
+    void *Allocate(size_t size) final override;
 
     /**
      * @brief Reset the memory stack
      * 
      * This operation resets the stack pointer to the base pointer of the memory allocation.
      */
-    void ResetAllocations(bool writeZeros = false) override;
+    void Reset(bool writeZeros = false);
 
     /**
      * @brief Get Size of the Memory Stack
      */
     size_t Size() { return m_Allocator->Size(); }
 
-    // size_t AllocatedBytes();
-    // size_t AvailableBytes();
+    /**
+     * @brief Get number of bytes currently allocated
+     * @return size_t 
+     */
+    size_t Allocated() { return m_CurrentSize; }
+
+    /**
+     * @brief Get the number of free bytes that are not allocated
+     * @return size_t 
+     */
+    size_t Available() { return Size() - Allocated(); }
 
   private:
     std::unique_ptr<AllocatorType> m_Allocator;
@@ -139,7 +130,7 @@ class MemoryStack : public IMemoryStack
 class MemoryStackTracker : public IMemoryStack
 {
   public:
-    MemoryStackTracker(std::shared_ptr<IMemoryStack> stack);
+    explicit MemoryStackTracker(std::shared_ptr<IMemoryStack> stack);
 
     /**
      * @brief Advances the stack pointer
@@ -150,88 +141,7 @@ class MemoryStackTracker : public IMemoryStack
      * @param size Number of bytes to reserve on the stack
      * @return void* Starting address of the stack reservation
      */
-    void *Allocate(size_t size);
-
-    /**
-     * @brief Reset the memory stack
-     * 
-     * This operation resets the stack pointer to the base pointer of the memory allocation.
-     * TODO: Optionally, provide a feature to zero the entire stack on reset.
-     */
-    void ResetAllocations(bool writeZeros = false);
-
-    /**
-     * @brief Get the Pointer to stack resversion `id`
-     * 
-     * @param id 0-indexed ID of stack reservation
-     * @return void* Pointer the id-th stack reservation
-     */
-    void *GetAllocationPointer(uint32_t id);
-
-    /**
-     * @brief Get the Size of stack reservation `id`
-     * 
-     * @param id 0-indexed ID of stack reservation
-     * @return size_t Size of the id-th reservation
-     */
-    size_t GetAllocationSize(uint32_t id);
-
-    /**
-     * @brief Get the number of reservations pushed to the stack.
-     * 
-     * @return size_t 
-     */
-    size_t GetAllocationCount();
-
-    /**
-     * @brief Get a list of all stack pointers
-     * 
-     * @return void** list of void* stack pointers
-     */
-    void **GetPointers();
-
-  private:
-    std::shared_ptr<IMemoryStack> m_Stack;
-    std::vector<size_t> m_StackSize;
-    std::vector<void *> m_StackPointers;
-};
-
-/**
- * @brief Extends the base MemoryStack to provide tracking.
- * 
- * Standard MemoryStack extended to track each allocation pushed to stack.  Details of each
- * allocaton can be looked up by integer index of the allocation.  This object is useful for
- * tracking TensorRT input/output bindings as they are pushed to the stack.  You probably 
- * want to avoid using this object if you plan to push a large number of Allocates to the
- * stack.
- * 
- * @tparam AllocatorType 
- */
-template <class AllocatorType>
-class MemoryStackWithTracking : public MemoryStack<AllocatorType>
-{
-  public:
-    MemoryStackWithTracking(size_t size, size_t alignment = AllocatorType::DefaultAlignment())
-        : MemoryStack<AllocatorType>(size, alignment) {}
-
-    /**
-     * @brief Advances the stack pointer
-     * 
-     * Allocate advances the stack pointer by `size` plus some remainder to ensure subsequent
-     * calles return aligned pointers
-     * 
-     * @param size Number of bytes to reserve on the stack
-     * @return void* Starting address of the stack reservation
-     */
-    void *Allocate(size_t size);
-
-    /**
-     * @brief Reset the memory stack
-     * 
-     * This operation resets the stack pointer to the base pointer of the memory allocation.
-     * TODO: Optionally, provide a feature to zero the entire stack on reset.
-     */
-    void ResetAllocations(bool writeZeros = false);
+    void *Allocate(size_t size) final override;
 
     /**
      * @brief Get the Pointer to stack resversion `id`
@@ -240,13 +150,6 @@ class MemoryStackWithTracking : public MemoryStack<AllocatorType>
      * @return void* Pointer the id-th stack reservation
      */
     void *GetPointer(uint32_t id);
-
-    /**
-     * @brief Get a list of all stack pointers
-     * 
-     * @return void** list of void* stack pointers
-     */
-    void **GetPointers();
 
     /**
      * @brief Get the Size of stack reservation `id`
@@ -261,16 +164,23 @@ class MemoryStackWithTracking : public MemoryStack<AllocatorType>
      * 
      * @return size_t 
      */
-    size_t GetCount();
+    size_t Count();
+
+    /**
+     * @brief Get a list of all stack pointers
+     * 
+     * @return void** list of void* stack pointers
+     */
+    void **GetPointers();
 
   private:
+    std::shared_ptr<IMemoryStack> m_Stack;
     std::vector<size_t> m_StackSize;
     std::vector<void *> m_StackPointers;
 };
 
-//
 // Template Implementations
-//
+
 
 template <class AllocatorType>
 void *MemoryStack<AllocatorType>::Allocate(size_t size)
@@ -289,15 +199,7 @@ void *MemoryStack<AllocatorType>::Allocate(size_t size)
 }
 
 template <class AllocatorType>
-void *MemoryStackWithTracking<AllocatorType>::Allocate(size_t size)
-{
-    m_StackSize.push_back(size);
-    m_StackPointers.push_back(MemoryStack<AllocatorType>::Allocate(size));
-    return m_StackPointers.back();
-}
-
-template <class AllocatorType>
-void MemoryStack<AllocatorType>::ResetAllocations(bool writeZeros)
+void MemoryStack<AllocatorType>::Reset(bool writeZeros)
 {
     m_CurrentPointer = m_Allocator->Data();
     m_CurrentSize = 0;
@@ -307,39 +209,6 @@ void MemoryStack<AllocatorType>::ResetAllocations(bool writeZeros)
     }
 }
 
-template <class AllocatorType>
-void MemoryStackWithTracking<AllocatorType>::ResetAllocations(bool writeZeros)
-{
-    MemoryStack<AllocatorType>::ResetAllocations(writeZeros);
-    m_StackSize.clear();
-    m_StackPointers.clear();
-}
-
-template <class AllocatorType>
-void *MemoryStackWithTracking<AllocatorType>::GetPointer(uint32_t id)
-{
-    CHECK_LT(id, m_StackPointers.size()) << "Invalid Stack Pointer ID";
-    return m_StackPointers[id];
-}
-
-template <class AllocatorType>
-size_t MemoryStackWithTracking<AllocatorType>::GetSize(uint32_t id)
-{
-    CHECK_LT(id, m_StackSize.size()) << "Invalid Stack Pointer ID";
-    return m_StackSize[id];
-}
-
-template <class AllocatorType>
-void **MemoryStackWithTracking<AllocatorType>::GetPointers()
-{
-    return (void **)m_StackPointers.data();
-}
-
-template <class AllocatorType>
-size_t MemoryStackWithTracking<AllocatorType>::GetCount()
-{
-    return m_StackPointers.size();
-}
 
 } // end namespace yais
 

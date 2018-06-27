@@ -28,6 +28,7 @@ add_library(yais
   src/Affinity.cc
   src/Executor.cc
   src/Memory.cc
+  src/MemoryStack.cc
   src/Server.cc
   src/TensorRT.cc
   src/ThreadPool.cc

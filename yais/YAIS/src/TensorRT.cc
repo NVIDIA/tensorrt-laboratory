@@ -28,6 +28,10 @@
 
 #include <fstream>
 
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <glog/logging.h>
+
 namespace yais
 {
 namespace TensorRT
@@ -233,8 +237,10 @@ size_t Model::GetMaxBufferSize()
 }
 
 Buffers::Buffers(size_t host_size, size_t device_size)
-    : m_Host(std::make_unique<MemoryStackWithTracking<CudaHostAllocator>>(host_size)),
-      m_Device(std::make_unique<MemoryStackWithTracking<CudaDeviceAllocator>>(device_size))
+    : m_HostStack(std::make_shared<MemoryStack<CudaHostAllocator>>(host_size)),
+      m_DeviceStack(std::make_shared<MemoryStack<CudaDeviceAllocator>>(device_size)),
+      m_Host(new MemoryStackTracker(m_HostStack)),
+      m_Device(new MemoryStackTracker(m_DeviceStack))
 {
     //CHECK(cudaStreamCreateWithFlags(&m_Stream, cudaStreamNonBlocking) == cudaSuccess); <-- breaks
     CHECK_EQ(cudaStreamCreate(&m_Stream), cudaSuccess) << "Failed to create cudaStream";
@@ -257,6 +263,7 @@ void Buffers::Configure(const Model *model, uint32_t batch_size)
     }
 }
 
+/*
 void Buffers::SwapHostStack(std::unique_ptr<MemoryStackWithTracking<CudaHostAllocator>> other)
 {
     if (m_Host->Size() == other->Size())
@@ -269,11 +276,14 @@ void Buffers::SwapHostStack(std::unique_ptr<MemoryStackWithTracking<CudaHostAllo
         throw std::runtime_error("Invalid CudaHost MemoryStack swap");
     }
 }
+*/
 
 void Buffers::Reset(bool writeZeros)
 {
-    m_Host->ResetAllocations();
-    m_Device->ResetAllocations();
+    m_HostStack->Reset(writeZeros);
+    m_DeviceStack->Reset(writeZeros);
+    m_Host.reset(new MemoryStackTracker(m_HostStack));
+    m_Device.reset(new MemoryStackTracker(m_DeviceStack));
 }
 
 void Buffers::SynchronizeStream()
@@ -312,6 +322,35 @@ void Buffers::AsyncD2H(uint32_t device_binding_id, void *dst, size_t bytes)
         << "AsyncD2H for Binding " << device_binding_id << " failed - (dst, src, bytes) = "
         << "(" << dst << ", " << src << ", " << bytes << ")";
 }
+
+// ExecutionContext
+
+ExecutionContext::ExecutionContext(std::shared_ptr<Model> model)
+    : m_Model(model)
+{
+    m_Context = make_shared(m_Model->m_Engine->createExecutionContext());
+    CHECK_EQ(cudaEventCreateWithFlags(&m_ExecutionContextFinished, cudaEventDisableTiming), CUDA_SUCCESS)
+        << "Failed to Create Execution Context Finished Event";
+}
+
+ExecutionContext::~ExecutionContext()
+{
+    CHECK_EQ(cudaEventDestroy(m_ExecutionContextFinished), CUDA_SUCCESS) << "Failed to Destroy Enqueue Event";
+}
+
+void ExecutionContext::Enqueue(int batch_size, void **buffers, cudaStream_t stream)
+{
+    // m_Context->setDeviceMemory(device_memory);
+    m_Context->enqueue(batch_size, buffers, stream, nullptr);
+    CHECK_EQ(cudaEventRecord(m_ExecutionContextFinished, stream), CUDA_SUCCESS) << "ExeCtx Event Record Failed";
+}
+
+void ExecutionContext::Synchronize()
+{
+    CHECK_EQ(cudaEventSynchronize(m_ExecutionContextFinished), CUDA_SUCCESS) << "ExeCtx Event Sync Failed";
+}
+
+// Resources
 
 Resources::Resources(std::shared_ptr<Model> model, int nBuffers, int nExecs)
     : m_Model(model),

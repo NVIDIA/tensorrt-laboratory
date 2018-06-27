@@ -104,15 +104,15 @@ int main(int argc, char *argv[])
 
     // auto host = yais::MemoryStack<HostAllocator>(1024); */
     LOG(INFO) << "hi";
-    auto host = yais::MemoryStack<CudaHostAllocator>::make_shared(6946048);
-    auto h2   = yais::MemoryStack<CudaHostAllocator>(6946048);
-    auto dev  = yais::MemoryStack<CudaDeviceAllocator>::make_shared(6946048);
-    auto dev2 = yais::MemoryStack<CudaDeviceAllocator>::make_unique(6946048);
+    auto host = std::make_unique<yais::MemoryStack<CudaHostAllocator>>(10000);
+    auto dev  = std::make_unique<yais::MemoryStack<CudaDeviceAllocator>>(10000);
+    auto h2   = std::make_shared<yais::MemoryStack<CudaHostAllocator>>(20000);
+    auto d2   = std::make_shared<yais::MemoryStack<CudaDeviceAllocator>>(20000);
 
-    auto h1 = CudaHostAllocator::make_shared(6946048);
-    auto d1 = CudaDeviceAllocator::make_shared(6946048);
-    auto d2 = CudaDeviceAllocator::make_shared(6946048);
-    auto d3 = CudaDeviceAllocator::make_unique(6946048);
+    auto h3 = CudaHostAllocator::make_shared(30000);
+    auto d4 = CudaDeviceAllocator::make_shared(30000);
+    auto d5 = CudaDeviceAllocator::make_shared(30000);
+    auto d6 = CudaDeviceAllocator::make_unique(30000);
 
     // C++17 should return a reference to the inserted by emplace_back
     // prior to 17, emplace_back return void
