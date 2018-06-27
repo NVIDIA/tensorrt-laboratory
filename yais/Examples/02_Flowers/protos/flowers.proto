@@ -1,0 +1,82 @@
+/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+syntax = "proto3";
+
+package ssd;
+
+service Inference {
+   rpc Compute (BatchInput) returns (BatchPredictions) {}
+}
+
+message BatchInput {
+    uint32 engine_id = 1;
+    uint64 batch_id = 2;
+    uint32 batch_size = 3;
+
+    uint32 int_offset = 4;
+    uint64 sysv_offset = 5;
+}
+
+message BatchPredictions {
+    repeated Element elements = 1;
+    uint64 batch_id = 2;
+    float compute_time = 3;
+    float total_time = 4;
+    repeated Timer timers = 5;
+}
+
+message Element {
+    repeated Prediction predictions = 2;
+}
+
+message Bbox {
+    float x = 1;  // upper left
+    float y = 2;  // upper left
+    float width = 3;
+    float height = 4;
+    uint32 class_id = 5;
+}
+
+message Prediction {
+    uint32 class_id = 1;
+    string class_str = 2;
+    float score = 3;
+    Bbox bbox = 4;
+}
+
+message Timer {
+    string name = 1;
+    float time = 2;
+    enum TimerUnit {
+        SECONDS = 0;
+        MILLI = 1;
+        MICRO = 2;
+        NANO = 3;
+    }
+    TimerUnit unit = 3;
+}

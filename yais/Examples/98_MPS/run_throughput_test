@@ -1,0 +1,69 @@
+#!/bin/bash -e
+#
+# Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#  * Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#  * Neither the name of NVIDIA CORPORATION nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+# OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+cleanup() {
+  kill $(jobs -p) ||:
+  echo quit | nvidia-cuda-mps-control > /dev/null 2>&1 ||:
+}
+trap "cleanup" EXIT SIGINT SIGTERM
+
+NCTX=${1:-1}
+BS=${2:-1}
+ENG=${3:-/work/models/ResNet-50-b2-int8.engine}
+MPS=${4:-"MPS"}
+
+if [ ! -e $ENG ]; then
+    echo "$ENG not found"
+    exit 911
+fi
+
+if [ "$MPS" = "MPS" ]; then
+  nvidia-cuda-mps-control -d ||:
+fi
+
+sleep 1
+
+echo "starting $NCTX inference services"
+for i in $(seq 1 $NCTX);
+do
+  port=$(echo "50050 + $i" | bc)
+  /work/build/yais/Examples/02_Flowers/flowers-server.x --port $port --engine=${ENG} > /dev/null 2>&1 &
+  wait-for-it.sh localhost:$port --timeout=0 -- echo "Server ${i} is ready." > /dev/null 2>&1
+done
+
+echo "starting load balancer"
+../99_LoadBalancer/run_loadbalancer.py -n $NCTX 
+# envoy -c /tmp/lb-envoy.yaml --disable-hot-restart > /dev/null 2>&1 &
+envoy -c /tmp/lb-envoy.yaml > /dev/null 2>&1 &
+wait-for-it.sh localhost:50050 --timeout=0 -- echo "Load balancer is ready." > /dev/null 2>&1
+
+echo "running test client"
+/work/build/yais/Examples/02_Flowers/flowers-async-client.x --count=1000 --port=50050
+
+bash --rcfile <(echo "PS1='Throughput Subshell: '")
+
