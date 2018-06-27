@@ -32,6 +32,7 @@
 #include "glog/logging.h"
 
 #include "YAIS/Memory.h"
+#include "YAIS/MemoryStack.h"
 #include "YAIS/Affinity.h"
 
 using yais::Affinity;
@@ -103,9 +104,10 @@ int main(int argc, char *argv[])
 
     // auto host = yais::MemoryStack<HostAllocator>(1024); */
     LOG(INFO) << "hi";
-    auto host = yais::MemoryStack<CudaHostAllocator>(6946048);
-    auto dev = yais::MemoryStack<CudaDeviceAllocator>(6946048);
-    auto dev2 = yais::MemoryStack<CudaDeviceAllocator>(6946048);
+    auto host = yais::MemoryStack<CudaHostAllocator>::make_shared(6946048);
+    auto h2   = yais::MemoryStack<CudaHostAllocator>(6946048);
+    auto dev  = yais::MemoryStack<CudaDeviceAllocator>::make_shared(6946048);
+    auto dev2 = yais::MemoryStack<CudaDeviceAllocator>::make_unique(6946048);
 
     auto h1 = CudaHostAllocator::make_shared(6946048);
     auto d1 = CudaDeviceAllocator::make_shared(6946048);

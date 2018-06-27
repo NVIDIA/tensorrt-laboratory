@@ -27,6 +27,7 @@
 #include "YAIS/Affinity.h"
 #include "YAIS/ThreadPool.h"
 #include "YAIS/Memory.h"
+#include "YAIS/MemoryStack.h"
 #include "YAIS/Pool.h"
 
 #include "glog/logging.h"

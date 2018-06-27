@@ -30,6 +30,7 @@
 
 #include "YAIS/Context.h"
 #include "YAIS/Memory.h"
+#include "YAIS/MemoryStack.h"
 #include "YAIS/Pool.h"
 
 #include "NvInfer.h"
@@ -248,7 +249,7 @@ class Model
      * 
      * @return auto 
      */
-    auto GetInputBindingIds() const { return m_InputBindings; }
+    const auto GetInputBindingIds() const { return m_InputBindings; }
 
     /**
      * @brief Get the number of output Bindings

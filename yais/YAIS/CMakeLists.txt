@@ -24,18 +24,15 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Define library. Only source files here!
-project(YetAnotherInferenceServiceSDK VERSION 0.1 LANGUAGES CXX)
-
-#add_subdirectory(protos)
-
 add_library(yais
   src/Affinity.cc
   src/Executor.cc
+  src/Memory.cc
   src/Server.cc
   src/TensorRT.cc
   src/ThreadPool.cc
 )
+
 # Define headers for this library. PUBLIC headers are used for
 # compiling the library, and will be added to consumers' build
 # paths.
