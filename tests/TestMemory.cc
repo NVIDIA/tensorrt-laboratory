@@ -2,6 +2,8 @@
 #include "YAIS/Memory.h"
 #include "gtest/gtest.h"
 
+#include <list>
+
 using namespace yais;
 
 namespace
@@ -9,70 +11,32 @@ namespace
 
 static size_t one_mb = 1024*1024;
 
-TEST(Memory, CudaMalloc)
+template <typename T>
+class TestMemory : public ::testing::Test
 {
-    auto shared = CudaDeviceAllocator::make_shared(one_mb);
+  public:
+    typedef std::list<T> List;
+};
+
+using AllocatorTypes = ::testing::Types<
+    CudaDeviceAllocator, CudaManagedAllocator, CudaHostAllocator, SystemMallocAllocator>;
+
+TYPED_TEST_CASE(TestMemory, AllocatorTypes);
+
+TYPED_TEST(TestMemory, make_shared)
+{
+    auto shared = TypeParam::make_shared(one_mb);
     EXPECT_TRUE(shared->Data());
     EXPECT_EQ(one_mb, shared->Size());
-    EXPECT_EQ(256, shared->DefaultAlignment());
     shared.reset();
     EXPECT_FALSE(shared);
-
-    auto unique = CudaDeviceAllocator::make_unique(one_mb);
-    EXPECT_TRUE(unique->Data());
-    EXPECT_EQ(one_mb, unique->Size());
-    EXPECT_EQ(256, unique->DefaultAlignment());
-    unique.reset();
-    EXPECT_FALSE(unique);
 }
 
-TEST(Memory, CudaHostMallocManaged)
+TYPED_TEST(TestMemory, make_unique)
 {
-    auto shared = CudaManagedAllocator::make_shared(one_mb);
-    EXPECT_TRUE(shared->Data());
-    EXPECT_EQ(one_mb, shared->Size());
-    EXPECT_EQ(256, shared->DefaultAlignment());
-    shared.reset();
-    EXPECT_FALSE(shared);
-
-    auto unique = CudaManagedAllocator::make_unique(one_mb);
+    auto unique = TypeParam::make_unique(one_mb);
     EXPECT_TRUE(unique->Data());
     EXPECT_EQ(one_mb, unique->Size());
-    EXPECT_EQ(256, unique->DefaultAlignment());
-    unique.reset();
-    EXPECT_FALSE(unique);
-}
-
-TEST(Memory, CudaHostMalloc)
-{
-    auto shared = CudaHostAllocator::make_shared(one_mb);
-    EXPECT_TRUE(shared->Data());
-    EXPECT_EQ(one_mb, shared->Size());
-    EXPECT_EQ(64, shared->DefaultAlignment());
-    shared.reset();
-    EXPECT_FALSE(shared);
-
-    auto unique = CudaHostAllocator::make_unique(one_mb);
-    EXPECT_TRUE(unique->Data());
-    EXPECT_EQ(one_mb, unique->Size());
-    EXPECT_EQ(64, unique->DefaultAlignment());
-    unique.reset();
-    EXPECT_FALSE(unique);
-}
-
-TEST(Memory, SystemMalloc)
-{
-    auto shared = SystemMallocAllocator::make_shared(one_mb);
-    EXPECT_TRUE(shared->Data());
-    EXPECT_EQ(one_mb, shared->Size());
-    EXPECT_EQ(64, shared->DefaultAlignment());
-    shared.reset();
-    EXPECT_FALSE(shared);
-
-    auto unique = SystemMallocAllocator::make_unique(one_mb);
-    EXPECT_TRUE(unique->Data());
-    EXPECT_EQ(one_mb, unique->Size());
-    EXPECT_EQ(64, unique->DefaultAlignment());
     unique.reset();
     EXPECT_FALSE(unique);
 }

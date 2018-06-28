@@ -119,6 +119,11 @@ class MemoryStack : public IMemoryStack
      */
     size_t Available() { return Size() - Allocated(); }
 
+    /**
+     * @brief Byte alignment for stack allocations
+     */
+    size_t Alignment() { return m_Alignment; }
+
   private:
     std::unique_ptr<AllocatorType> m_Allocator;
     size_t m_Alignment;
@@ -151,7 +156,7 @@ class MemoryStackTracker : public IMemoryStack
      * @param id 0-indexed ID of stack reservation
      * @return void* Pointer the id-th stack reservation
      */
-    void *GetPointer(uint32_t id);
+    void *GetPointer(uint32_t id) const;
 
     /**
      * @brief Get the Size of stack reservation `id`
@@ -159,21 +164,21 @@ class MemoryStackTracker : public IMemoryStack
      * @param id 0-indexed ID of stack reservation
      * @return size_t Size of the id-th reservation
      */
-    size_t GetSize(uint32_t id);
+    size_t GetSize(uint32_t id) const;
 
     /**
      * @brief Get the number of reservations pushed to the stack.
      * 
      * @return size_t 
      */
-    size_t Count();
+    size_t Count() const;
 
     /**
      * @brief Get a list of all stack pointers
      * 
      * @return void** list of void* stack pointers
      */
-    void **GetPointers();
+    void **GetPointers() const;
 
   private:
     std::shared_ptr<IMemoryStack> m_Stack;

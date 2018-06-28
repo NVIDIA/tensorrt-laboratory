@@ -101,27 +101,27 @@ MemoryStackTracker::Allocate(size_t size)
 }
 
 void *
-MemoryStackTracker::GetPointer(uint32_t id)
+MemoryStackTracker::GetPointer(uint32_t id) const
 {
     CHECK_LT(id, m_StackPointers.size()) << "Invalid Stack Pointer ID";
     return m_StackPointers[id];
 }
 
 size_t
-MemoryStackTracker::GetSize(uint32_t id)
+MemoryStackTracker::GetSize(uint32_t id) const
 {
     CHECK_LT(id, m_StackSize.size()) << "Invalid Stack Pointer ID";
     return m_StackSize[id];
 }
 
 size_t
-MemoryStackTracker::Count()
+MemoryStackTracker::Count() const
 {
     return m_StackSize.size();
 }
 
 void **
-MemoryStackTracker::GetPointers()
+MemoryStackTracker::GetPointers() const
 {
     return (void **)m_StackPointers.data();
 }
