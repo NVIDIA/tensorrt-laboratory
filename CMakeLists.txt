@@ -49,3 +49,9 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Targets
 add_subdirectory(yais)
+
+find_package(GTest)
+if(GTEST_FOUND)
+enable_testing()
+add_subdirectory(tests)
+endif(GTEST_FOUND)
