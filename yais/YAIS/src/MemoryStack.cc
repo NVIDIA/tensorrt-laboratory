@@ -107,7 +107,7 @@ MemoryStackTracker::GetPointer(uint32_t id)
     return m_StackPointers[id];
 }
 
-size_t 
+size_t
 MemoryStackTracker::GetSize(uint32_t id)
 {
     CHECK_LT(id, m_StackSize.size()) << "Invalid Stack Pointer ID";

@@ -26,6 +26,7 @@
  */
 #include "YAIS/TensorRT.h"
 
+#include <algorithm>
 #include <fstream>
 
 #include <cuda.h>
@@ -128,7 +129,7 @@ std::shared_ptr<Model> ManagedRuntime::DeserializeEngine(std::string plan_file)
         {
             cudaMemAdvise(ptr.addr, ptr.size, cudaMemAdviseSetReadMostly, 0);
             model->AddWeights(ptr.addr, ptr.size);
-            LOG(INFO) << "addr=" << ptr.addr;
+            DLOG(INFO) << "cudaMallocManaged allocation for TensorRT weights: " << ptr.addr;
         }
         return model;
     });
@@ -225,7 +226,7 @@ void Model::PrefetchWeights(cudaStream_t stream) const
     }
 }
 
-size_t Model::GetMaxBufferSize()
+const size_t Model::GetMaxBufferSize() const
 {
     size_t bytes = 0;
     for (auto &binding : m_Bindings)
@@ -237,8 +238,8 @@ size_t Model::GetMaxBufferSize()
 }
 
 Buffers::Buffers(size_t host_size, size_t device_size)
-    : m_HostStack(std::make_shared<MemoryStack<CudaHostAllocator>>(host_size)),
-      m_DeviceStack(std::make_shared<MemoryStack<CudaDeviceAllocator>>(device_size)),
+    : m_HostStack(MemoryStack<CudaHostAllocator>::make_shared(host_size)),
+      m_DeviceStack(MemoryStack<CudaDeviceAllocator>::make_shared(device_size)),
       m_Host(new MemoryStackTracker(m_HostStack)),
       m_Device(new MemoryStackTracker(m_DeviceStack))
 {
@@ -280,10 +281,10 @@ void Buffers::SwapHostStack(std::unique_ptr<MemoryStackWithTracking<CudaHostAllo
 
 void Buffers::Reset(bool writeZeros)
 {
-    m_HostStack->Reset(writeZeros);
-    m_DeviceStack->Reset(writeZeros);
     m_Host.reset(new MemoryStackTracker(m_HostStack));
     m_Device.reset(new MemoryStackTracker(m_DeviceStack));
+    m_HostStack->Reset(writeZeros);
+    m_DeviceStack->Reset(writeZeros);
 }
 
 void Buffers::SynchronizeStream()
@@ -383,6 +384,27 @@ Resources::~Resources()
     // Order is important
     m_Buffers.reset();
     m_ExecutionContexts.reset();
+}
+
+// ResourceBuilder
+
+void ResourceBuilder::RegisterModel(std::string name, const Model *model)
+{
+    size_t bindings = model->GetMaxBufferSize() + model->GetBindingsCount() * 256;
+    size_t activations = model->GetDeviceMemorySize() + 128 * 1024; // add a cacheline
+
+    size_t host = Align(bindings, 32 * 1024);
+    size_t device = Align(bindings + activations, 128 * 1024);
+
+    m_MaxHostStack = std::max(m_MaxHostStack, host);
+    m_MaxDeviceStack = std::max(m_MaxDeviceStack, device);
+}
+
+size_t ResourceBuilder::Align(size_t size, size_t alignment)
+{
+    size_t remainder = size % alignment;
+    size = (remainder == 0) ? size : size + alignment - remainder;
+    return size;
 }
 
 } // end namespace TensorRT

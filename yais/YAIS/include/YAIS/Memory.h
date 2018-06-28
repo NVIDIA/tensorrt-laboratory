@@ -50,41 +50,41 @@ namespace yais
  */
 class IMemory
 {
-  public:
-    /**
+public:
+  /**
      * @brief Get the Address to the Memory Allocation
      * @return void* 
      */
-    inline void *Data() { return m_BasePointer; }
+  inline void *Data() { return m_BasePointer; }
 
-    /**
+  /**
      * @brief Get the Size of the Memory Allocation
      * @return size_t 
      */
-    size_t Size() { return m_BytesAllocated; }
+  size_t Size() { return m_BytesAllocated; }
 
-    /**
+  /**
      * @brief Write Zeros to Memory Allocation
      * 
      * Pure virtual function that is overrided to provide the details on how to write
      * zeros to all elements in the memory segment.
      */
-    virtual void WriteZeros() = 0;
+  virtual void WriteZeros() = 0;
 
-    /**
+  /**
      * @brief Get the default alignment that should be used with this type of memory allocation.
      * 
      * @return size_t 
      */
-    virtual size_t DefaultAlignment() = 0;
+  virtual size_t DefaultAlignment() = 0;
 
-    /**
+  /**
      * @brief Destroy the Memory object
      */
-    virtual ~IMemory() {}
+  virtual ~IMemory() {}
 
-  protected:
-    /**
+protected:
+  /**
      * @brief Construct a new Memory object
      *
      * The constructor of derived classes are responsible for performing the memory allocation and
@@ -95,35 +95,35 @@ class IMemory
      *  
      * @param size Size of memory allocation to be performed
      */
-    IMemory(size_t size) : m_BytesAllocated(size), m_BasePointer(nullptr) {}
+  IMemory(size_t size) : m_BytesAllocated(size), m_BasePointer(nullptr) {}
 
-    void SetBasePointer(void *ptr) { m_BasePointer = ptr; }
+  void SetBasePointer(void *ptr) { m_BasePointer = ptr; }
 
-    /**
+  /**
      * @brief Size of Memory allocation in bytes
      */
-    size_t m_BytesAllocated;
+  size_t m_BytesAllocated;
 
-    /**
+  /**
      * @brief Pointer to starting address of the memory allocation
      */
-    void *m_BasePointer;
+  void *m_BasePointer;
 };
 
 class HostMemory : public IMemory
 {
-  public:
-    using IMemory::IMemory;
-    void WriteZeros() override;
-    size_t DefaultAlignment() override;
+public:
+  using IMemory::IMemory;
+  void WriteZeros() override;
+  size_t DefaultAlignment() override;
 };
 
 class DeviceMemory : public IMemory
 {
-  public:
-    using IMemory::IMemory;
-    void WriteZeros() override;
-    size_t DefaultAlignment() override;
+public:
+  using IMemory::IMemory;
+  void WriteZeros() override;
+  size_t DefaultAlignment() override;
 };
 
 /**
@@ -133,9 +133,9 @@ class DeviceMemory : public IMemory
  */
 class CudaManagedMemory : public DeviceMemory
 {
-  protected:
-    CudaManagedMemory(size_t size);
-    virtual ~CudaManagedMemory() override;
+protected:
+  CudaManagedMemory(size_t size);
+  virtual ~CudaManagedMemory() override;
 };
 
 /**
@@ -145,9 +145,9 @@ class CudaManagedMemory : public DeviceMemory
  */
 class CudaDeviceMemory : public DeviceMemory
 {
-  protected:
-    CudaDeviceMemory(size_t size);
-    virtual ~CudaDeviceMemory() override;
+protected:
+  CudaDeviceMemory(size_t size);
+  virtual ~CudaDeviceMemory() override;
 };
 
 /**
@@ -158,20 +158,19 @@ class CudaDeviceMemory : public DeviceMemory
  */
 class CudaHostMemory : public HostMemory
 {
-  protected:
-    CudaHostMemory(size_t size);
-    virtual ~CudaHostMemory() override;
+protected:
+  CudaHostMemory(size_t size);
+  virtual ~CudaHostMemory() override;
 };
-
 
 /**
  * @brief Allocates Memory using the System's malloc
  */
 class SystemMallocMemory : public HostMemory
 {
-  protected:
-    SystemMallocMemory(size_t size);
-    virtual ~SystemMallocMemory() override;
+protected:
+  SystemMallocMemory(size_t size);
+  virtual ~SystemMallocMemory() override;
 };
 
 /**
@@ -185,32 +184,32 @@ class SystemMallocMemory : public HostMemory
 template <class MemoryType>
 class Allocator final : public MemoryType
 {
-  protected:
-    // Inherit Constructors from Base Class
-    using MemoryType::MemoryType;
+protected:
+  // Inherit Constructors from Base Class
+  using MemoryType::MemoryType;
 
-  public:
-    /**
+public:
+  /**
      * @brief Create a shared_ptr to an Allocator of MemoryType
      * 
      * @param size Size in bytes to be allocated
      * @return std::shared_ptr<Allocator> 
      */
-    static std::shared_ptr<Allocator> make_shared(size_t size)
-    {
-        return std::shared_ptr<Allocator>(new Allocator(size));
-    }
+  static std::shared_ptr<Allocator> make_shared(size_t size)
+  {
+    return std::shared_ptr<Allocator>(new Allocator(size));
+  }
 
-    /**
+  /**
      * @brief Create a unique_ptr to an Allocator of MemoryType
      * 
      * @param size Size in bytes to be allocated
      * @return unique_ptr 
      */
-    static std::unique_ptr<Allocator> make_unique(size_t size)
-    {
-        return std::unique_ptr<Allocator>(new Allocator(size));
-    }
+  static std::unique_ptr<Allocator> make_unique(size_t size)
+  {
+    return std::unique_ptr<Allocator>(new Allocator(size));
+  }
 };
 
 /**

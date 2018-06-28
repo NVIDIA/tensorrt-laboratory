@@ -35,24 +35,11 @@
 namespace yais
 {
 
-/**
- * @brief Interface Class for MemoryStack
- */
 class IMemoryStack
 {
   public:
-    /**
-     * @brief Advances the stack pointer
-     * 
-     * Allocate advances the stack pointer by `size` plus some remainder to ensure subsequent
-     * calles return aligned pointers
-     * 
-     * @param size Number of bytes to reserve on the stack
-     * @return void* Starting address of the stack reservation
-     */
-    virtual void *Allocate(size_t size) = 0;
-
     virtual ~IMemoryStack() {}
+    virtual void *Allocate(size_t) = 0;
 };
 
 /**
@@ -67,7 +54,7 @@ class IMemoryStack
 template <class AllocatorType>
 class MemoryStack : public IMemoryStack
 {
-  public:
+  protected:
     /**
      * @brief Construct a new MemoryStack object
      * 
@@ -78,10 +65,24 @@ class MemoryStack : public IMemoryStack
      * @param alignment Byte alignment for all pointer pushed on the stack
      */
     MemoryStack(size_t size)
-        : m_Allocator(AllocatorType::make_unique(size)), m_Alignment(m_Allocator->DefaultAlignment()), 
+        : m_Allocator(AllocatorType::make_unique(size)), m_Alignment(m_Allocator->DefaultAlignment()),
           m_CurrentSize(0), m_CurrentPointer(m_Allocator->Data()) {}
 
+  public:
     virtual ~MemoryStack() override {}
+
+    using shared_ptr = std::shared_ptr<MemoryStack<AllocatorType>>;
+
+    /**
+     * @brief Factory function to create a std::shared_ptr<MemoryStack<AllocatorType>>
+     * 
+     * @param size 
+     * @return shared_ptr 
+     */
+    static shared_ptr make_shared(size_t size)
+    {
+        return shared_ptr(new MemoryStack<AllocatorType>(size));
+    }
 
     /**
      * @brief Advances the stack pointer
@@ -131,6 +132,7 @@ class MemoryStackTracker : public IMemoryStack
 {
   public:
     explicit MemoryStackTracker(std::shared_ptr<IMemoryStack> stack);
+    ~MemoryStackTracker() override {}
 
     /**
      * @brief Advances the stack pointer
@@ -181,7 +183,6 @@ class MemoryStackTracker : public IMemoryStack
 
 // Template Implementations
 
-
 template <class AllocatorType>
 void *MemoryStack<AllocatorType>::Allocate(size_t size)
 {
@@ -208,7 +209,6 @@ void MemoryStack<AllocatorType>::Reset(bool writeZeros)
         m_Allocator->WriteZeros();
     }
 }
-
 
 } // end namespace yais
 

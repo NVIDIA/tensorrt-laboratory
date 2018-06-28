@@ -265,8 +265,7 @@ class Model
      */
     auto GetOutputBindingIds() const { return m_OutputBindings; }
 
-    size_t GetMaxBufferSize();
-    size_t GetMaxWorkspaceSize();
+    const size_t GetMaxBufferSize() const;
 
     struct Binding
     {
@@ -573,6 +572,21 @@ class Resources : public ::yais::Resources
     std::shared_ptr<Model> m_Model;
     std::shared_ptr<Pool<Buffers>> m_Buffers;
     std::shared_ptr<Pool<ExecutionContext>> m_ExecutionContexts;
+};
+
+class ResourceBuilder
+{
+    void RegisterModel(std::string name, const Model *model);
+
+  private:
+    size_t Align(size_t size, size_t alignment);
+
+    size_t m_MaxHostStack;
+    size_t m_MaxDeviceStack;
+};
+
+class ComputeContext
+{
 };
 
 } // end namespace TensorRT

@@ -36,8 +36,8 @@
 #include "YAIS/Affinity.h"
 
 using yais::Affinity;
-using yais::CudaHostAllocator;
 using yais::CudaDeviceAllocator;
+using yais::CudaHostAllocator;
 
 struct Object
 {
@@ -69,12 +69,11 @@ int main(int argc, char *argv[])
     auto socket_0_no_hyperthreads = Affinity::GetAffinity().Intersection(
         Affinity::GetCpusBySocket(0).Intersection(
             Affinity::GetCpusByProcessingUnit(0).Intersection(
-                Affinity::GetCpusFromString("2,4-6")
-        )));
+                Affinity::GetCpusFromString("2,4-6"))));
 
     LOG(INFO) << socket_0_no_hyperthreads;
 
-/*
+    /*
     auto affinity = Affinity()::Create();
     auto socket0 = affinity->Split(affinity->GetSocket(0));
     auto socket1 = affinity->Split(affinity->GetSocket(1));
@@ -85,12 +84,12 @@ int main(int argc, char *argv[])
     auto tp0 = std::make_unique<ThreadPool>(socket0.GetAvailable(), socket0.GetExclusiveAllocator());
     auto tp1 = std::make_unique<ThreadPool>(socket1.GetAvailable()*4, socket1.GetSharedAllocator());
 */
-//  auto gpu_sptr = HostAllocator::make_shared(1024*1024*10);
-//  LOG(INFO) << "shared " << gpu_sptr->GetSize();
-//  auto gpu_uptr = HostAllocator::make_unique(1024*1024*10);
-//  LOG(INFO) << "unique " << gpu_uptr->GetSize();
+    //  auto gpu_sptr = HostAllocator::make_shared(1024*1024*10);
+    //  LOG(INFO) << "shared " << gpu_sptr->GetSize();
+    //  auto gpu_uptr = HostAllocator::make_unique(1024*1024*10);
+    //  LOG(INFO) << "unique " << gpu_uptr->GetSize();
 
-/*
+    /*
     LOG(INFO) << "creating host mem stack";
     auto stack = yais::MemoryStack<HostAllocator>(1024*1024*10);
     LOG(INFO) << "host mem stack initialized";
@@ -104,10 +103,10 @@ int main(int argc, char *argv[])
 
     // auto host = yais::MemoryStack<HostAllocator>(1024); */
     LOG(INFO) << "hi";
-    auto host = std::make_unique<yais::MemoryStack<CudaHostAllocator>>(10000);
-    auto dev  = std::make_unique<yais::MemoryStack<CudaDeviceAllocator>>(10000);
-    auto h2   = std::make_shared<yais::MemoryStack<CudaHostAllocator>>(20000);
-    auto d2   = std::make_shared<yais::MemoryStack<CudaDeviceAllocator>>(20000);
+    // auto host = std::make_unique<yais::MemoryStack<CudaHostAllocator>>(10000);
+    // auto dev  = std::make_unique<yais::MemoryStack<CudaDeviceAllocator>>(10000);
+    auto h2 = yais::MemoryStack<CudaHostAllocator>::make_shared(20000);
+    auto d2 = yais::MemoryStack<CudaDeviceAllocator>::make_shared(20000);
 
     auto h3 = CudaHostAllocator::make_shared(30000);
     auto d4 = CudaDeviceAllocator::make_shared(30000);

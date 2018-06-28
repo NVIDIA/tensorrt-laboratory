@@ -42,16 +42,15 @@
 
 using yais::Affinity;
 using yais::CpuSet;
-using yais::ThreadPool;
-using yais::CudaHostAllocator;
 using yais::CudaDeviceAllocator;
+using yais::CudaHostAllocator;
 using yais::MemoryStack;
 using yais::Pool;
-
+using yais::ThreadPool;
 
 int main(int argc, char *argv[])
 {
-    auto one_gib = 1024*1024*1024;
+    auto one_gib = 1024 * 1024 * 1024;
     auto zeroMemory = true;
 
     auto gpu_0 = Affinity::GetDeviceAffinity(0);
@@ -59,26 +58,24 @@ int main(int argc, char *argv[])
     // Socket 0 - non-hyperthreads on a DGX-1 or Station
     auto socket_0 = Affinity::GetAffinity().Intersection(
         Affinity::GetCpusBySocket(0).Intersection(
-            Affinity::GetCpusByProcessingUnit(0)
-    ));
+            Affinity::GetCpusByProcessingUnit(0)));
 
     // Socket 1 - non-hyperthreads on a DGX-1, or
     // Socket 0 - hyperthreads on a DGX-Station
     auto socket_1 = Affinity::GetAffinity().Intersection(
-        Affinity::GetCpusFromString("20-39")
-    );
+        Affinity::GetCpusFromString("20-39"));
 
     auto workers_0 = std::make_shared<ThreadPool>(socket_0);
     auto workers_1 = std::make_shared<ThreadPool>(socket_1);
 
     std::shared_ptr<CudaHostAllocator> pinned_0, pinned_1;
 
-    auto future_0 = workers_0->enqueue([=, &pinned_0]{
+    auto future_0 = workers_0->enqueue([=, &pinned_0] {
         pinned_0 = CudaHostAllocator::make_shared(one_gib);
         pinned_0->WriteZeros();
     });
 
-    auto future_1 = workers_1->enqueue([=, &pinned_1]{
+    auto future_1 = workers_1->enqueue([=, &pinned_1] {
         pinned_1 = CudaHostAllocator::make_shared(one_gib);
         pinned_1->WriteZeros();
     });
@@ -87,7 +84,7 @@ int main(int argc, char *argv[])
 
     future_0.get();
     CHECK(pinned_0) << "pinned_0 got deallocated - fail";
-    LOG(INFO) << "pinned_0 (ptr, size): (" 
+    LOG(INFO) << "pinned_0 (ptr, size): ("
               << pinned_0->Data() << ", "
               << pinned_0->Size() << ")";
     future_1.get();
@@ -95,17 +92,17 @@ int main(int argc, char *argv[])
     std::shared_ptr<MemoryStack<CudaDeviceAllocator>> gpu_stack_on_socket0;
     std::shared_ptr<MemoryStack<CudaDeviceAllocator>> gpu_stack_on_socket1;
 
-    future_0 = workers_0->enqueue([=, &gpu_stack_on_socket0]{
+    future_0 = workers_0->enqueue([=, &gpu_stack_on_socket0] {
         CHECK_EQ(cudaSetDevice(0), CUDA_SUCCESS) << "Set Device 0 failed";
-        gpu_stack_on_socket0 = std::make_shared<MemoryStack<CudaDeviceAllocator>>(one_gib);
+        gpu_stack_on_socket0 = MemoryStack<CudaDeviceAllocator>::make_shared(one_gib);
         gpu_stack_on_socket0->Reset(zeroMemory);
     });
 
     future_0.get(); // thread allocating gpu_stack_on_socket0 finished with task
-    LOG(INFO) << "Push Binding 0 - 10MB - stack_ptr = " 
-        << gpu_stack_on_socket0->Allocate(10*1024*1024);
-    LOG(INFO) << "Push Binding 1 - 128MB - stack_ptr = " 
-        << gpu_stack_on_socket0->Allocate(128*1024*1024);
+    LOG(INFO) << "Push Binding 0 - 10MB - stack_ptr = "
+              << gpu_stack_on_socket0->Allocate(10 * 1024 * 1024);
+    LOG(INFO) << "Push Binding 1 - 128MB - stack_ptr = "
+              << gpu_stack_on_socket0->Allocate(128 * 1024 * 1024);
     gpu_stack_on_socket0->Reset();
 
     struct Buffer
@@ -113,8 +110,7 @@ int main(int argc, char *argv[])
         Buffer(
             std::shared_ptr<CudaHostAllocator> pinned_,
             std::shared_ptr<MemoryStack<CudaDeviceAllocator>> gpu_stack_,
-            std::shared_ptr<ThreadPool> workers_
-        ) : pinned(pinned_), gpu_stack(gpu_stack_), workers(workers_) {}
+            std::shared_ptr<ThreadPool> workers_) : pinned(pinned_), gpu_stack(gpu_stack_), workers(workers_) {}
 
         std::shared_ptr<CudaHostAllocator> pinned;
         std::shared_ptr<MemoryStack<CudaDeviceAllocator>> gpu_stack;
@@ -126,10 +122,10 @@ int main(int argc, char *argv[])
     buffers->EmplacePush(new Buffer(pinned_0, gpu_stack_on_socket0, workers_0));
     buffers->EmplacePush(new Buffer(pinned_1, gpu_stack_on_socket1, workers_1));
 
-    for(int i=0; i<6; i++)
+    for (int i = 0; i < 6; i++)
     {
         auto buffer = buffers->Pop();
-        buffer->workers->enqueue([buffer]{
+        buffer->workers->enqueue([buffer] {
             // perform some work - regardless of which buffer you got, you are working
             // on a thread properly assocated with the resources
             LOG(INFO) << Affinity::GetAffinity();
