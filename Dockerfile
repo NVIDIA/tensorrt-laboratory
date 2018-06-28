@@ -125,6 +125,14 @@ env LANG=C.UTF-8
 
 COPY --from=envoyproxy/envoy:v1.6.0 /usr/local/bin/envoy /usr/local/bin/envoy
 
+RUN git clone -b v1.4.1 https://github.com/google/benchmark.git \
+ && cd benchmark \
+ && git clone -b release-1.8.0 https://github.com/google/googletest.git \
+ && mkdir build && cd build \
+ && cmake .. -DCMAKE_BUILD_TYPE=RELEASE \
+ && make -j && make install \
+ && cd /tmp && rm -rf benchmark
+
 #WORKDIR /work
 #COPY . .
 #RUN mkdir build && cd build \
