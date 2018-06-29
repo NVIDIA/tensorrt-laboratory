@@ -138,9 +138,6 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
 template <typename ResourceType>
 class Pool : public Queue<std::shared_ptr<ResourceType>>
 {
-  protected:
-    Pool() = default;
-    
   public:
     /**
      * @brief Factory function for creating a Pool.
@@ -162,12 +159,45 @@ class Pool : public Queue<std::shared_ptr<ResourceType>>
      */
     std::shared_ptr<ResourceType> Pop()
     {
+        return Pop([](ResourceType *ptr){});
+    }
+
+    /**
+     * @brief Acquire a shared pointer to a ResourceType held by the Pool.
+     *
+     * Returns a shared_ptr<ResourceType> with a custom deleter that return the 
+     * Resource object by to the pool when the reference count of the shared_ptr
+     * goes to zero. 
+     * 
+     * onReturn will be executed prior to the object being returned to the pool.
+     * onReturn is passed the raw pointer to the ResourceType.
+     * 
+     * @param onReturn
+     * @return std::shared_ptr<ResourceType> 
+     */
+    std::shared_ptr<ResourceType> Pop(std::function<void(ResourceType*)> onReturn)
+    {
         auto pool_ptr = this->shared_from_this();
         auto from_pool = Queue<std::shared_ptr<ResourceType>>::Pop();
-        std::shared_ptr<ResourceType> ptr(from_pool.get(), [from_pool, pool_ptr](auto p) {
+        std::shared_ptr<ResourceType> ptr(from_pool.get(), [from_pool, pool_ptr, onReturn](auto p) {
+            onReturn(p);
             pool_ptr->Push(from_pool);
         });
         return ptr;
+    }
+
+    /**
+     * @brief Pop/Dequeue a shared pointer to a ResourceType object.
+     * 
+     * Unlike the Pop() that provides a shared_ptr whose Deleter returns the object
+     * to the Pool; this method permanently removes the object from the Pool.
+     * 
+     * @return std::shared_ptr<ResourceType> 
+     * @see Pop()
+     */
+    std::shared_ptr<ResourceType> PopWithoutReturn()
+    {
+        return Queue<std::shared_ptr<ResourceType>>::Pop();
     }
 
     /**
