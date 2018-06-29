@@ -326,10 +326,8 @@ void Buffers::AsyncD2H(uint32_t device_binding_id, void *dst, size_t bytes)
 
 // ExecutionContext
 
-ExecutionContext::ExecutionContext(std::shared_ptr<Model> model)
-    : m_Model(model)
+ExecutionContext::ExecutionContext() : m_Context{nullptr}
 {
-    m_Context = make_shared(m_Model->m_Engine->createExecutionContext());
     CHECK_EQ(cudaEventCreateWithFlags(&m_ExecutionContextFinished, cudaEventDisableTiming), CUDA_SUCCESS)
         << "Failed to Create Execution Context Finished Event";
 }
@@ -339,10 +337,15 @@ ExecutionContext::~ExecutionContext()
     CHECK_EQ(cudaEventDestroy(m_ExecutionContextFinished), CUDA_SUCCESS) << "Failed to Destroy Enqueue Event";
 }
 
-void ExecutionContext::Enqueue(int batch_size, void **buffers, cudaStream_t stream)
+void ExecutionContext::SetContext(IExecutionContext *context)
 {
-    // m_Context->setDeviceMemory(device_memory);
-    m_Context->enqueue(batch_size, buffers, stream, nullptr);
+    m_Context = context;
+}
+
+void ExecutionContext::Enqueue(int batch_size, void **device_bindings, void* activations, cudaStream_t stream)
+{
+    m_Context->setDeviceMemory(activations);
+    m_Context->enqueue(batch_size, device_bindings, stream, nullptr);
     CHECK_EQ(cudaEventRecord(m_ExecutionContextFinished, stream), CUDA_SUCCESS) << "ExeCtx Event Record Failed";
 }
 
@@ -351,14 +354,21 @@ void ExecutionContext::Synchronize()
     CHECK_EQ(cudaEventSynchronize(m_ExecutionContextFinished), CUDA_SUCCESS) << "ExeCtx Event Sync Failed";
 }
 
+void ExecutionContext::Reset()
+{
+    m_Context = nullptr;
+}
+
 // Resources
 
+/*
 Resources::Resources(std::shared_ptr<Model> model, int nBuffers, int nExecs)
     : m_Model(model),
       m_Buffers(Pool<Buffers>::Create()),
       m_ExecutionContexts(Pool<ExecutionContext>::Create())
 {
-    size_t bufferSize = m_Model->GetMaxBufferSize() + m_Model->GetBindingsCount() * 1024 * 1024;
+    size_t bufferSize = m_Model->GetMaxBufferSize() + m_Model->GetBindingsCount() * 128;
+    bufferSize += 128*1024 + model->GetDeviceMemorySize();
     LOG(INFO) << "Configuring TensorRT Resources";
     LOG(INFO) << "Creating " << nBuffers << " Host/Device Buffers each of size "
               << bufferSize << " on both host and device";
@@ -375,7 +385,7 @@ Resources::Resources(std::shared_ptr<Model> model, int nBuffers, int nExecs)
     for (int i = 0; i < nExecs; i++)
     {
         DLOG(INFO) << "Allocating Execution Context #" << i;
-        m_ExecutionContexts->EmplacePush(model);
+        m_ExecutionContexts->EmplacePush();
     }
 }
 
@@ -385,22 +395,119 @@ Resources::~Resources()
     m_Buffers.reset();
     m_ExecutionContexts.reset();
 }
+*/
 
 // ResourceBuilder
 
-void ResourceBuilder::RegisterModel(std::string name, const Model *model)
+Resources::Resources(int max_executions, int max_buffers)
+    : m_MaxExecutions(max_executions), m_MaxBuffers(max_buffers),
+      m_MinHostStack(0), m_MinDeviceStack(0),
+      m_Buffers{nullptr}
 {
+    m_ExecutionContexts = Pool<ExecutionContext>::Create();
+    for (int i = 0; i < m_MaxExecutions; i++)
+    {
+        m_ExecutionContexts->EmplacePush(new ExecutionContext);
+    }
+}
+
+Resources::~Resources() {}
+
+void Resources::RegisterModel(std::string name, std::shared_ptr<Model> model)
+{
+    RegisterModel(name, model, m_MaxExecutions);
+}
+
+void Resources::RegisterModel(std::string name, std::shared_ptr<Model> model, int max_concurrency)
+{
+    auto item = m_Models.find(name);
+    if (item != m_Models.end())
+    {
+        LOG(ERROR) << "Model naming collsion; Model with name=" << name << " is already registered.";
+        return;
+    }
+
+    if (max_concurrency > m_MaxExecutions)
+    {
+        LOG(WARNING) << "Requested concurrency (" << max_concurrency << ") exceeds max concurrency. "
+                     << "Value will be capped to " << m_MaxExecutions;
+        max_concurrency = m_MaxExecutions;
+    }
+
+    m_Models[name] = model;
+    m_ModelExecutionContexts[name] = Pool<IExecutionContext>::Create();
+    for (int i = 0; i < max_concurrency; i++)
+    {
+        m_ModelExecutionContexts[name]->Push(model->GetExecutionContext());
+    }
+
+    // Size according to largest padding - hardcoded to 256
     size_t bindings = model->GetMaxBufferSize() + model->GetBindingsCount() * 256;
     size_t activations = model->GetDeviceMemorySize() + 128 * 1024; // add a cacheline
 
     size_t host = Align(bindings, 32 * 1024);
     size_t device = Align(bindings + activations, 128 * 1024);
 
-    m_MaxHostStack = std::max(m_MaxHostStack, host);
-    m_MaxDeviceStack = std::max(m_MaxDeviceStack, device);
+    m_MinHostStack = std::max(m_MinHostStack, host);
+    m_MinDeviceStack = std::max(m_MinDeviceStack, device);
+
+    LOG(INFO) << "-- Registering Model: " << name << " --";
+    LOG(INFO) << "Input/Output Tensors require " << model->GetMaxBufferSize() << " bytes";
+    LOG(INFO) << "Execution Activations require " << model->GetDeviceMemorySize() << " bytes";
+    DLOG(INFO) << "With padding/cacheline rounding; host_size=" << host << "device_size: " << device;
 }
 
-size_t ResourceBuilder::Align(size_t size, size_t alignment)
+void Resources::AllocateResources()
+{
+    LOG(INFO) << "Allocating TensorRT Resources";
+    LOG(INFO) << "Creating a Pool of " << m_MaxBuffers << " Host/Device Memory Stacks";
+    LOG(INFO) << "Each Host Stack contains " << m_MinHostStack << " bytes";
+    LOG(INFO) << "Each Device Stack contains " << m_MinDeviceStack << " bytes";
+    LOG(INFO) << "Creating " << m_MaxExecutions << " TensorRT execution tokens.";
+
+    m_Buffers = Pool<Buffers>::Create();
+    for (int i = 0; i < m_MaxBuffers; i++)
+    {
+        DLOG(INFO) << "Allocating Host/Device Buffers #" << i;
+        m_Buffers->EmplacePush(new Buffers(m_MinHostStack, m_MinDeviceStack));
+    }
+}
+
+auto Resources::GetModel(std::string model_name) -> std::shared_ptr<Model>
+{
+    auto item = m_Models.find(model_name);
+    if (item == m_Models.end())
+    {
+        LOG(FATAL) << "Unable to find entry for model: " << model_name;
+    }
+    return item->second;
+}
+
+auto Resources::GetBuffers() -> std::shared_ptr<Buffers>
+{
+    auto from_pool = m_Buffers->Pop();
+    return std::shared_ptr<Buffers>(from_pool.get(), [from_pool](void *ptr) {
+        from_pool->Reset();
+    });
+}
+
+auto Resources::GetExecutionContext(std::string model_name) -> std::shared_ptr<ExecutionContext>
+{
+    auto item = m_ModelExecutionContexts.find(model_name);
+    if (item == m_ModelExecutionContexts.end())
+    {
+        LOG(FATAL) << "No ExectionContext found for unregistered model name: " << model_name;
+    }
+    auto ictx = item->second->Pop();
+    auto ctx = m_ExecutionContexts->Pop();
+    ctx->SetContext(ictx.get());
+    // both ctx and token will be returned to their respective pools when their refcount -> 0
+    return std::shared_ptr<ExecutionContext>(ctx.get(), [ictx, ctx](void *ptr) {
+        ctx->Reset();
+    });
+}
+
+size_t Resources::Align(size_t size, size_t alignment)
 {
     size_t remainder = size % alignment;
     size = (remainder == 0) ? size : size + alignment - remainder;

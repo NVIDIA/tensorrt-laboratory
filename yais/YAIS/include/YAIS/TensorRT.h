@@ -267,6 +267,15 @@ class Model
 
     const size_t GetMaxBufferSize() const;
 
+    /**
+     * @brief Get Memoryless IExecutionContext
+     */
+    std::shared_ptr<IExecutionContext> GetExecutionContext() const
+    {
+        return make_shared<IExecutionContext>(m_Engine->createExecutionContextWithoutDeviceMemory());
+        // return make_shared<IExecutionContext>(m_Engine->createExecutionContext());
+    }
+
     struct Binding
     {
         bool isInput;
@@ -434,6 +443,9 @@ class Buffers
      */
     void AsyncD2H(uint32_t, void *, size_t); // binding idx, host dst D2H ptr and custom size
 
+
+    void *PushDeviceStack(size_t size) { return m_DeviceStack->Allocate(size); }
+
   private:
     std::shared_ptr<MemoryStack<CudaHostAllocator>> m_HostStack;
     std::shared_ptr<MemoryStack<CudaDeviceAllocator>> m_DeviceStack;
@@ -445,12 +457,7 @@ class Buffers
 /**
  * @brief TensorRT convenience class for wrapping IExecutionContext
  * 
- * Designed to launch, time and sychronized the execution of an async inference calculation.
- * 
- * A TensorRT IExecutionContext allows you to pass an event which will be trigged when the input bindings
- * have been fully consumed and can be reused.  However, our input and output bindings are in the same
- * memory stack, so we are most interested in when the IExecutionContext has finished it's forward pass,
- * so we can immediately release the ExecutionContext to threads blocking on access.
+ * Designed to launch, time and sychronized the execution of an async gpu calculation.
  * 
  * Note: Timing is not implemented yet.  When implemented, do so a the host level and not the GPU
  * level to maximize GPU performance by using cudaEventDisabledTiming.  We don't need super accurate
@@ -464,8 +471,14 @@ class ExecutionContext
      * 
      * @param ctx 
      */
-    ExecutionContext(std::shared_ptr<Model> model);
+    ExecutionContext();
     virtual ~ExecutionContext();
+
+    /**
+     * @brief Set the ExectionContext
+     * @param context 
+     */
+    void SetContext(IExecutionContext *context);
 
     /**
      * @brief Enqueue an Inference calculation on a Stream
@@ -478,17 +491,21 @@ class ExecutionContext
      * @param buffers 
      * @param stream 
      */
-    void Enqueue(int batch_size, void **buffers, cudaStream_t stream);
+    void Enqueue(int batch_size, void **device_bindings, void* activations, cudaStream_t stream);
 
     /**
      * @brief Synchronized on the Completion of the Inference Calculation
      */
     void Synchronize();
 
+    /**
+     * @brief Resets the Context
+     */
+    void Reset();
+
   private:
-    std::shared_ptr<Model> m_Model;
-    std::shared_ptr<IExecutionContext> m_Context;
     cudaEvent_t m_ExecutionContextFinished;
+    IExecutionContext *m_Context;
 };
 
 /**
@@ -508,7 +525,8 @@ class ExecutionContext
  * 
  * @see Pool for more details on how limited quantity Resources are managed.
  */
-class Resources : public ::yais::Resources
+#if 0
+class Resources2 : public ::yais::Resources
 {
   public:
     /**
@@ -522,8 +540,8 @@ class Resources : public ::yais::Resources
      * @param nBuffers 
      * @param nExec 
      */
-    explicit Resources(std::shared_ptr<Model> model, int nBuffers = 4, int nExec = 3);
-    ~Resources();
+    Resources(int max_executions, int max_buffers);
+    virtual ~Resources();
 
   public:
     /**
@@ -550,6 +568,7 @@ class Resources : public ::yais::Resources
         auto from_pool = m_Buffers->Pop(); // Deleter returns Buffers to Pool
         // Chaining Custom Deleters to Reset the Buffer object prior to returning it to the Pool
         return std::shared_ptr<Buffers>(from_pool.get(), [from_pool](void *ptr) {
+            DLOG(INFO) << "Buffers object (" << from_pool.get() << ") resetting and returning to pool";
             from_pool->Reset();
         });
     }
@@ -573,21 +592,36 @@ class Resources : public ::yais::Resources
     std::shared_ptr<Pool<Buffers>> m_Buffers;
     std::shared_ptr<Pool<ExecutionContext>> m_ExecutionContexts;
 };
+#endif
 
-class ResourceBuilder
+class Resources : public ::yais::Resources
 {
-    void RegisterModel(std::string name, const Model *model);
+  public:
+    Resources(int max_executions, int max_buffers);
+    virtual ~Resources();
+
+    void RegisterModel(std::string name, std::shared_ptr<Model> model);
+    void RegisterModel(std::string name, std::shared_ptr<Model> model, int max_concurrency);
+
+    void AllocateResources();
+
+    auto GetBuffers() -> std::shared_ptr<Buffers>;
+    auto GetModel(std::string model_name) -> std::shared_ptr<Model>;
+    auto GetExecutionContext(std::string model_name) -> std::shared_ptr<ExecutionContext>;
 
   private:
     size_t Align(size_t size, size_t alignment);
 
-    size_t m_MaxHostStack;
-    size_t m_MaxDeviceStack;
+    int m_MaxExecutions;
+    int m_MaxBuffers;
+    size_t m_MinHostStack;
+    size_t m_MinDeviceStack;
+    std::shared_ptr<Pool<Buffers>> m_Buffers;
+    std::shared_ptr<Pool<ExecutionContext>> m_ExecutionContexts;
+    std::map<std::string, std::shared_ptr<Model>> m_Models;
+    std::map<std::string, std::shared_ptr<Pool<IExecutionContext>>> m_ModelExecutionContexts;
 };
 
-class ComputeContext
-{
-};
 
 } // end namespace TensorRT
 } // end namespace yais

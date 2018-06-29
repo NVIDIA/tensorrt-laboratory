@@ -45,19 +45,22 @@
 
 using yais::ThreadPool;
 using yais::TensorRT::Runtime;
+using yais::TensorRT::ManagedRuntime;
 using yais::TensorRT::Model;
-using TRTResources = yais::TensorRT::Resources;
+using yais::TensorRT::Resources;
 
 using ResourcesTensorRT = yais::TensorRT::Resources;
 
 
-class Resources : public TRTResources
+class BenchmarkResources : public Resources
 {
   public:
-    explicit Resources(std::shared_ptr<Model> engine, int nBuffers, int nExeCtxs, int nCuda, int nResp)
-        : TRTResources(engine, nBuffers, nExeCtxs), 
+    BenchmarkResources(int max_executions, int max_buffers, int nCuda, int nResp)
+        : Resources(max_executions, max_buffers), 
           m_CudaThreadPool(std::make_unique<ThreadPool>(nCuda)),
           m_ResponseThreadPool(std::make_unique<ThreadPool>(nResp)) {}
+
+    ~BenchmarkResources() override {}
 
     std::unique_ptr<ThreadPool>& GetCudaThreadPool() { return m_CudaThreadPool; }
     std::unique_ptr<ThreadPool>& GetResponseThreadPool() { return m_ResponseThreadPool; }
@@ -71,12 +74,14 @@ class Resources : public TRTResources
 class Benchmark final
 {
   public:
-    Benchmark(std::shared_ptr<Resources> resources) : m_Resources(resources) {}
+    Benchmark(std::shared_ptr<BenchmarkResources> resources) : m_Resources(resources) {}
 
     void Run(float seconds, bool warmup)
     {
-        auto model = GetResources()->GetModel();
+        auto name = "default";
+        auto model = GetResources()->GetModel(name);
         auto batch_size = model->GetMaxBatchSize();
+        // auto exe = model->GetExecutionContext();
 
         auto start = std::chrono::system_clock::now();
         auto elapsed = [start]()->float
@@ -91,15 +96,18 @@ class Benchmark final
         while(elapsed() < seconds && ++inf_count) {
             // This thread only async copies buffers from H2D
             auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
-            buffers->Configure(model, batch_size);
+            buffers->Configure(model.get(), batch_size);
             for (auto binding_id : model->GetInputBindingIds()) {
               buffers->AsyncH2D(binding_id);
             }
-            GetResources()->GetCudaThreadPool()->enqueue([this, buffers, batch_size]() mutable{
+
+            auto bytes = model->GetDeviceMemorySize();
+            buffers->PushDeviceStack(128*1024); // reserve a cacheline between input/output tensors and scratch space
+            GetResources()->GetCudaThreadPool()->enqueue([this, buffers, batch_size, name, bytes]() mutable{
                 // This thread enqueues two async kernels: TensorRT execution and D2H of output tensors
-                auto ctx = GetResources()->GetExeuctionContext(); // <=== Limited Resource; May Block !!!
-                ctx->Enqueue(batch_size, buffers->GetDeviceBindings(), buffers->GetStream());
-                for (auto binding_id : GetResources()->GetModel()->GetOutputBindingIds()) {
+                auto ctx = GetResources()->GetExecutionContext(name); // <=== Limited Resource; May Block !!!
+                ctx->Enqueue(batch_size, buffers->GetDeviceBindings(), buffers->PushDeviceStack(bytes), buffers->GetStream());
+                for (auto binding_id : GetResources()->GetModel(name)->GetOutputBindingIds()) {
                     buffers->AsyncD2H(binding_id);
                 }
                 GetResources()->GetResponseThreadPool()->enqueue([this, buffers, ctx]() mutable {
@@ -120,10 +128,10 @@ class Benchmark final
     }
 
   protected:
-    inline std::shared_ptr<Resources> GetResources() { return m_Resources; } 
+    inline std::shared_ptr<BenchmarkResources> GetResources() { return m_Resources; } 
 
   private:
-    std::shared_ptr<Resources> m_Resources;
+    std::shared_ptr<BenchmarkResources> m_Resources;
 };
 
 static bool ValidateEngine (const char* flagname, const std::string& value) {
@@ -134,8 +142,8 @@ static bool ValidateEngine (const char* flagname, const std::string& value) {
 DEFINE_string(engine, "/path/to/tensorrt.engine", "TensorRT serialized engine");
 DEFINE_validator(engine, &ValidateEngine);
 DEFINE_int32(seconds, 5, "Approximate number of seconds for the timing loop");
-DEFINE_int32(buffers,  0, "Number of Buffers (default: 2x contexts)");
 DEFINE_int32(contexts, 1, "Number of Execution Contexts");
+DEFINE_int32(buffers,  0, "Number of Buffers (default: 2x contexts)");
 DEFINE_int32(cudathreads, 1, "Number Cuda Launcher Threads");
 DEFINE_int32(respthreads, 1, "Number Response Sync Threads");
 
@@ -150,13 +158,15 @@ int main(int argc, char *argv[])
     auto contexts   = FLAGS_contexts;
     auto buffers    = FLAGS_buffers ? FLAGS_buffers : 2*FLAGS_contexts;
 
-    auto resources = std::make_shared<Resources>(
-        Runtime::DeserializeEngine(FLAGS_engine),
-        buffers,
+    auto resources = std::make_shared<BenchmarkResources>(
         contexts,
+        buffers,
         FLAGS_cudathreads,
         FLAGS_respthreads
     );
+
+    resources->RegisterModel("default", Runtime::DeserializeEngine(FLAGS_engine));
+    resources->AllocateResources();
 
     Benchmark benchmark(resources);
     benchmark.Run(0.1, true); // warmup
