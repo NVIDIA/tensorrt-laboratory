@@ -26,7 +26,9 @@
  */
 #include "YAIS/Memory.h"
 
+#include <algorithm>
 #include <cstring>
+#include <stdio.h>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -34,6 +36,8 @@
 
 namespace yais
 {
+
+
 
 // HostMemory
 
@@ -114,6 +118,28 @@ SystemMallocMemory::~SystemMallocMemory()
 {
     free(m_BasePointer);
     DLOG(INFO) << "Deleted Malloc'ed Memory (" << m_BasePointer << ", " << m_BytesAllocated << ")";
+}
+
+/**
+ * @brief Converts bytes into a more friend human readable format
+ * 
+ * @param bytes 
+ * @return std::string 
+ */
+std::string BytesToString(size_t bytes)
+{
+    // Credits: https://stackoverflow.com/questions/3758606
+    char buffer[50];
+    int unit = 1024;
+    const char prefixes[] = "KMGTPE";
+    if (bytes < unit)
+    {
+        sprintf(buffer, "%ld B", bytes);
+        return std::string(buffer);
+    }
+    int exp = (int) log(bytes) / log(unit);
+    sprintf(buffer, "%.1f %ciB", bytes / pow(unit, exp), prefixes[exp-1]);
+    return std::string(buffer);
 }
 
 } // namespace yais

@@ -37,7 +37,7 @@ namespace yais
 
 struct nvmlState
 {
-    nvmlState() { CHECK_EQ(nvmlInit(), NVML_SUCCESS) << "Failed to initialize NVML"; LOG(INFO) << "nvml init"; }
+    nvmlState() { CHECK_EQ(nvmlInit(), NVML_SUCCESS) << "Failed to initialize NVML"; }
     ~nvmlState() { CHECK_EQ(nvmlShutdown(), NVML_SUCCESS) << "Failed to Shutdown NVML"; }
 };
 

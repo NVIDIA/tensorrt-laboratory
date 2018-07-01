@@ -46,6 +46,12 @@ using ::nvinfer1::ICudaEngine;
 using ::nvinfer1::IExecutionContext;
 using ::nvinfer1::IRuntime;
 
+class Model;
+class Buffers;
+class Bindings;
+class ExecutionContext;
+class Resources;
+
 struct NvInferDeleter
 {
     template <typename T>
@@ -77,8 +83,6 @@ std::unique_ptr<T, NvInferDeleter> make_unique(T *obj)
     }
     return std::unique_ptr<T, NvInferDeleter>(obj);
 }
-
-class Model;
 
 /**
  * @brief Convenience class wrapping nvinfer1::IRuntime.
@@ -184,8 +188,6 @@ auto ManagedRuntime::UseManagedMemory(F &&f, Args &&... args) -> typename std::r
 
 #endif
 
-class ExecutionContext;
-
 /**
  * @brief Wrapper class for nvinfer1::ICudaEngine.
  * 
@@ -216,7 +218,7 @@ class Model
      * 
      * @return auto 
      */
-    auto GetDeviceMemorySize() const { return m_Engine->getDeviceMemorySize(); }
+    auto GetActivationsMemorySize() const { return m_Engine->getDeviceMemorySize(); }
 
     /**
      * @brief Get the number of Bindings for the compiled plan
@@ -267,10 +269,13 @@ class Model
 
     const size_t GetMaxBufferSize() const;
 
+    void SetName(std::string name) { m_Name = name; }
+    const std::string Name() const { return m_Name; }
+
     /**
      * @brief Get Memoryless IExecutionContext
      */
-    std::shared_ptr<IExecutionContext> GetExecutionContext() const
+    std::shared_ptr<IExecutionContext> CreateExecutionContext() const
     {
         return make_shared<IExecutionContext>(m_Engine->createExecutionContextWithoutDeviceMemory());
         // return make_shared<IExecutionContext>(m_Engine->createExecutionContext());
@@ -287,6 +292,7 @@ class Model
 
     void AddWeights(void *, size_t);
     void PrefetchWeights(cudaStream_t) const;
+    size_t GetWeightsMemorySize() const;
 
   protected:
     void ConfigureBinding(Binding &, uint32_t);
@@ -300,300 +306,136 @@ class Model
 
     std::shared_ptr<ICudaEngine> m_Engine;
     std::vector<Binding> m_Bindings;
-    std::vector<int> m_InputBindings;
-    std::vector<int> m_OutputBindings;
+    std::vector<uint32_t> m_InputBindings;
+    std::vector<uint32_t> m_OutputBindings;
     std::vector<Weights> m_Weights;
-
-    friend class ExecutionContext;
+    std::string m_Name;
 };
 
 /**
- * @brief TensorRT managed input/output buffers and Cuda Stream
+ * @brief Manages input/output buffers and CudaStream
  * 
- * Primary TensorRT resource class used to manage both a host and a device memory stack,
- * and any assocated async transfers and/or compute on the memory resources.  A Buffers
- * object owns the cudaStream_t that should be used for transfers or compute on these
+ * Primary TensorRT resource class used to manage both a host and a device memory stacks
+ * and owns the cudaStream_t that should be used for transfers or compute on these
  * resources.
  */
-class Buffers
+class Buffers : public std::enable_shared_from_this<Buffers>
 {
+    static auto Create(size_t host_size, size_t device_size) -> std::shared_ptr<Buffers>;
+
   public:
-    /**
-     * @brief Construct a new Buffers object
-     * 
-     * In most cases, Buffers will be created with equal sized host and device stacks;
-     * however, for very custom cases, you may choose to configure them to your problem.
-     * 
-     * @param host_size 
-     * @param device_size 
-     */
-    Buffers(size_t host_size, size_t device_size);
-    ~Buffers();
+    virtual ~Buffers();
 
-    /**
-     * @brief Pushes both Host and Device Stack Pointers for each Binding in a Model
-     * 
-     * For each binding in the model, a stack pointer will be pushed on both host and device
-     * memory stacks.  Buffers used a MemoryStackWithTracking object, so every Push is 
-     * recorded and the Pointer and the Size of each stack allocation can be recalled by
-     * passing the index of the binding.
-     * 
-     * @param model 
-     * @param batch_size 
-     */
-    void Configure(const Model *model, uint32_t batch_size);
+    void *AllocateHost(size_t size) { return m_HostStack->Allocate(size); }
+    void *AllocateDevice(size_t size) { return m_DeviceStack->Allocate(size); } 
 
-    /**
-     * @brief Swap the Host MemoryStack with an equivalently sized MemoryStack.
-     * 
-     * This function allows you to pull the swap the Buffer's Host MemoryStack with another
-     * stack.  This is useful in pre/post-processing step, where if you have thread-local
-     * or function local stack which you setup/use without needing to pull a full Buffers
-     * object from the resource pool.  Example, after the D2H copy resulting in the results
-     * of an inference calculation in the host memory stack, swap it with a local copy, then
-     * release the Buffers object back to the pull, the operate on the host memorystack with
-     * the inference results.
-     */
-    // void SwapHostStack(std::unique_ptr<MemoryStackWithTracking<CudaHostAllocator>>);
+    auto CreateBindings(const std::shared_ptr<Model> &model, uint32_t batch_size) -> std::shared_ptr<Bindings>;
+    auto CreateAndConfigureBindings(const std::shared_ptr<Model> &model, uint32_t batch_size) -> std::shared_ptr<Bindings>;
 
-    /**
-     * @brief Resets the Host and Device Stack Pointers to their origins
-     * 
-     * @param writeZeros 
-     */
-    void Reset(bool writeZeros = false);
-
-    /**
-     * @brief Get the Host Binding Pointer for a given Binding
-     * 
-     * @param id 
-     * @return void* 
-     */
-    void *GetHostBinding(uint32_t id) { return m_Host->GetPointer(id); }
-
-    /**
-     * @brief Get the Device Binding Pointer for a given Binding
-     * 
-     * @param id 
-     * @return void* 
-     */
-    void *GetDeviceBinding(uint32_t id) { return m_Device->GetPointer(id); }
-
-    /**
-     * @brief Get the all the Device Pointers in an ordered list.
-     * 
-     * This call provides access to the pointer to the beginning of an array of void* for
-     * all device bindings.  This method provides the `buffers` input argument for a TensorRT
-     * IExecutionContext `execute` or `enqueue` method.
-     * 
-     * @return void** 
-     */
-    void **GetDeviceBindings() { return m_Device->GetPointers(); }
-
-    /**
-     * @brief Get the Stream that shoud be used to manage all transfers and compute associated
-     * with the data stored in this Buffers object.
-     * 
-     * @return cudaStream_t 
-     */
-    inline cudaStream_t GetStream() { return m_Stream; }
-
-    /**
-     * @brief Syncrhonize on Cuda Stream
-     * 
-     * Calls cudaStreamSynchronize on the internal stream.
-     */
-    void SynchronizeStream();
-
-    /**
-     * @brief Performs a H2D copy for a given Binding ID
-     * 
-     * Performs an H2D copy of the memory associcated with Binding ID.  The copy is performed
-     * from the Host MemoryStack -> Device MemoryStack for a given Binding.  The size was
-     * recorded when the Buffers object was Configured.
-     * 
-     * @param binding_id
-     */
-    void AsyncH2D(uint32_t); // specify the binding idx for to copy
-
-    /**
-     * @brief Performs a D2H copy for a given Binding ID
-     * 
-     * Performs an D2H copy of the memory associcated with Binding ID.  The copy is performed
-     * from the Device MemoryStack -> Host MemoryStack for a given Binding.  The size was
-     * recorded when the Buffers object was Configured.
-     * 
-     * @param binding_id
-     */
-    void AsyncD2H(uint32_t); // specify the binding idx for to copy
-
-    /**
-     * @brief Performs a H2D copy from a Source Host Pointer to a Device Binding ID
-     * 
-     * Copies from given host location and size to the Device allocation asssocated with Binding ID.
-     * The copy size is check to be less than or equal to the Binding Size.
-     */
-    void AsyncH2D(uint32_t, void *, size_t); // binding idx, host src H2D ptr and custom size
-
-    /**
-     * @brief Performs a D2H copy from the Device Binding ID to a custom Host Pointer
-     * 
-     * Copies from the Device memory assocated with Binding ID to a passed destination pointer on
-     * the host.  This allows you to skip the Host MemoryStack if you choose to do so.
-     */
-    void AsyncD2H(uint32_t, void *, size_t); // binding idx, host dst D2H ptr and custom size
-
-
-    void *PushDeviceStack(size_t size) { return m_DeviceStack->Allocate(size); }
+    inline cudaStream_t Stream() { return m_Stream; }
+    void Synchronize();
 
   private:
+    Buffers(size_t host_size, size_t device_size);
+    void Reset(bool writeZeros = false);
+
     std::shared_ptr<MemoryStack<CudaHostAllocator>> m_HostStack;
     std::shared_ptr<MemoryStack<CudaDeviceAllocator>> m_DeviceStack;
-    std::shared_ptr<MemoryStackTracker> m_Host;
-    std::shared_ptr<MemoryStackTracker> m_Device;
     cudaStream_t m_Stream;
+
+    friend class Resources;
 };
 
 /**
- * @brief TensorRT convenience class for wrapping IExecutionContext
+ * @brief Manages memory addresses and transfers for input/output tensors.
  * 
- * Designed to launch, time and sychronized the execution of an async gpu calculation.
+ * Bindings manages the addresses for the input/output tensors.  Bindings are created
+ * from a Buffers object and maintain a reference.  All device bindings must be configured
+ * before calling ExecutionContext::Infer.  Similarly, the respective host binding must
+ * be set before calling an of the implicit CopyTo/CopyFromDevice methods.
  * 
- * Note: Timing is not implemented yet.  When implemented, do so a the host level and not the GPU
- * level to maximize GPU performance by using cudaEventDisabledTiming.  We don't need super accurate
- * timings, they are simply a nice-to-have, so a reasonable approximation on the host is sufficient.
+ * A Bindings object holds the state of the input/output tensors over the course of an
+ * inference calculation.
+ */
+class Bindings
+{
+  public:
+    virtual ~Bindings();
+
+    void *HostAddress(uint32_t binding_id);
+    void *DeviceAddress(uint32_t binding_id);
+    void **DeviceAddresses();
+    void SetHostAddress(int binding_id, void *addr);
+    void SetDeviceAddress(int binding_id, void *addr);
+
+    void *ActivationsAddress() { return m_ActivationsAddress; }
+    void SetActivationsAddress(void *addr) { m_ActivationsAddress = addr; }
+
+    void CopyToDevice(uint32_t);
+    void CopyToDevice(const std::vector<uint32_t>&);
+    void CopyToDevice(uint32_t, void *, size_t);
+
+    void CopyFromDevice(uint32_t);
+    void CopyFromDevice(const std::vector<uint32_t>&);
+    void CopyFromDevice(uint32_t, void *, size_t);
+
+    auto InputBindings() const { return m_Model->GetInputBindingIds(); }
+    auto OutputBindings() const { return m_Model->GetOutputBindingIds(); }
+
+    auto GetModel() -> const std::shared_ptr<Model>& { return m_Model; }
+    auto BatchSize() const { return m_BatchSize; }
+
+    inline cudaStream_t Stream() const { return m_Buffers->Stream(); }
+    void Synchronize() const { m_Buffers->Synchronize(); };
+
+  private:
+    Bindings(const std::shared_ptr<Model>, const std::shared_ptr<Buffers>, uint32_t batch_size);
+    size_t BindingSize(uint32_t binding_id) const;
+
+    const std::shared_ptr<Model> m_Model;
+    const std::shared_ptr<Buffers> m_Buffers;
+    uint32_t m_BatchSize;
+
+    std::vector<void*> m_HostAddresses;
+    std::vector<void*> m_DeviceAddresses;
+    void *m_ActivationsAddress;
+
+    friend class Buffers;
+};
+
+/**
+ * @brief Manages the execution of an inference calculation
+ * 
+ * The ExecutionContext is a limited quanity resource used to control the number
+ * of simultaneous calculations allowed on the device at any given time.
+ * 
+ * A properly configured Bindings object is required to initiate the TensorRT
+ * inference calculation.
  */
 class ExecutionContext
 {
   public:
-    /**
-     * @brief Construct a new Execution Context object
-     * 
-     * @param ctx 
-     */
-    ExecutionContext();
     virtual ~ExecutionContext();
 
-    /**
-     * @brief Set the ExectionContext
-     * @param context 
-     */
-    void SetContext(IExecutionContext *context);
-
-    /**
-     * @brief Enqueue an Inference calculation on a Stream
-     * 
-     * Initiates a forward pass through a TensorRT optimized graph and registers an event on the stream
-     * which is trigged when the compute has finished and the ExecutionContext can be reused by competing threads.
-     * Use the Synchronize method to sync on this event.
-     * 
-     * @param batch_size 
-     * @param buffers 
-     * @param stream 
-     */
-    void Enqueue(int batch_size, void **device_bindings, void* activations, cudaStream_t stream);
-
-    /**
-     * @brief Synchronized on the Completion of the Inference Calculation
-     */
+    void SetContext(std::shared_ptr<IExecutionContext> context);
+    void Infer(const std::shared_ptr<Bindings> &);
     void Synchronize();
 
-    /**
-     * @brief Resets the Context
-     */
+  private:
+    ExecutionContext();
     void Reset();
 
-  private:
     cudaEvent_t m_ExecutionContextFinished;
-    IExecutionContext *m_Context;
+    std::shared_ptr<IExecutionContext> m_Context;
+
+    friend class Resources;
 };
+
 
 /**
- * @brief General TensorRT Resource class
+ * @brief TensorRT Resource Manager
  * 
- * Derived from yais::Resources, this Resources object provides the basic memory and compute resources
- * needed for using with a TensorRT Context.  Limited quanity resources such as Buffers and ExecutionContexts
- * are managed by thead-safe Pools.  In general, the compute is always limited by the number of resources.
- * For example, limiting the number of ExecutionContexts to 1 will ensure only 1 Inference calcuation is
- * using the GPU.  This will ensure best possible latency.  However, if you wish to improve throughput at the
- * cost of increased latency, you can increase the number of in-flight ExecutionContexts.  This will cause
- * competition between the multiple forward passes; however, it will also allow the GPU to better utilize the
- * compute resources of the GPU.
- * 
- * Note: the number of Buffers should alway be nExec+1 or larger to ensure you are not resource bound on the
- * Buffers used for the Input and Output Tensors of the DNN.
- * 
- * @see Pool for more details on how limited quantity Resources are managed.
  */
-#if 0
-class Resources2 : public ::yais::Resources
-{
-  public:
-    /**
-     * @brief Construct a new TensorRT Resources object
-     * 
-     * Instantiated with the ICudaEngine and the size of the Resource Pools for memory Buffers and compute
-     * ExecutionContexts.  The constructor will appropriately size the memory Buffers by inspecting the
-     * requirements of the ICudaEngine.
-     * 
-     * @param engine 
-     * @param nBuffers 
-     * @param nExec 
-     */
-    Resources(int max_executions, int max_buffers);
-    virtual ~Resources();
-
-  public:
-    /**
-     * @brief Get the Model object
-     * 
-     * @return const Model* 
-     */
-    const Model *GetModel() { return m_Model.get(); }
-
-    /**
-     * @brief Get a Buffers from the Resource Pool (May Block!)
-     * 
-     * This method aquires a limited quantity Buffers object from the Pool of Buffers.  This call may
-     * block foward execution of the thread if no resources are available.
-     * 
-     * Note: The resource will be returned to the resource Pool when the reference count of the shared_ptr
-     * goes to zero.  No action on the user is required, unless they want to release the object earlier by
-     * using the reset() function on all instances of the shared_ptr.
-     * 
-     * @return std::shared_ptr<Buffers> 
-     */
-    std::shared_ptr<Buffers> GetBuffers()
-    {
-        auto from_pool = m_Buffers->Pop(); // Deleter returns Buffers to Pool
-        // Chaining Custom Deleters to Reset the Buffer object prior to returning it to the Pool
-        return std::shared_ptr<Buffers>(from_pool.get(), [from_pool](void *ptr) {
-            DLOG(INFO) << "Buffers object (" << from_pool.get() << ") resetting and returning to pool";
-            from_pool->Reset();
-        });
-    }
-
-    /**
-     * @brief Get an Exeuction Context object from the Resource Pool (May Block!)
-     * 
-     * This method aquires a limited quantity ExecutionContext object from the Pool of ExecutionContexts.
-     * This call may block foward execution of the thread if no resources are available.
-     * 
-     * Note: The resource will be returned to the resource Pool when the reference count of the shared_ptr
-     * goes to zero.  No action on the user is required, unless they want to release the object earlier by
-     * using the reset() function on all instances of the shared_ptr.
-     * 
-     * @return std::shared_ptr<ExecutionContext> 
-     */
-    std::shared_ptr<ExecutionContext> GetExeuctionContext() { return m_ExecutionContexts->Pop(); }
-
-  private:
-    std::shared_ptr<Model> m_Model;
-    std::shared_ptr<Pool<Buffers>> m_Buffers;
-    std::shared_ptr<Pool<ExecutionContext>> m_ExecutionContexts;
-};
-#endif
-
 class Resources : public ::yais::Resources
 {
   public:
@@ -601,13 +443,14 @@ class Resources : public ::yais::Resources
     virtual ~Resources();
 
     void RegisterModel(std::string name, std::shared_ptr<Model> model);
-    void RegisterModel(std::string name, std::shared_ptr<Model> model, int max_concurrency);
+    void RegisterModel(std::string name, std::shared_ptr<Model> model, uint32_t max_concurrency);
 
     void AllocateResources();
 
     auto GetBuffers() -> std::shared_ptr<Buffers>;
     auto GetModel(std::string model_name) -> std::shared_ptr<Model>;
-    auto GetExecutionContext(std::string model_name) -> std::shared_ptr<ExecutionContext>;
+    auto GetExecutionContext(const Model *model) -> std::shared_ptr<ExecutionContext>;
+    auto GetExecutionContext(const std::shared_ptr<Model>& model) -> std::shared_ptr<ExecutionContext>;
 
   private:
     size_t Align(size_t size, size_t alignment);
@@ -619,9 +462,8 @@ class Resources : public ::yais::Resources
     std::shared_ptr<Pool<Buffers>> m_Buffers;
     std::shared_ptr<Pool<ExecutionContext>> m_ExecutionContexts;
     std::map<std::string, std::shared_ptr<Model>> m_Models;
-    std::map<std::string, std::shared_ptr<Pool<IExecutionContext>>> m_ModelExecutionContexts;
+    std::map<const Model*, std::shared_ptr<Pool<IExecutionContext>>> m_ModelExecutionContexts;
 };
-
 
 } // end namespace TensorRT
 } // end namespace yais

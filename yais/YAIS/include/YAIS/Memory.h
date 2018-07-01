@@ -32,6 +32,8 @@
 namespace yais
 {
 
+std::string BytesToString(size_t bytes);
+
 /**
  * @brief Abstract base Memory class
  * 
