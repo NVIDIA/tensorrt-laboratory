@@ -52,6 +52,9 @@ class Bindings;
 class ExecutionContext;
 class Resources;
 
+/**
+ * @brief Deleter for nvinfer interface objects.
+ */
 struct NvInferDeleter
 {
     template <typename T>
@@ -64,6 +67,13 @@ struct NvInferDeleter
     }
 };
 
+/**
+ * @brief Create a std::shared_ptr for an nvinfer interface object
+ * 
+ * @tparam T 
+ * @param obj 
+ * @return std::shared_ptr<T> 
+ */
 template <typename T>
 std::shared_ptr<T> make_shared(T *obj)
 {
@@ -74,6 +84,13 @@ std::shared_ptr<T> make_shared(T *obj)
     return std::shared_ptr<T>(obj, NvInferDeleter());
 };
 
+/**
+ * @brief Create a std::unique_ptr for an nvinfer interface object
+ * 
+ * @tparam T 
+ * @param obj 
+ * @return std::unique_ptr<T, NvInferDeleter> 
+ */
 template <typename T>
 std::unique_ptr<T, NvInferDeleter> make_unique(T *obj)
 {
@@ -93,13 +110,8 @@ std::unique_ptr<T, NvInferDeleter> make_unique(T *obj)
 class Runtime
 {
   public:
-    /**
-     * @brief Deserialize a TensorRT Engine/Plan
-     *
-     * @param filename Path to the engine/plan file 
-     * @return std::shared_ptr<Model>
-     */
     static std::shared_ptr<Model> DeserializeEngine(std::string plan_file);
+    virtual ~Runtime() {}
 
   protected:
     Runtime();
@@ -122,8 +134,6 @@ class Runtime
     std::unique_ptr<IRuntime, NvInferDeleter> m_Runtime;
 };
 
-#if NV_TENSORRT_MAJOR >= 4
-
 /**
  * @brief Convenience class wrapping nvinfer1::IRuntime and allowing DNN weights to be oversubscribed.
  * 
@@ -132,11 +142,11 @@ class Runtime
  * This is currently the only way to oversubscribe GPU memory so we can load more models than we have 
  * GPU memory available.
  */
-
 class ManagedRuntime : public Runtime
 {
   public:
     static std::shared_ptr<Model> DeserializeEngine(std::string plan_file);
+    virtual ~ManagedRuntime() override {}
 
   protected:
     struct Pointer
@@ -145,7 +155,7 @@ class ManagedRuntime : public Runtime
         size_t size;
     };
 
-    class ManagedAllocator : public ::nvinfer1::IGpuAllocator
+    class ManagedAllocator final : public ::nvinfer1::IGpuAllocator
     {
       public:
         // IGpuAllocator virtual overrides
@@ -186,8 +196,6 @@ auto ManagedRuntime::UseManagedMemory(F &&f, Args &&... args) -> typename std::r
     return retval;
 }
 
-#endif
-
 /**
  * @brief Wrapper class for nvinfer1::ICudaEngine.
  * 
@@ -203,83 +211,29 @@ class Model
      * @param engine 
      */
     Model(std::shared_ptr<ICudaEngine> engine);
+    virtual ~Model() {}
+
+    auto Name() const -> const std::string { return m_Name; }
+    void SetName(std::string name) { m_Name = name; }
+
+    void AddWeights(void *, size_t);
+    void PrefetchWeights(cudaStream_t) const;
+
+    auto CreateExecutionContext() const -> std::shared_ptr<IExecutionContext>;
+
+    auto GetMaxBatchSize() const { return m_Engine->getMaxBatchSize(); }
+    auto GetActivationsMemorySize() const { return m_Engine->getDeviceMemorySize(); }
+    auto GetBindingMemorySize() const -> const size_t;
+    auto GetWeightsMemorySize() const -> const size_t;
 
     struct Binding;
 
-    /**
-     * @brief Get the Max Batch Size for the compiled plan
-     * 
-     * @return auto Integer value
-     */
-    auto GetMaxBatchSize() const { return m_Engine->getMaxBatchSize(); }
-
-    /**
-     * @brief Get the size of the Device Memory required for inference
-     * 
-     * @return auto 
-     */
-    auto GetActivationsMemorySize() const { return m_Engine->getDeviceMemorySize(); }
-
-    /**
-     * @brief Get the number of Bindings for the compiled plan
-     * 
-     * @return auto Integer value
-     */
+    auto GetBinding(uint32_t) const -> const Binding &;
     auto GetBindingsCount() const { return m_Bindings.size(); }
-
-    /**
-     * @brief Get required memory storage for binding i.
-     * 
-     * @param i Binding ID
-     * @return auto Integer value
-     */
-    const Binding &GetBinding(uint32_t id) const
-    {
-        CHECK_LT(id, m_Bindings.size()) << "Invalid BindingId; given: " << id << "; max: " << m_Bindings.size();
-        return m_Bindings[id];
-    }
-
-    /**
-     * @brief Get the number of input Bindings
-     * 
-     * @return auto 
-     */
     auto GetInputBindingCount() const { return m_InputBindings.size(); }
-
-    /**
-     * @brief Get the vector<int> of Input Bindings
-     * 
-     * @return auto 
-     */
-    const auto GetInputBindingIds() const { return m_InputBindings; }
-
-    /**
-     * @brief Get the number of output Bindings
-     * 
-     * @return auto 
-     */
     auto GetOutputBindingCount() const { return m_OutputBindings.size(); }
-
-    /**
-     * @brief Get the vector<int> of Output Bindings
-     * 
-     * @return auto 
-     */
-    auto GetOutputBindingIds() const { return m_OutputBindings; }
-
-    const size_t GetMaxBufferSize() const;
-
-    void SetName(std::string name) { m_Name = name; }
-    const std::string Name() const { return m_Name; }
-
-    /**
-     * @brief Get Memoryless IExecutionContext
-     */
-    std::shared_ptr<IExecutionContext> CreateExecutionContext() const
-    {
-        return make_shared<IExecutionContext>(m_Engine->createExecutionContextWithoutDeviceMemory());
-        // return make_shared<IExecutionContext>(m_Engine->createExecutionContext());
-    }
+    auto GetInputBindingIds() const -> const std::vector<uint32_t> { return m_InputBindings; }
+    auto GetOutputBindingIds() const -> const std::vector<uint32_t> { return m_OutputBindings; }
 
     struct Binding
     {
@@ -289,10 +243,6 @@ class Model
         size_t elementsPerBatchItem;
         std::vector<size_t> dims;
     };
-
-    void AddWeights(void *, size_t);
-    void PrefetchWeights(cudaStream_t) const;
-    size_t GetWeightsMemorySize() const;
 
   protected:
     void ConfigureBinding(Binding &, uint32_t);
@@ -434,7 +384,6 @@ class ExecutionContext
 
 /**
  * @brief TensorRT Resource Manager
- * 
  */
 class Resources : public ::yais::Resources
 {

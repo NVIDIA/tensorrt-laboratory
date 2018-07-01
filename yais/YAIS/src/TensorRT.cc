@@ -39,11 +39,32 @@ namespace yais
 namespace TensorRT
 {
 
+/**
+ * @brief Construct a new Runtime object
+ */
 Runtime::Runtime()
     : m_Logger(std::make_unique<Logger>()),
       m_Runtime(make_unique(::nvinfer1::createInferRuntime(*(m_Logger.get()))))
 {
     m_Logger->log(::nvinfer1::ILogger::Severity::kINFO, "IRuntime Logger Initialized");
+}
+
+/**
+ * @brief Deserialize a TensorRT Engine/Plan
+ *
+ * @param filename Path to the engine/plan file 
+ * @return std::shared_ptr<Model>
+ */
+std::shared_ptr<Model> Runtime::DeserializeEngine(std::string plan_file)
+{
+    auto singleton = Runtime::GetSingleton();
+    auto buffer = singleton->ReadEngineFile(plan_file);
+    // Create Engine / Deserialize Plan - need this step to be broken up plz!!
+    DLOG(INFO) << "Deserializing TensorRT ICudaEngine";
+    auto engine = make_shared(
+        singleton->GetRuntime()->deserializeCudaEngine(buffer.data(), buffer.size(), nullptr));
+    CHECK(engine) << "Unable to create ICudaEngine";
+    return std::make_shared<Model>(engine);
 }
 
 Runtime *Runtime::GetSingleton()
@@ -64,18 +85,6 @@ std::vector<char> Runtime::ReadEngineFile(std::string plan_file)
         LOG(FATAL) << "Unable to read engine file: " << plan_file;
     }
     return buffer;
-}
-
-std::shared_ptr<Model> Runtime::DeserializeEngine(std::string plan_file)
-{
-    auto singleton = Runtime::GetSingleton();
-    auto buffer = singleton->ReadEngineFile(plan_file);
-    // Create Engine / Deserialize Plan - need this step to be broken up plz!!
-    DLOG(INFO) << "Deserializing TensorRT ICudaEngine";
-    auto engine = make_shared(
-        singleton->GetRuntime()->deserializeCudaEngine(buffer.data(), buffer.size(), nullptr));
-    CHECK(engine) << "Unable to create ICudaEngine";
-    return std::make_shared<Model>(engine);
 }
 
 void Runtime::Logger::log(::nvinfer1::ILogger::Severity severity, const char *msg)
@@ -100,8 +109,15 @@ void Runtime::Logger::log(::nvinfer1::ILogger::Severity severity, const char *ms
     }
 }
 
-// #if NV_TENSORRT_MAJOR >= 4
-
+/**
+ * @brief Construct a new ManagedRuntime object
+ * 
+ * ManagedRuntime overrides the default TensorRT memory allocator by providing a custom
+ * allocator, conforming to nvinfer1::IGpuAllocator, to enable the allocation of memory
+ * for storing the weights of a TensorRT engine using CUDA Unified Memory.  Specifically,
+ * cudaMallocManaged is used and tracked for any TensorRT operation wrapped by a lambda
+ * passed to UseManagedMemory.
+ */
 ManagedRuntime::ManagedRuntime()
     : Runtime(), m_Allocator(std::make_unique<ManagedAllocator>())
 {
@@ -146,14 +162,14 @@ void *ManagedRuntime::ManagedAllocator::allocate(size_t size, uint64_t alignment
             << "Failed to allocate TensorRT device memory (managed)";
         // CHECK_EQ(cudaMemAdvise(ptr, size, cudaMemAdviseSetAccessedBy, 0), CUDA_SUCCESS) << "Bad advise";
         // CHECK_EQ(cudaMemAdvise(ptr, size, cudaMemAdviseSetPreferredLocation, 0), CUDA_SUCCESS) << "Bad advise";
-        LOG(INFO) << "TensoRT cudaMallocManaged size = " << size << "; " << ptr;
+        DLOG(INFO) << "TensoRT cudaMallocManaged size = " << size << "; " << ptr;
         m_Pointers.push_back(Pointer{ptr, size});
     }
     else
     {
         CHECK_EQ(cudaMalloc(&ptr, size), CUDA_SUCCESS)
             << "Failed to allocate TensorRT device memory (not managed)";
-        LOG(INFO) << "TensoRT cudaMalloc size = " << size;
+        DLOG(INFO) << "TensoRT cudaMalloc size = " << size;
     }
     return ptr;
 }
@@ -163,8 +179,10 @@ void ManagedRuntime::ManagedAllocator::free(void *ptr)
     CHECK_EQ(cudaFree(ptr), CUDA_SUCCESS) << "Failed to free TensorRT device memory";
 }
 
-// #endif
 
+/**
+ * @brief Construct a new Model object
+ */
 Model::Model(std::shared_ptr<ICudaEngine> engine)
     : m_Engine(engine)
 {
@@ -213,6 +231,17 @@ void Model::ConfigureBinding(Binding &binding, uint32_t i)
                << "; bytes per batch item: " << binding.bytesPerBatchItem;
 }
 
+auto Model::GetBinding(uint32_t id) const -> const Binding &
+{
+    CHECK_LT(id, m_Bindings.size()) << "Invalid BindingId; given: " << id << "; max: " << m_Bindings.size();
+    return m_Bindings[id];
+}
+
+auto Model::CreateExecutionContext() const -> std::shared_ptr<IExecutionContext>
+{
+    return make_shared<IExecutionContext>(m_Engine->createExecutionContextWithoutDeviceMemory());
+}
+
 void Model::AddWeights(void *ptr, size_t size)
 {
     m_Weights.push_back(Weights{ptr, size});
@@ -227,7 +256,7 @@ void Model::PrefetchWeights(cudaStream_t stream) const
     }
 }
 
-size_t Model::GetWeightsMemorySize() const
+auto Model::GetWeightsMemorySize() const -> const size_t
 {
     size_t total = 0;
     for (auto weights : m_Weights)
@@ -237,7 +266,7 @@ size_t Model::GetWeightsMemorySize() const
     return total;
 }
 
-const size_t Model::GetMaxBufferSize() const
+auto Model::GetBindingMemorySize() const -> const size_t
 {
     size_t bytes = 0;
     for (auto &binding : m_Bindings)
@@ -529,7 +558,7 @@ Resources::Resources(int max_executions, int max_buffers)
       m_MinHostStack(0), m_MinDeviceStack(0),
       m_Buffers{nullptr}
 {
-    LOG(INFO) << "Initialzing TensorRT Resource Manager";
+    LOG(INFO) << "-- Initialzing TensorRT Resource Manager --";
     LOG(INFO) << "Maximum Execution Concurrency: " << m_MaxExecutions;
     LOG(INFO) << "Maximum Copy Concurrency: " << m_MaxBuffers;
 
@@ -581,7 +610,7 @@ void Resources::RegisterModel(std::string name, std::shared_ptr<Model> model, ui
     }
 
     // Size according to largest padding - hardcoded to 256
-    size_t bindings = model->GetMaxBufferSize() + model->GetBindingsCount() * 256;
+    size_t bindings = model->GetBindingMemorySize() + model->GetBindingsCount() * 256;
     size_t activations = model->GetActivationsMemorySize() + 128 * 1024; // add a cacheline
 
     size_t host = Align(bindings, 32 * 1024);
@@ -597,12 +626,11 @@ void Resources::RegisterModel(std::string name, std::shared_ptr<Model> model, ui
     m_MinDeviceStack = std::max(m_MinDeviceStack, device);
 
     LOG(INFO) << "-- Registering Model: " << name << " --";
-    LOG(INFO) << "Input/Output Tensors require " << BytesToString(model->GetMaxBufferSize());
+    LOG(INFO) << "Input/Output Tensors require " << BytesToString(model->GetBindingMemorySize());
     LOG(INFO) << "Execution Activations require " << BytesToString(model->GetActivationsMemorySize());
     auto weights = model->GetWeightsMemorySize();
     if (weights)
         LOG(INFO) << "Weights require " << BytesToString(weights);
-    LOG(INFO) << "-- End Model Details: " << name << " --";
 
     model->SetName(name);
     m_Models[name] = model;
@@ -621,13 +649,12 @@ void Resources::RegisterModel(std::string name, std::shared_ptr<Model> model, ui
  */
 void Resources::AllocateResources()
 {
-    LOG(INFO) << "-- TensorRT Resource Manager --";
+    LOG(INFO) << "-- Allocating TensorRT Resources --";
     LOG(INFO) << "Creating " << m_MaxExecutions << " TensorRT execution tokens.";
     LOG(INFO) << "Creating a Pool of " << m_MaxBuffers << " Host/Device Memory Stacks";
     LOG(INFO) << "Each Host Stack contains " << BytesToString(m_MinHostStack);
     LOG(INFO) << "Each Device Stack contains " << BytesToString(m_MinDeviceStack);
     LOG(INFO) << "Total GPU Memory: " << BytesToString(m_MaxBuffers * m_MinDeviceStack);
-    LOG(INFO) << "-- TensorRT Resource Manager --";
 
     m_Buffers = Pool<Buffers>::Create();
     for (int i = 0; i < m_MaxBuffers; i++)

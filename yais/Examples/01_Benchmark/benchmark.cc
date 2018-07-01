@@ -94,7 +94,8 @@ class Benchmark final
 
         // Benchmark Loop - Main thread copies, cuda thread launches, response thread completes
         if (!warmup)
-            LOG(INFO) << "Benchmark: Running for ~" << (int)seconds << " seconds with batch_size " << batch_size;
+            LOG(INFO) << "-- Benchmark: Running for ~" << (int)seconds << " seconds with batch_size " << batch_size << " --";
+
         while (elapsed() < seconds && ++inf_count)
         {
             if (replica >= replicas) replica = 0;
