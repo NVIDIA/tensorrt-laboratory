@@ -46,8 +46,7 @@ using yais::Server;
 using yais::ThreadPool;
 using yais::TensorRT::Runtime;
 using yais::TensorRT::Model;
-
-using ResourcesTensorRT = yais::TensorRT::Resources;
+using yais::TensorRT::Resources;
 
 // Flowers Protos
 #include "api.pb.h"
@@ -56,11 +55,11 @@ using ResourcesTensorRT = yais::TensorRT::Resources;
 using DeepRecommender::BatchInput;
 using DeepRecommender::BatchPredictions;
 
-class RecommenderResources : public ResourcesTensorRT
+class RecommenderResources : public Resources
 {
   public:
-    explicit RecommenderResources(std::shared_ptr<Model> engine, int nBuffers, int nExeCtxs, int nCuda, int nResp)
-        : ResourcesTensorRT(engine, nBuffers, nExeCtxs),
+    explicit RecommenderResources(int max_executions, int max_buffers, int nCuda, int nResp)
+        : Resources(max_executions, max_buffers),
           m_CudaThreadPool(nCuda),
           m_ResponseThreadPool(nResp) {}
 
@@ -79,27 +78,27 @@ class RecommenderContext final : public Context<BatchInput, BatchPredictions, Re
         // Executing on a Executor threads - we don't want to block message handling, so we offload
         GetResources()->GetCudaThreadPool().enqueue([this, &input, &output]() {
             // Executed on a thread from CudaThreadPool
-            auto model = GetResources()->GetModel();
+            auto model = GetResources()->GetModel("recommender");
             auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
             auto batch_size = input.user_preferences_size();
-            buffers->Configure(model, batch_size);
-            DecodeInputEncodings(input, model->GetBinding(0).elementsPerBatchItem, (float *)buffers->GetHostBinding(0));
-            buffers->AsyncH2D(0);
-            auto ctx = GetResources()->GetExeuctionContext(); // <=== Limited Resource; May Block !!!
+            auto bindings = buffers->CreateAndConfigureBindings(model, batch_size);
+            DecodeInputEncodings(input, model->GetBinding(0).elementsPerBatchItem, (float *)bindings->HostAddress(0));
+            bindings->CopyToDevice(bindings->InputBindings());
+            auto ctx = GetResources()->GetExecutionContext(model); // <=== Limited Resource; May Block !!!
             auto t_start = std::chrono::high_resolution_clock::now();
-            ctx->Enqueue(batch_size, buffers->GetDeviceBindings(), buffers->GetStream());
-            buffers->AsyncD2H(1); // GPU -> Host Buffers Output Binding
+            ctx->Infer(bindings);
+            bindings->CopyFromDevice(bindings->OutputBindings());
             // All Async CUDA work has been queued - this thread's work is done.
-            GetResources()->GetResponseThreadPool().enqueue([this, &input, &output, buffers, ctx, t_start]() mutable {
+            GetResources()->GetResponseThreadPool().enqueue([this, &input, &output, bindings, ctx, t_start]() mutable {
                 // Executed on a thread from ResponseThreadPool
-                auto model = GetResources()->GetModel();
+                auto model = bindings->GetModel();
                 ctx->Synchronize();
-                ctx.reset();                  // Finished with the Execution Context - Release it to competing threads
-                buffers->SynchronizeStream(); // Blocks on H2D, Compute, D2H Pipeline
+                ctx.reset();             // Finished with the Execution Context - Release it to competing threads
+                bindings->Synchronize(); // Blocks on H2D, Compute, D2H Pipeline
                 EncodeRecommendations(input, output, model->GetBinding(0).elementsPerBatchItem,
-                                      (float *)buffers->GetHostBinding(0),
-                                      (float *)buffers->GetHostBinding(1));
-                buffers.reset(); // Finished with Buffers - Release it to competing threads
+                                      (float *)bindings->HostAddress(0),
+                                      (float *)bindings->HostAddress(1));
+                bindings.reset();        // Finished with Bindings - Release it to competing threads
                 auto t_end = std::chrono::high_resolution_clock::now();
                 output.set_compute_time(std::chrono::duration<float>(t_end - t_start).count());
                 LOG_EVERY_N(INFO, 200) << output.batch_id() << " " << output.compute_time();
@@ -185,12 +184,13 @@ int main(int argc, char *argv[])
     // Initialize Resources
     LOG(INFO) << "Initializing Resources for RPC (flowers::Inference::Compute)";
     auto rpcResources = std::make_shared<RecommenderResources>(
-        Runtime::DeserializeEngine(FLAGS_engine),
-        FLAGS_nctx * 2, // number of host/device buffers for input/output tensors
         FLAGS_nctx,     // number of IExecutionContexts - scratch space for DNN activations
+        FLAGS_nctx * 2, // number of host/device buffers for input/output tensors
         1,              // number of threads used to execute cuda kernel launches
         2               // number of threads used to write and complete responses
     );
+    rpcResources->RegisterModel("recommender", Runtime::DeserializeEngine(FLAGS_engine));
+    rpcResources->AllocateResources();
 
     // Create Executors - Executors provide the messaging processing resources for the RPCs
     LOG(INFO) << "Initializing Executor";

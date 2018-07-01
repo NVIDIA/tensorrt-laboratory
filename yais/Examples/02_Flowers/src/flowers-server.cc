@@ -38,46 +38,43 @@
 #include "YAIS/Affinity.h"
 
 using yais::Affinity;
-using yais::AsyncService;
 using yais::AsyncRPC;
+using yais::AsyncService;
 using yais::Context;
 using yais::Executor;
 using yais::Server;
 using yais::ThreadPool;
-using yais::TensorRT::Runtime;
 using yais::TensorRT::ManagedRuntime;
 using yais::TensorRT::Model;
-
-using ResourcesTensorRT = yais::TensorRT::Resources;
+using yais::TensorRT::Resources;
+using yais::TensorRT::Runtime;
 
 // Flowers Protos
 #include "flowers.pb.h"
 #include "flowers.grpc.pb.h"
 
 // Dataset Protos
-float* GetSharedMemory(const std::string& address); 
+float *GetSharedMemory(const std::string &address);
 
-
-class FlowersResources : public ResourcesTensorRT
+class FlowersResources : public Resources
 {
   public:
-     explicit FlowersResources(std::shared_ptr<Model> engine, int nBuffers, int nExeCtxs, int nCuda, int nResp, float *sysv_data)
-        : ResourcesTensorRT(engine, nBuffers, nExeCtxs), 
+    explicit FlowersResources(int max_executions, int max_buffers, int nCuda, int nResp, float *sysv_data)
+        : Resources(max_executions, max_buffers),
           m_CudaThreadPool(nCuda),
           m_ResponseThreadPool(nResp),
           m_SharedMemory(sysv_data) {}
 
-    ThreadPool& GetCudaThreadPool() { return m_CudaThreadPool; }
-    ThreadPool& GetResponseThreadPool() { return m_ResponseThreadPool; }
+    ThreadPool &GetCudaThreadPool() { return m_CudaThreadPool; }
+    ThreadPool &GetResponseThreadPool() { return m_ResponseThreadPool; }
 
-    float* GetSysvOffset(size_t offset_in_bytes) { return &m_SharedMemory[offset_in_bytes/sizeof(float)]; }
+    float *GetSysvOffset(size_t offset_in_bytes) { return &m_SharedMemory[offset_in_bytes / sizeof(float)]; }
 
   private:
     ThreadPool m_CudaThreadPool;
     ThreadPool m_ResponseThreadPool;
     float *m_SharedMemory;
 };
-
 
 class FlowersContext final : public Context<ssd::BatchInput, ssd::BatchPredictions, FlowersResources>
 {
@@ -86,27 +83,22 @@ class FlowersContext final : public Context<ssd::BatchInput, ssd::BatchPredictio
         // Executing on a Executor threads - we don't want to block message handling, so we offload
         GetResources()->GetCudaThreadPool().enqueue([this, &input, &output]() {
             // Executed on a thread from CudaThreadPool
-            auto model = GetResources()->GetModel();
-            auto src = GetResources()->GetSysvOffset(input.sysv_offset());
-            auto bytes = model->GetBinding(0).bytesPerBatchItem * input.batch_size();
-            auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
-            // model->PrefetchWeights(buffers->GetStream());
-            buffers->Configure(model, input.batch_size());
-            buffers->AsyncH2D(0, src, bytes); // Sysv -> GPU - Initiate H2D before [possibly] waiting for an ExeCtx
-            auto ctx = GetResources()->GetExeuctionContext(); // <=== Limited Resource; May Block !!!
+            auto model = GetResources()->GetModel("flowers");
+            auto buffers = GetResources()->GetBuffers();            // <=== Limited Resource; May Block !!!
+            auto bindings = buffers->CreateAndConfigureBindings(model, input.batch_size());
+            bindings->SetHostAddress(0, GetResources()->GetSysvOffset(input.sysv_offset()));
+            bindings->CopyToDevice(bindings->InputBindings());
+            auto ctx = GetResources()->GetExecutionContext(model);  // <=== Limited Resource; May Block !!!
             auto t_start = std::chrono::high_resolution_clock::now();
-            ctx->Enqueue(input.batch_size(), buffers->GetDeviceBindings(), buffers->GetStream());
-            buffers->AsyncD2H(1); // GPU -> Host Buffers Output Binding
+            ctx->Infer(bindings);
+            bindings->CopyFromDevice(bindings->OutputBindings());
             // All Async CUDA work has been queued - this thread's work is done.
-            GetResources()->GetResponseThreadPool().enqueue([this, &input, &output, buffers, ctx, t_start]() mutable {
+            GetResources()->GetResponseThreadPool().enqueue([this, &input, &output, bindings, ctx, t_start]() mutable {
                 // Executed on a thread from ResponseThreadPool
-                auto model = GetResources()->GetModel();
-                ctx->Synchronize();
-                ctx.reset(); // Finished with the Execution Context - Release it to competing threads
-                buffers->SynchronizeStream(); // Blocks on H2D, Compute, D2H Pipeline
-                float *scores = (float *)buffers->GetHostBinding(1);
-                WriteBatchPredictions(input, output, scores);
-                buffers.reset(); // Finished with Buffers - Release it to competing threads
+                ctx->Synchronize(); ctx.reset();    // Finished with the Execution Context - Release it to competing threads
+                bindings->Synchronize();            // Blocks on H2D, Compute, D2H Pipeline
+                WriteBatchPredictions(input, output, (float *)bindings->HostAddress(1));
+                bindings.reset();                   // Finished with Buffers - Release it to competing threads
                 auto t_end = std::chrono::high_resolution_clock::now();
                 output.set_compute_time(std::chrono::duration<float>(t_end - t_start).count());
                 output.set_total_time(std::chrono::duration<float>(t_end - t_start).count());
@@ -116,15 +108,15 @@ class FlowersContext final : public Context<ssd::BatchInput, ssd::BatchPredictio
         });
     }
 
-
     void WriteBatchPredictions(RequestType_t &input, ResponseType_t &output, float *scores)
     {
         int N = input.batch_size();
-        auto nClasses = GetResources()->GetModel()->GetBinding(1).elementsPerBatchItem;
+        auto nClasses = GetResources()->GetModel("flowers")->GetBinding(1).elementsPerBatchItem;
         size_t cnt = 0;
-        for (int p = 0; p < N; p++) {
+        for (int p = 0; p < N; p++)
+        {
             auto element = output.add_elements();
-/*
+            /*
             float max_val = -1.0;
             int max_idx = -1;
             for (int i=0; i < nClasses; i++) {
@@ -143,10 +135,10 @@ class FlowersContext final : public Context<ssd::BatchInput, ssd::BatchPredictio
     }
 };
 
-
-static bool ValidateEngine (const char* flagname, const std::string& value) {
-  struct stat buffer;   
-  return (stat (value.c_str(), &buffer) == 0); 
+static bool ValidateEngine(const char *flagname, const std::string &value)
+{
+    struct stat buffer;
+    return (stat(value.c_str(), &buffer) == 0);
 }
 
 DEFINE_string(engine, "/path/to/tensorrt.engine", "TensorRT serialized engine");
@@ -167,11 +159,11 @@ int main(int argc, char *argv[])
 
     // A server will bind an IP:PORT to listen on
     std::ostringstream ip_port;
-    ip_port << "0.0.0.0:"  << FLAGS_port;
+    ip_port << "0.0.0.0:" << FLAGS_port;
     Server server(ip_port.str());
 
     // A server can host multiple services
-    LOG(INFO) << "Register Service (flowers::Inference) with Server"; 
+    LOG(INFO) << "Register Service (flowers::Inference) with Server";
     auto inferenceService = server.RegisterAsyncService<ssd::Inference>();
 
     // An RPC has two components that need to be specified when registering with the service:
@@ -179,22 +171,22 @@ int main(int argc, char *argv[])
     //     of the RPC, i.e. it contains the control logic for the execution of the RPC.
     //  2) The Request function (RequestCompute) which was generated by gRPC when compiling the
     //     protobuf which defined the service.  This function is responsible for queuing the
-    //     RPC's execution context to the 
+    //     RPC's execution context to the
     LOG(INFO) << "Register RPC (flowers::Inference::Compute) with Service (flowers::Inference)";
     auto rpcCompute = inferenceService->RegisterRPC<FlowersContext>(
-        &ssd::Inference::AsyncService::RequestCompute
-    );
+        &ssd::Inference::AsyncService::RequestCompute);
 
     // Initialize Resources
     LOG(INFO) << "Initializing Resources for RPC (flowers::Inference::Compute)";
     auto rpcResources = std::make_shared<FlowersResources>(
-        ManagedRuntime::DeserializeEngine(FLAGS_engine),
-        FLAGS_nctx*2, // number of host/device buffers for input/output tensors
-        FLAGS_nctx, // number of IExecutionContexts - scratch space for DNN activations
-        1, // number of threads used to execute cuda kernel launches
-        2, // number of threads used to write and complete responses
+        FLAGS_nctx,                    // number of IExecutionContexts - scratch space for DNN activations
+        FLAGS_nctx * 2,                // number of host/device buffers for input/output tensors
+        1,                             // number of threads used to execute cuda kernel launches
+        2,                             // number of threads used to write and complete responses
         GetSharedMemory(FLAGS_dataset) // pointer to data in shared memory
     );
+    rpcResources->RegisterModel("flowers", Runtime::DeserializeEngine(FLAGS_engine));
+    rpcResources->AllocateResources();
 
     // Create Executors - Executors provide the messaging processing resources for the RPCs
     LOG(INFO) << "Initializing Executor";
@@ -205,16 +197,17 @@ int main(int argc, char *argv[])
     executor->RegisterContexts(rpcCompute, rpcResources, 100);
 
     LOG(INFO) << "Running Server";
-    server.Run(std::chrono::milliseconds(2000), []{
+    server.Run(std::chrono::milliseconds(2000), [] {
     });
 }
 
-static auto pinned_memory = yais::CudaHostAllocator::make_unique(1024*1024*1024);
+static auto pinned_memory = yais::CudaHostAllocator::make_unique(1024 * 1024 * 1024);
 
-float* GetSharedMemory(const std::string& address) {
+float *GetSharedMemory(const std::string &address)
+{
     /* data in shared memory should go here - for the sake of quick examples just use and emptry array */
     pinned_memory->WriteZeros();
-    return (float*)pinned_memory->Data();
+    return (float *)pinned_memory->Data();
     // the following code connects to a shared memory service to allow for non-serialized transfers
     // between microservices
     /*
