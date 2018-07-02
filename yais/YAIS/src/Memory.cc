@@ -137,7 +137,7 @@ std::string BytesToString(size_t bytes)
         sprintf(buffer, "%ld B", bytes);
         return std::string(buffer);
     }
-    int exp = (int) log(bytes) / log(unit);
+    int exp = (int) (log(bytes) / log(unit));
     sprintf(buffer, "%.1f %ciB", bytes / pow(unit, exp), prefixes[exp-1]);
     return std::string(buffer);
 }

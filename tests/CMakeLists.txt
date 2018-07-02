@@ -12,5 +12,5 @@ add_test(NAME yais_test COMMAND $<TARGET_FILE:yais_test>)
 
 find_package(benchmark)
 if(benchmark_FOUND)
-#  add_subdirectory(benchmark)
+  add_subdirectory(benchmarks)
 endif(benchmark_FOUND)
