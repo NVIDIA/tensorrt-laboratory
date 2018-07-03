@@ -14,8 +14,7 @@ Simply implement a `Context` and an associated set of `Resources`.
 
 Please ensure you have:
   * Install [nvidia-docker](https://github.com/NVIDIA/nvidia-docker)
-  * Sign-up for [NVIDIA GPU Cloud](https://ngc.nvidia.com/) and acquire an [API Key]
-    (https://docs.nvidia.com/ngc/ngc-getting-started-guide/index.html#generating-api-key).
+  * Sign-up for [NVIDIA GPU Cloud](https://ngc.nvidia.com/) and acquire an [API Key] (https://docs.nvidia.com/ngc/ngc-getting-started-guide/index.html#generating-api-key).
   * Authenticate your Docker client using your NGC API key. Yes, the username is `$oauthtoken`.
 
 ```
@@ -23,6 +22,8 @@ $ docker login nvcr.io
 Username: $oauthtoken
 Password: <paste-your-ngc-api-key-here>
 ```
+
+Clone and build YAIS.
 
 ```
 git clone https://github.com/NVIDIA/yais.git
@@ -125,11 +126,11 @@ Code: [TensorRT GPRC Service](examples/02_TensorRT_GRPC)
 
 Combines the ideas of the first two examples to implement the compute side of an inference
 service.  The code show an example (`/* commented out */`) on how you might link to an
-external decode/data service provider via System V shared memory.
+external data service (e.g. an image decode service) via System V shared memory.
 
 This example is based on our flowers demo, simplified to skip the sysv ipc shared memory 
 input buffers.  Typically this demo is run using ResNet-152, in which case, the compute is
-sufficient large not to warrant a discrete thread for performing the async H2D copy. Instead
+sufficiently large not to warrant a discrete thread for performing the async H2D copy. Instead
 the entire inference pipeline is enqueued by workers from the CudaThreadPool.
 
 ### Internals
@@ -147,9 +148,9 @@ sending 1000 requests to the load-balancer and measures the time.  The `run_thro
 starts a subshell after the initial 1000 requests have been sent.
 
 Three clients are available:
-  * `trt-sync-client.x` - send a blocking inference request to the service and waits for the
+  * `client-sync.x` - send a blocking inference request to the service and waits for the
      response.  Only 1 request is ever in-flight at a given time.
-  * `trt-async-client.x` - the async client is capable of issuing multiple in-flight requests.
+  * `client-async.x` - the async client is capable of issuing multiple in-flight requests.
      Note: the load-balancer is limited to 1000 outstanding requests per client before circuit-
      breaking.  Running more than 1000 requests will trigger 503 if targeting the envoy load-
      balancer.
