@@ -1,5 +1,3 @@
-#!/bin/bash -e
-#
 # Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,22 +23,53 @@
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-trap 'kill $(jobs -p)' EXIT
 
-BS=${1:-1}
-ENG=${2:-/work/models/ResNet-50-b2-int8.engine}
+INCLUDE(GRPCGenerateCPP)
+PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS 
+    protos/inference.proto
+    protos/dataset.proto)
 
-if [ ! -e $END ]; then
-    echo "$ENG not found"
-    exit 911
-fi
+PROTOBUF_GENERATE_GRPC_CPP(PROTO_GRPC_SRCS PROTO_GRPC_HDRS 
+    protos/inference.proto
+    protos/dataset.proto)
 
-echo "starting inference service"
-port=50100
-/work/build/yais/Examples/02_Flowers/flowers-server.x --port $port --engine=${ENG} & # > /dev/null 2>&1 &
-wait-for-it.sh localhost:$port --timeout=0 -- echo "Server ${i} is ready." > /dev/null 2>&1
+add_library(inference-protos
+    ${PROTO_SRCS}
+    ${PROTO_GRPC_SRCS})
 
-echo "running latency client"
-/work/build/yais/Examples/02_Flowers/flowers-client.x --port=$port
+target_include_directories(inference-protos PUBLIC
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
 
+
+add_executable(inference-grpc.x
+    src/server.cc
+)
+target_link_libraries(inference-grpc.x
+    yais
+    inference-protos
+)
+
+add_executable(client-sync.x
+    src/sync-client.cc
+)
+target_link_libraries(client-sync.x
+    yais
+    inference-protos
+)
+
+add_executable(client-async.x
+    src/async-client.cc
+)
+target_link_libraries(client-async.x
+    yais
+    inference-protos
+)
+
+add_executable(siege.x
+    src/siege.cc
+)
+target_link_libraries(siege.x
+    yais
+    inference-protos
+)

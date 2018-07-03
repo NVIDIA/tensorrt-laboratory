@@ -24,56 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-INCLUDE(GRPCGenerateCPP)
-PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS 
-    protos/flowers.proto
-    protos/dataset.proto)
-
-PROTOBUF_GENERATE_GRPC_CPP(PROTO_GRPC_SRCS PROTO_GRPC_HDRS 
-    protos/flowers.proto
-    protos/dataset.proto)
-
-#add_custom_target(generate-protos DEPENDS ${PROTO_GPRC_SRCS} ${PROTO_GPRC_HDRS})
-
-include_directories(${Protobuf_INCLUDE_DIRS})
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(${CUDA_INCLUDE_DIRS})
-include_directories(${TensorRT_INCLUDE_DIRS})
-
-add_executable(flowers-server.x
-    src/flowers-server.cc
-    ${PROTO_SRCS}
-    ${PROTO_GRPC_SRCS})
-
-#add_dependencies(flowers-server.x generate-protos)
-
-target_link_libraries(flowers-server.x
-    yais
+add_executable(internals.x
+    internals.cc
 )
-
-add_executable(flowers-client.x
-    src/client.cpp
-    ${PROTO_SRCS}
-    ${PROTO_GRPC_SRCS})
-
-target_link_libraries(flowers-client.x
-    yais
-)
-
-add_executable(flowers-async-client.x
-    src/async-client.cc
-    ${PROTO_SRCS}
-    ${PROTO_GRPC_SRCS})
-
-target_link_libraries(flowers-async-client.x
-    yais
-)
-
-add_executable(siege.x
-    src/siege.cc
-    ${PROTO_SRCS}
-    ${PROTO_GRPC_SRCS})
-
-target_link_libraries(siege.x
+target_link_libraries(internals.x
     yais
 )

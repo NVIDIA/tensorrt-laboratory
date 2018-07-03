@@ -24,14 +24,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <chrono>
-#include <thread>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include <gflags/gflags.h>
+#include <glog/logging.h>
 
 #include "YAIS/YAIS.h"
 #include "YAIS/TensorRT.h"
@@ -55,15 +52,15 @@ static std::string ModelName(int model_id)
     return stream.str();
 }
 
-class BenchmarkResources : public Resources
+class InferenceResources : public Resources
 {
   public:
-    BenchmarkResources(int max_executions, int max_buffers, int nCuda, int nResp)
+    InferenceResources(int max_executions, int max_buffers, int nCuda, int nResp)
         : Resources(max_executions, max_buffers),
           m_CudaThreadPool(std::make_unique<ThreadPool>(nCuda)),
           m_ResponseThreadPool(std::make_unique<ThreadPool>(nResp)) {}
 
-    ~BenchmarkResources() override {}
+    ~InferenceResources() override {}
 
     std::unique_ptr<ThreadPool> &GetCudaThreadPool() { return m_CudaThreadPool; }
     std::unique_ptr<ThreadPool> &GetResponseThreadPool() { return m_ResponseThreadPool; }
@@ -73,15 +70,14 @@ class BenchmarkResources : public Resources
     std::unique_ptr<ThreadPool> m_ResponseThreadPool;
 };
 
-class Benchmark final
+class Inference final
 {
   public:
-    Benchmark(std::shared_ptr<BenchmarkResources> resources) : m_Resources(resources) {}
+    Inference(std::shared_ptr<InferenceResources> resources) : m_Resources(resources) {}
 
     void Run(float seconds, bool warmup, int replicas = 1)
     {
         int replica = 0;
-        int cntr = 0;
         uint64_t inf_count = 0;
 
         auto start = std::chrono::system_clock::now();
@@ -92,9 +88,9 @@ class Benchmark final
         auto model = GetResources()->GetModel(ModelName(replica++));
         auto batch_size = model->GetMaxBatchSize();
 
-        // Benchmark Loop - Main thread copies, cuda thread launches, response thread completes
+        // Inference Loop - Main thread copies, cuda thread launches, response thread completes
         if (!warmup)
-            LOG(INFO) << "-- Benchmark: Running for ~" << (int)seconds << " seconds with batch_size " << batch_size << " --";
+            LOG(INFO) << "-- Inference: Running for ~" << (int)seconds << " seconds with batch_size " << batch_size << " --";
 
         while (elapsed() < seconds && ++inf_count)
         {
@@ -127,18 +123,20 @@ class Benchmark final
             GetResources()->GetCudaThreadPool().reset();
         if (!warmup)
             GetResources()->GetResponseThreadPool().reset();
+
+        // End timing and report
         auto total_time = std::chrono::duration<float>(elapsed()).count();
         auto inferences = inf_count * batch_size;
         if (!warmup)
-            LOG(INFO) << "Benchmark Results: " << inf_count << " batches in " << total_time << " seconds; "
+            LOG(INFO) << "Inference Results: " << inf_count << " batches in " << total_time << " seconds; "
                       << "sec/batch: " << total_time / inf_count << "; inf/sec: " << inferences / total_time;
     }
 
   protected:
-    inline std::shared_ptr<BenchmarkResources> GetResources() { return m_Resources; }
+    inline std::shared_ptr<InferenceResources> GetResources() { return m_Resources; }
 
   private:
-    std::shared_ptr<BenchmarkResources> m_Resources;
+    std::shared_ptr<InferenceResources> m_Resources;
 };
 
 static bool ValidateEngine(const char *flagname, const std::string &value)
@@ -159,7 +157,7 @@ DEFINE_int32(replicas, 1, "Number of Replicas of the Model to load");
 int main(int argc, char *argv[])
 {
     FLAGS_alsologtostderr = 1; // Log to console
-    ::google::InitGoogleLogging("TensorRT Benchmark");
+    ::google::InitGoogleLogging("TensorRT Inference");
     ::google::ParseCommandLineFlags(&argc, &argv, true);
 
     MPI_CHECK(MPI_Init(&argc, &argv));
@@ -167,7 +165,7 @@ int main(int argc, char *argv[])
     auto contexts = FLAGS_contexts;
     auto buffers = FLAGS_buffers ? FLAGS_buffers : 2 * FLAGS_contexts;
 
-    auto resources = std::make_shared<BenchmarkResources>(
+    auto resources = std::make_shared<InferenceResources>(
         contexts,
         buffers,
         FLAGS_cudathreads,
@@ -181,12 +179,12 @@ int main(int argc, char *argv[])
         resources->RegisterModel(ModelName(i), ManagedRuntime::DeserializeEngine(FLAGS_engine));
     }
 
-    Benchmark benchmark(resources);
-    benchmark.Run(0.1, true); // warmup
+    Inference inference(resources);
+    inference.Run(0.1, true); // warmup
 
     // if testing mps - sync all processes before executing timed loop
     MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
-    benchmark.Run(FLAGS_seconds, false, FLAGS_replicas);
+    inference.Run(FLAGS_seconds, false, FLAGS_replicas);
     MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
 
     // todo: perform an mpi_allreduce to collect the per process timings

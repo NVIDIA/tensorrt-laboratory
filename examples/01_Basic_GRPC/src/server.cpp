@@ -109,8 +109,7 @@ class SimpleContext final : public Context<simple::Input, simple::Output, Simple
             // Now running on a worker thread of the ThreadPool defined in SimpleResources.
             // Here we are just echoing back the incoming // batch_id; however, in later 
             // examples, we'll show how to run an async cuda pipline.
-            static int count = 0;
-            if(count++ < 20) { LOG(INFO) << "Tag = " << Tag() << " Thread = " << std::this_thread::get_id(); }
+            LOG_FIRST_N(INFO, 20) << "Tag = " << Tag() << " Thread = " << std::this_thread::get_id();
             output.set_batch_id(input.batch_id());
             this->FinishResponse();
         });

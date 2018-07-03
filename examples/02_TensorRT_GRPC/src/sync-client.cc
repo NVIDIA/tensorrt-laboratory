@@ -52,7 +52,7 @@
 #include <glog/logging.h>
 #include <grpcpp/grpcpp.h>
 
-#include "flowers.grpc.pb.h"
+#include "inference.grpc.pb.h"
 
 using grpc::Channel;
 using grpc::ClientContext;

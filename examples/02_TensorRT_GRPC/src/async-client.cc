@@ -56,7 +56,7 @@
 #include <grpc/support/log.h>
 #include <thread>
 
-#include "flowers.grpc.pb.h"
+#include "inference.grpc.pb.h"
 
 using grpc::Channel;
 using grpc::ClientAsyncResponseReader;

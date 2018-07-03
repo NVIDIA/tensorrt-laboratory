@@ -26,44 +26,21 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-cleanup() {
-  kill $(jobs -p) ||:
-  echo quit | nvidia-cuda-mps-control > /dev/null 2>&1 ||:
-}
-trap "cleanup" EXIT SIGINT SIGTERM
+trap 'kill $(jobs -p)' EXIT
 
-NCTX=${1:-1}
-BS=${2:-1}
-ENG=${3:-/work/models/ResNet-50-b2-int8.engine}
-MPS=${4:-"MPS"}
+BS=${1:-1}
+ENG=${2:-/work/models/ResNet-50-b2-int8.engine}
 
-if [ ! -e $ENG ]; then
+if [ ! -e $END ]; then
     echo "$ENG not found"
     exit 911
 fi
 
-if [ "$MPS" = "MPS" ]; then
-  nvidia-cuda-mps-control -d ||:
-fi
+echo "starting inference service"
+port=50100
+/work/build/examples/02_TensorRT_GRPC/inference-grpc.x --port $port --engine=${ENG} & # > /dev/null 2>&1 &
+wait-for-it.sh localhost:$port --timeout=0 -- echo "Server ${i} is ready." > /dev/null 2>&1
 
-sleep 1
-
-echo "starting $NCTX inference services"
-for i in $(seq 1 $NCTX);
-do
-  port=$(echo "50050 + $i" | bc)
-  /work/build/yais/Examples/02_Flowers/flowers-server.x --port $port --engine=${ENG} > /dev/null 2>&1 &
-  wait-for-it.sh localhost:$port --timeout=0 -- echo "Server ${i} is ready." > /dev/null 2>&1
-done
-
-echo "starting load balancer"
-../99_LoadBalancer/run_loadbalancer.py -n $NCTX 
-# envoy -c /tmp/lb-envoy.yaml --disable-hot-restart > /dev/null 2>&1 &
-envoy -c /tmp/lb-envoy.yaml > /dev/null 2>&1 &
-wait-for-it.sh localhost:50050 --timeout=0 -- echo "Load balancer is ready." > /dev/null 2>&1
-
-echo "running test client"
-/work/build/yais/Examples/02_Flowers/flowers-async-client.x --count=1000 --port=50050
-
-bash --rcfile <(echo "PS1='Throughput Subshell: '")
+echo "running latency client"
+/work/build/examples/02_TensorRT_GRPC/client-sync.x --port=$port
 

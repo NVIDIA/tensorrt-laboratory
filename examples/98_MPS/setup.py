@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -23,8 +25,34 @@
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+import os
+import subprocess
 
-add_subdirectory(00_Echo)
-add_subdirectory(01_Benchmark)
-add_subdirectory(02_Flowers)
-add_subdirectory(03_Recommenders)
+models = [
+    ("ResNet-50-deploy.prototxt", "prob"),
+#   ("ResNet-152-deploy.prototxt", "prob"),
+]
+
+precisions = [
+    ("fp32", ""),
+    ("fp16", "--fp16"),
+    ("int8", "--int8")
+]
+
+def main():
+    for model, o in models:
+        for name, p in precisions:
+            for b in [1]: #, 2, 4, 8]:
+                n = "b{}-{}".format(b, name)
+                e = model.replace("prototxt", "engine")
+                e = e.replace("deploy", n)
+                m = os.path.join("/work/models", model)
+                if os.path.isfile(e):
+                    continue
+                subprocess.call("giexec --deploy={} --batch={} --output={} {} --engine={}".format(
+                    m, b, o, p, e
+                ), shell=True)
+
+if __name__ == "__main__":
+    main()

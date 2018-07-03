@@ -24,38 +24,24 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-add_executable(test_resources.x
-    test_resources.cc)
-
-target_link_libraries(test_resources.x
-    yais
-)
-
-add_executable(test_shared_pool.x
-    test_shared_pool.cc
-)
-
-target_link_libraries(test_shared_pool.x
-    yais
-)
-
-add_executable(test_playground.x
-    test_playground.cc
-)
-
 include_directories(${CUDA_INCLUDE_DIRS})
+include_directories(${TensorRT_INCLUDE_DIRS})
 
-target_link_libraries(test_playground.x
+add_executable(inference.x
+    inference.cc
+    ${PROTO_SRCS}
+    ${PROTO_GRPC_SRCS})
+
+target_link_libraries(inference.x
     yais
 )
 
-
-add_executable(test_affinity.x
-    test_affinity.cc
+if(YAIS_ENABLE_MPI)
+find_package(MPI)
+include_directories(SYSTEM ${MPI_INCLUDE_PATH})
+target_link_libraries(inference.x
+    ${MPI_C_LIBRARIES}
+    ${MPI_CXX_LIBRARIES}
 )
-
-include_directories(${CUDA_INCLUDE_DIRS})
-
-target_link_libraries(test_affinity.x
-    yais
-)
+target_compile_definitions(inference.x PUBLIC YAIS_USE_MPI)
+endif()

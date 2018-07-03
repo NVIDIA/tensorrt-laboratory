@@ -50,8 +50,8 @@ using yais::TensorRT::Resources;
 using yais::TensorRT::Runtime;
 
 // Flowers Protos
-#include "flowers.pb.h"
-#include "flowers.grpc.pb.h"
+#include "inference.pb.h"
+#include "inference.grpc.pb.h"
 
 // Dataset Protos
 float *GetSharedMemory(const std::string &address);

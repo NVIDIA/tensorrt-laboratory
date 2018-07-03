@@ -1,5 +1,17 @@
 # YAIS Internals
 
+The `internals.x` program is designed to be run on a DGX-Station or DGX-1.  This is mostly to highlight
+the use of the Affinity API.  If you want to run on a different CPU architecture, you simply need to
+change the following lines to a range that works with your CPU.
+
+```
+    // Socket 1 - non-hyperthreads on a DGX-1, or
+    // Socket 0 - hyperthreads on a DGX-Station
+    auto socket_1 = Affinity::GetAffinity().Intersection(
+        Affinity::GetCpusFromString("20-39") // <== Change Me!
+    );
+```
+
 ## Primative Classes
 
   * `Affinity` 

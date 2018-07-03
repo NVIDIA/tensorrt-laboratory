@@ -56,7 +56,7 @@
 #include <grpc/support/log.h>
 #include <thread>
 
-#include "flowers.grpc.pb.h"
+#include "inference.grpc.pb.h"
 
 using grpc::Channel;
 using grpc::ClientAsyncResponseReader;
@@ -70,11 +70,22 @@ using ssd::Inference;
 class GreeterClient {
   public:
     explicit GreeterClient(std::shared_ptr<Channel> channel)
-            : stub_(Inference::NewStub(channel)) {}
+            : stub_(Inference::NewStub(channel)), m_OutstandingMessageCount(0) {}
 
     // Assembles the client's payload and sends it to the server.
     void SayHello(const size_t batch_id, const int batch_size) {
         // Data we are sending to the server.
+        {
+            std::unique_lock<std::mutex> lock(m_Mutex);
+            m_OutstandingMessageCount++;
+            while(m_OutstandingMessageCount >= 950) {
+                LOG_FIRST_N(WARNING, 10) << "Initiated Backoff - (Siege Rate > Server Compute Rate) - Server Queues are full.";
+                m_Condition.wait(lock);
+            }
+        }
+
+        auto start = std::chrono::high_resolution_clock::now();
+
         BatchInput request;
         request.set_batch_id(batch_id);
         request.set_batch_size(batch_size);
@@ -97,6 +108,10 @@ class GreeterClient {
         // was successful. Tag the request with the memory address of the call object.
         call->response_reader->Finish(&call->reply, &call->status, (void*)call);
 
+        float elapsed = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count();
+        m_RequestCalls++;
+        m_TotalRequestTime += elapsed;
+        // LOG_EVERY_N(INFO, 200) << "Request overhead: " << m_TotalRequestTime/m_RequestCalls;
     }
 
     // Loop while listening for completed responses.
@@ -104,6 +119,9 @@ class GreeterClient {
     void AsyncCompleteRpc() {
         void* got_tag;
         bool ok = false;
+        size_t cntr = 0;
+        auto start = std::chrono::system_clock::now();
+        float last = 0.0;
 
         // Block until the next result is available in the completion queue "cq".
         while (cq_.Next(&got_tag, &ok)) {
@@ -121,6 +139,20 @@ class GreeterClient {
             }
             // Once we're complete, deallocate the call object.
             delete call;
+
+            cntr++;
+            float elapsed = std::chrono::duration<float>(std::chrono::system_clock::now() - start).count();
+            if (elapsed - last > 0.5) {
+                LOG(INFO) << "avg. rate: " << (float)cntr/(elapsed - last);
+                last = elapsed;
+                cntr = 0;
+            }
+
+            {
+                std::unique_lock<std::mutex> lock(m_Mutex);
+                m_OutstandingMessageCount--;
+            }
+            m_Condition.notify_one();
         }
     }
 
@@ -154,16 +186,30 @@ class GreeterClient {
     // The producer-consumer queue we use to communicate asynchronously with the
     // gRPC runtime.
     CompletionQueue cq_;
+
+    // mutex to help control rate
+    std::mutex m_Mutex;
+    std::condition_variable m_Condition;
+    int m_OutstandingMessageCount;
+    float m_TotalRequestTime;
+    size_t m_RequestCalls;
 };
 
-DEFINE_int32(count, 500, "number of grpc messages to send");
+DEFINE_int32(count, 1000000, "number of grpc messages to send");
 DEFINE_int32(batch_size, 1, "batch_size");
 DEFINE_int32(port, 50051, "server_port");
+DEFINE_double(rate, 1.0, "messages per second");
 
 int main(int argc, char** argv) {
 
     FLAGS_alsologtostderr = 1; // It will dump to console
     ::google::ParseCommandLineFlags(&argc, &argv, true);
+
+    // using a fixed rate of 15us per rpc call.  i could adjust dynamically as i'm tracking
+    // the call overhead, but it's close enough.
+    auto sleep_time = (std::chrono::seconds(1) / FLAGS_rate) - std::chrono::microseconds(15);
+    LOG(INFO) << "Sleep time: " << std::chrono::duration<float>(sleep_time).count();
+    auto sleepy = std::chrono::duration<float>(sleep_time).count();
 
     // Instantiate the client. It requires a channel, out of which the actual RPCs
     // are created. This channel models a connection to an endpoint (in this case,
@@ -180,6 +226,11 @@ int main(int argc, char** argv) {
     auto start = std::chrono::system_clock::now();
     for (size_t i = 0; i < FLAGS_count; i++) {
         greeter.SayHello(i, FLAGS_batch_size);  // The actual RPC call!
+        // std::this_thread::sleep_for(sleep_time); // <== way too much overhead
+        auto start = std::chrono::high_resolution_clock::now();
+        while (std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count() < sleepy) {
+            std::this_thread::yield();
+        }
     }
 
     greeter.Shutdown();

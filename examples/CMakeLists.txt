@@ -24,24 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-include_directories(${CUDA_INCLUDE_DIRS})
-include_directories(${TensorRT_INCLUDE_DIRS})
-
-add_executable(benchmark.x
-    benchmark.cc
-    ${PROTO_SRCS}
-    ${PROTO_GRPC_SRCS})
-
-target_link_libraries(benchmark.x
-    yais
-)
-
-if(YAIS_ENABLE_MPI)
-find_package(MPI)
-include_directories(SYSTEM ${MPI_INCLUDE_PATH})
-target_link_libraries(benchmark.x
-    ${MPI_C_LIBRARIES}
-    ${MPI_CXX_LIBRARIES}
-)
-target_compile_definitions(benchmark.x PUBLIC YAIS_USE_MPI)
-endif()
+add_subdirectory(00_TensorRT)
+add_subdirectory(01_Basic_GRPC)
+add_subdirectory(02_TensorRT_GRPC)
+add_subdirectory(03_Internals)

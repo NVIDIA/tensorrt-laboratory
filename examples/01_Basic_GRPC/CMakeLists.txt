@@ -25,29 +25,33 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 INCLUDE(GRPCGenerateCPP)
-PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS api.proto)
-PROTOBUF_GENERATE_GRPC_CPP(PROTO_GRPC_SRCS PROTO_GRPC_HDRS api.proto)
+PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS protos/simple.proto)
+PROTOBUF_GENERATE_GRPC_CPP(PROTO_GRPC_SRCS PROTO_GRPC_HDRS protos/simple.proto)
 
-include_directories(${Protobuf_INCLUDE_DIRS})
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(${CUDA_INCLUDE_DIRS})
-include_directories(${TensorRT_INCLUDE_DIRS})
-
-add_executable(recommender-server.x
-    server.cc
+add_library(echo-protos
     ${PROTO_SRCS}
     ${PROTO_GRPC_SRCS})
 
-target_link_libraries(recommender-server.x
-    yais
+target_include_directories(echo-protos PUBLIC
+    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-#add_executable(client.x
-#    src/client.cpp)
+add_executable(echo-grpc.x
+    src/server.cpp)
 
-#target_link_libraries(client.x
-#    yais
-#    protos
-#    ${_GRPC_GRPCPP_UNSECURE}
-#    ${_PROTOBUF_LIBPROTOBUF}
-#)
+target_link_libraries(echo-grpc.x
+    yais
+    echo-protos
+    ${_GRPC_GRPCPP_UNSECURE}
+    ${_PROTOBUF_LIBPROTOBUF}
+)
+
+add_executable(echo-client.x
+    src/client.cpp)
+
+target_link_libraries(echo-client.x
+    yais
+    echo-protos
+    ${_GRPC_GRPCPP_UNSECURE}
+    ${_PROTOBUF_LIBPROTOBUF}
+)
