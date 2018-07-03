@@ -123,7 +123,7 @@ be any set of captured lambda functions or function pointers passed to the `enqu
 
 As these ThreadPools are generic, we can enqueue any type of work to them.  Many thanks to the original
 authors Jakob Progsch and Václav Zeman for this incredible useful class.  For details on the original
-work and the modificiations made in this project, see [CREDITS.md](CREDITS.md) and the source code.
+work and the modificiations made in this project, see [CREDITS.md](../../CREDITS.md) and the source code.
 
 
 ### Memory
@@ -132,8 +132,7 @@ One of the reasons why `Affinity` and `ThreadPool` were introduced prior to `Mem
 NUMA system can be difficult to do correctly.  For memory segments that will be primarly used by sets
 of threads, it is very important to first set the affinity of the threads, then allocate and touch each
 page in the memory allocation (first-touch) on the thread that will primarly use the segment.  NERSC 
-has a nice [write-up on memory affinity and first touch policies]
-(http://www.nersc.gov/users/computational-systems/cori/application-porting-and-performance/improving-openmp-scaling/).
+has a nice [write-up on memory affinity and first touch policies](http://www.nersc.gov/users/computational-systems/cori/application-porting-and-performance/improving-openmp-scaling/).
 In this section, we'll show how to properly use the `Memory` and `Allocator` classes in a NUMA friendly
 way using `ThreadPool`s.
 
@@ -145,9 +144,10 @@ their respective classes is to be allocated, freed, and page-aligned.  For detai
 in the source code.
 
 Derived `Memory` Classes:
-  * `MallocMemory`
+  * `SystemMallocMemory`
   * `CudaHostMemory`
   * `CudaDeviceMemory`
+  * `CudaManagedMemory`
 
 ### Allocatory<MemoryType>
 
@@ -187,7 +187,7 @@ I0515 08:36:56.619297 13260 test_affinity.cc:59] pinned_0 (ptr, size): (0x1005e0
 
 ### MemoryStack<AllocatorType>
 
-  * [Definition: YAIS/Memory.h](../../yais/include/YAIS/Memory.h)
+  * [Definition: YAIS/MemoryStack.h](../../yais/include/YAIS/MemoryStack.h)
 
 Generic `MemoryStack` that takes an `AllocatorType`.  The memory stack advances the stack pointer
 via `Allocate` and resets the stack pointer via `ResetAllocations`.  `MemoryStackWithTracking`
