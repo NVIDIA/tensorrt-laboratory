@@ -5,10 +5,10 @@
 C++ library for developing compute intensive asynchronous services built on gRPC.
 
 The goal of the library is to provided a bootstrap for CUDA, TensorRT and gRPC functionality
-such that the develeper can focus in the implementation of the server-side RPC without having
-to worry too much about the underlying messaging framework.
+such that develepers can focus directly on the implementation of the server-side RPC without 
+having to worry *too much* about the underlying messaging framework.
 
-For any given RPC, you simply need to implement a `Context` and an associated set of `Resources`.
+Simply implement a `Context` and an associated set of `Resources`.
 
 ## Quickstart
 
@@ -22,17 +22,20 @@ make
 ./build.sh
 ```
 
-The above commands builds a docker image, maps the current working directory inside the container,
-and builds the library inside the container.  All dependencies are provided by the container, but
-the actual source code remains on the host.  For deplopyment, copy or build the library as part
-of the containers filesystem.
+The above commands build a docker image, map the current working directory inside the container,
+and finally, builds the library inside the container.  All dependencies are provided by the container, 
+but the actual source code remains on the host.  For deployment, copy or build the library as part
+of the container's filesystem.
 
-Next, compile supplied models using [TensorRT 4](https://developer.nvidia.com/tensorrt):
+Next, compile the supplied [models](models) using [TensorRT 4](https://developer.nvidia.com/tensorrt):
 
 ```
 cd models
 ./setup.py
 ```
+
+Modify the setup.py file to choose the models, batch sizes, and precision types you wish to build.
+The default is configured for a Tesla V100.  Not all GPUs support all types of precision.
 
 Finally, run the `inference.x` executable on one of the compiled TensorRT engines.
 
@@ -55,7 +58,7 @@ I0703 06:08:22.506074 13342 inference.cc:93] -- Inference: Running for ~5 second
 I0703 06:08:27.511525 13342 inference.cc:131] Inference Results: 11898 batches in 5.00546 seconds; sec/batch: 0.000420698; inf/sec: 2377
 ```
 
-The best way to explore YAIS is to dig into the [examples](#Examples).
+The best way to explore YAIS is to dig into the [examples](#examples).
 
 ## Motivation
 

@@ -3,9 +3,11 @@
 Included in this folder are a collection of open source models and
 some scripts to build TensorRT engines from these models.
 
-TODO: update scripts to pull open sourced weights for fully functional
-models.  Currently, the samples provided only generate TensorRT engines
+Currently, the samples provided only generate TensorRT engines
 with random weights and are only good for synthetic tests.
+
+TODO: update scripts to pull open sourced weights for fully functional
+models.
 
 
 ## Credits

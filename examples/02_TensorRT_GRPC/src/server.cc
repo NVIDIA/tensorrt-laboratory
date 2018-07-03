@@ -112,24 +112,22 @@ class FlowersContext final : public Context<ssd::BatchInput, ssd::BatchPredictio
     {
         int N = input.batch_size();
         auto nClasses = GetResources()->GetModel("flowers")->GetBinding(1).elementsPerBatchItem;
-        size_t cnt = 0;
+        size_t cntr = 0;
         for (int p = 0; p < N; p++)
         {
             auto element = output.add_elements();
-            /*
             float max_val = -1.0;
             int max_idx = -1;
             for (int i=0; i < nClasses; i++) {
-                if(max_val < scores[cnt]) {
-                    max_val = scores[cnt];
+                if(max_val < scores[cntr]) {
+                    max_val = scores[cntr];
                     max_idx = i;
                 }
-                cnt++;
+                cntr++;
             }
-	    auto top1 = element->add_predictions();
+	        auto top1 = element->add_predictions();
             top1->set_class_id(max_idx);
             top1->set_score(max_val);
-*/
         }
         output.set_batch_id(input.batch_id());
     }
