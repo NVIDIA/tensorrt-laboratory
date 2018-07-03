@@ -1,22 +1,79 @@
 # YAIS
 
-C++ library for compute intensive asynchronous services built on gRPC.
+(Pronounced: Yaz!)
 
-> Yet Another Inference Service Library
+C++ library for developing compute intensive asynchronous services built on gRPC.
+
+YAIS provides a bootstrap for CUDA, TensorRT and gRPC functionality so developers
+can focus on the implementation of the server-side RPC without the need for a lot of
+boilerplate code.
+
+Simply implement a `Context` and an associated set of `Resources`.
 
 ## Quickstart
 
+### Prerequisites
+  * Install [nvidia-docker](https://github.com/NVIDIA/nvidia-docker)
+  * Sign-up for [NVIDIA GPU Cloud](https://ngc.nvidia.com/) and acquire an [API Key](https://docs.nvidia.com/ngc/ngc-getting-started-guide/index.html#generating-api-key).
+  * Authenticate your Docker client using your NGC API key. Yes, the username is `$oauthtoken`.
+
 ```
-git clone ssh://git@yagr.nvidia.com:2200/demos/inference-demo/grpc_inference_service_cpp.git
-cd grpc_inference_service_cpp
+$ docker login nvcr.io
+Username: $oauthtoken
+Password: <paste-your-ngc-api-key-here>
+```
+
+### Clone and build YAIS
+
+```
+git clone https://github.com/NVIDIA/yais.git
+cd yais
 make
 ./devel.sh
 ./build.sh
-cd build
 ```
 
-[See the benchmarking example for more details](src/Examples/01_Benchmark/README.md).
+The above commands build a docker image, maps the current working directory inside the container,
+and finally, builds the library inside the container.  All dependencies are provided by the container, 
+but the actual source code remains on the host.  For deployment, copy or build the library as part
+of the container's filesystem.
 
+### Compile Models
+
+Next, compile the supplied [models](models) using [TensorRT 4](https://developer.nvidia.com/tensorrt):
+
+```
+cd models
+./setup.py
+```
+
+Modify the setup.py file to choose the models, batch sizes, and precision types you wish to build.
+The default is configured for a Tesla V100.  Not all GPUs support all types of precision.
+
+### Run Examples
+
+Finally, run the `inference.x` executable on one of the compiled TensorRT engines.
+
+```
+root@dgx:/work/models# /work/build/examples/00_TensorRT/inference.x --engine=ResNet-50-b1-int8.engine --contexts=8
+I0703 06:08:20.770718 13342 TensorRT.cc:561] -- Initialzing TensorRT Resource Manager --
+I0703 06:08:20.770999 13342 TensorRT.cc:562] Maximum Execution Concurrency: 8
+I0703 06:08:20.771011 13342 TensorRT.cc:563] Maximum Copy Concurrency: 16
+I0703 06:08:22.345489 13342 TensorRT.cc:628] -- Registering Model: 0 --
+I0703 06:08:22.345548 13342 TensorRT.cc:629] Input/Output Tensors require 591.9 KiB
+I0703 06:08:22.345559 13342 TensorRT.cc:630] Execution Activations require 2.5 MiB
+I0703 06:08:22.345568 13342 TensorRT.cc:633] Weights require 30.7 MiB
+I0703 06:08:22.392627 13342 TensorRT.cc:652] -- Allocating TensorRT Resources --
+I0703 06:08:22.392644 13342 TensorRT.cc:653] Creating 8 TensorRT execution tokens.
+I0703 06:08:22.392652 13342 TensorRT.cc:654] Creating a Pool of 16 Host/Device Memory Stacks
+I0703 06:08:22.392663 13342 TensorRT.cc:655] Each Host Stack contains 608.0 KiB
+I0703 06:08:22.392673 13342 TensorRT.cc:656] Each Device Stack contains 3.2 MiB
+I0703 06:08:22.392680 13342 TensorRT.cc:657] Total GPU Memory: 52.0 MiB
+I0703 06:08:22.506074 13342 inference.cc:93] -- Inference: Running for ~5 seconds with batch_size 1 --
+I0703 06:08:27.511525 13342 inference.cc:131] Inference Results: 11898 batches in 5.00546 seconds; sec/batch: 0.000420698; inf/sec: 2377
+```
+
+The best way to explore YAIS is to dig into the [examples](#examples).
 
 ## Motivation
 
@@ -48,47 +105,75 @@ There are two fundamental classes of the YAIS library:
 
 For a high-level overview see the [YAIS Slide Deck](https://docs.google.com/presentation/d/1n0g082jMJfq72dxbef9bThn4mQbzWKG6TzirJIuCEjE/edit?usp=sharing).
 
-For details on the integrated convenience classes, see the [Internals document](docs/Internals.md). 
+For details on the integrated convenience classes, see the [Internals document](examples/03_Internals/README.md). 
 
 ## Examples
 
-### Echo Service
+### TensorRT
 
-Code: [Echo Service](src/Examples/00_Echo)
-
-Ping-pong / Echo message service based on gRPC.  Describes the core messaging components of the
-library.
-
-### TensorRT Perf Test
-
-Code: [TensorRT Perf Test](src/Examples/01_Benchmark)
+Code: [TensorRT](examples/00_TensorRT)
 
 Example TensoRT pipline with fixed resources pools for input/output tensors and execution
 contexts.  Thread pools are used to provide maximum overlap for async sections such that 
 if a resource pool is starved, only that part of the pipeline will stall.
 
+### Basic GRPC Service
+
+Code: [Basic GRPC Service](examples/01_Basic_GRPC)
+
+Ping-pong / Echo message service based on gRPC.  Demonstrates the core messaging gRPC
+components of the library.
+
 ### Inference Service
 
-Code: [Inference Service](src/Examples/02_Flowers)
+Code: [TensorRT GPRC Service](examples/02_TensorRT_GRPC)
 
-Formerly the flowers demo, simplified to skip the sysv ipc shared memory input buffers.  Not as much
-concurrency as the perf test/ benchmark code above.
+Combines the ideas of the first two examples to implement the compute side of an inference
+service.  The code show an example (`/* commented out */`) on how you might link to an
+external data service (e.g. an image decode service) via System V shared memory.
+
+This example is based on our flowers demo, simplified to skip the sysv ipc shared memory 
+input buffers.  Typically this demo is run using ResNet-152, in which case, the compute is
+sufficiently large not to warrant a discrete thread for performing the async H2D copy. Instead
+the entire inference pipeline is enqueued by workers from the CudaThreadPool.
+
+### Internals
+
+Code [Internals](examples/03_Internals)
+
+The `internals.cc` and README provide a guide on how some of the provided classes work in
+practice.  For implementation details, go directly to the [source code](yais).
 
 ### MPS
 
-Code: [MPS Example](src/Examples/98_MPS)
+Code: [MPS Example](examples/98_MPS)
 
-Tests multiple TensorRT inference services running on the same GPU. `N` services are created, a
+Tests multiple TensorRT inference services running on the same GPU. `N` services are started, a
 load-balancer is created to round robin incoming requests between services, and finally a client
-sending 1000 requests to the load-balancer and measures the time.
+sending 1000 requests to the load-balancer and measures the time.  The `run_throughput_test`
+starts a subshell after the initial 1000 requests have been sent.
+
+Three clients are available:
+  * `client-sync.x` - send a blocking inference request to the service and waits for the
+     response.  Only 1 request is ever in-flight at a given time.
+  * `client-async.x` - the async client is capable of issuing multiple in-flight requests.
+     Note: the load-balancer is limited to 1000 outstanding requests per client before circuit-
+     breaking.  Running more than 1000 requests will trigger 503 if targeting the envoy load-
+     balancer.
+  * `siege.x` - constant rate (`--rate`) async engine that is hard-coded to have no more than
+     950 outstanding in-flight requests.  A warning will be given client-side if the outstanding
+     requests tops meaning the rate is limited by the server-side compute.
+
+This examples makes use of an [Envoy proxy](https://github.com/envoyproxy/envoy) which is configured
+by a template in the [Load Balancer example](examples/99_LoadBalancer).
 
 ### DALI feeding TensorRT
 
-TODO: Build this!
+WIP
 
 ### NVVL
 
-TODO: Build this!
+WIP
 
 ## Copyright and License
 
@@ -96,7 +181,9 @@ This project is released under the [BSD 3-clause license](LICENSE).
 
 ## Issues and Contributing
 
-A signed copy of the [Contributor License Agreement](CLA) needs to be provided to <a href="mailto:rolson@nvidia.com">Ryan Olson</a> before any change can be accepted.
-
 * Please let us know by [filing a new issue](https://github.com/NVIDIA/YAIS/issues/new)
 * You can contribute by opening a [pull request](https://help.github.com/articles/using-pull-requests/)
+
+Pull requests with changes of 10 lines or more will require a [Contributor License Agreement](CLA).
+
+> YAIS: Yet Another Inference Service Library

@@ -24,44 +24,63 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Build options
-set(CMAKE_CXX_STANDARD 17)
-set(default_build_type "Release")
-set(CMAKE_DEBUG_POSTFIX "-d")
+add_library(yais
+  src/Affinity.cc
+  src/Executor.cc
+  src/Memory.cc
+  src/MemoryStack.cc
+  src/Server.cc
+  src/TensorRT.cc
+  src/ThreadPool.cc
+)
 
-# Must use GNUInstallDirs to install libraries into correct
-# locations on all platforms.
-include(GNUInstallDirs)
+# Define headers for this library. PUBLIC headers are used for
+# compiling the library, and will be added to consumers' build
+# paths.
+#   $<BUILD_INTERFACE:${GeneratedProtoHeadersPath}>
+target_include_directories(yais PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+    ${CUDA_INCLUDE_DIRS}
+    ${TensorRT_INCLUDE_DIRS}
+    PRIVATE src
+)
 
-find_package(gflags 2.2.1 REQUIRED)
-find_package(glog 0.3.5 REQUIRED)
+# If we have compiler requirements for this library, list them
+# here
+# target_compile_features(lib
+#     PUBLIC cxx_auto_type
+#     PRIVATE cxx_variadic_templates)
 
-# Find CUDA
-find_package(CUDA REQUIRED)
-message(STATUS "CUDA IncludeDir ${CUDA_INCLUDE_DIRS}")
+# Depend on a library that we defined in the top-level file
+target_link_libraries(yais 
+    ${TensorRT_LIBRARY}
+    ${CUDA_LIBRARIES}
+    nvidia-ml
+    ${_GRPC_GRPCPP_UNSECURE}
+    ${_PROTOBUF_LIBPROTOBUF}
+    gflags
+    glog
+)
 
-# Find TensorRT
-find_package(TensorRT REQUIRED 4.0.1)
-message(STATUS "TensorRT IncludeDir ${TensorRT_INCLUDE_DIRS}")
-message(STATUS "TensorRT Version ${TensorRT_VERSION_STRING}")
+# 'make install' to the correct locations (provided by GNUInstallDirs).
+install(TARGETS yais EXPORT yaisConfig
+    ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR})  # This is for Windows
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-# Find Protobuf installation
-# Looks for protobuf-config.cmake file installed by Protobuf's cmake installation.
-set(protobuf_MODULE_COMPATIBLE TRUE)
-find_package(Protobuf CONFIG REQUIRED)
-message(STATUS "Using protobuf ${protobuf_VERSION}")
-set(_PROTOBUF_LIBPROTOBUF protobuf::libprotobuf)
-set(_PROTOBUF_PROTOC $<TARGET_FILE:protobuf::protoc>)
+# This makes the project importable from the install directory
+# Put config file in per-project dir (name MUST match), can also
+# just go into 'cmake'.
+install(EXPORT yaisConfig DESTINATION share/yais/cmake)
 
-# Find gRPC installation
-# Looks for gRPCConfig.cmake file installed by gRPC's cmake installation.
-find_package(gRPC CONFIG REQUIRED)
-message(STATUS "Using gRPC ${gRPC_VERSION}")
+# This makes the project importable from the build directory
+export(TARGETS yais FILE yaisConfig.cmake)
 
-set(_GRPC_GRPCPP_UNSECURE gRPC::grpc++_unsecure)
-set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
-
-# Targets
-add_subdirectory(YAIS)
-add_subdirectory(Tests)
-add_subdirectory(Examples)
+# Every library has unit tests, of course
+# add_executable(testlib
+#     test/testlib.cpp)
+# target_link_libraries(testlib
+#     yais)
+# add_test(testlib testlib)
