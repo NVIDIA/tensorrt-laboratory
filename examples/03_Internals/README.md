@@ -59,12 +59,12 @@ change the following lines to a range that works with your CPU.
 
 ### Affinity
 
-  * [Definition: YAIS/Affinity.h](src/YAIS/include/YAIS/Affinity.h)
-  * [Implementation: YAIS/Affinity.cc](src/YAIS/src/Affinity.cc)
+  * [Definition: YAIS/Affinity.h](../../yais/include/YAIS/Affinity.h)
+  * [Implementation: YAIS/Affinity.cc](../../yais/src/Affinity.cc)
 
-Example from [Tests/test_affinity.cc](src/Tests/test_affinity.cc).  In this, we request the all logical
-CPUs from Socket 0 that are not hyperthreads, then we get either all the non-hyperthreads from socket_1
-on a DGX-1, or the hyperthreads on socket0 on a DGX-Station using `GetCpusFromString`.
+In this, we request the all logical CPUs from Socket 0 that are not hyperthreads, then we get either all 
+the non-hyperthreads from socket_1 on a DGX-1, or the hyperthreads on socket0 on a DGX-Station using 
+`GetCpusFromString`.
 
 ```
     // Socket 0 - non-hyperthreads on a DGX-1 or Station
@@ -95,8 +95,8 @@ Single line output reformatted to per-line-indented output for readability.
 
 ### ThreadPool
 
-  * [Definition: YAIS/ThreadPool.h](src/YAIS/include/YAIS/ThreadPool.h)
-  * [Implementation: YAIS/ThreadPool.cc](src/YAIS/src/ThreadPool.cc)
+  * [Definition: YAIS/ThreadPool.h](../../yais/include/YAIS/ThreadPool.h)
+  * [Implementation: YAIS/ThreadPool.cc](../../yais/src/ThreadPool.cc)
 
 The ThreadPool class creates a pool of worker threads that pull work from a queue.  The work queue can
 be any set of captured lambda functions or function pointers passed to the `enqueue` function.
@@ -137,7 +137,7 @@ has a nice [write-up on memory affinity and first touch policies]
 In this section, we'll show how to properly use the `Memory` and `Allocator` classes in a NUMA friendly
 way using `ThreadPool`s.
 
-  * [Definition: YAIS/Memory.h](src/YAIS/include/YAIS/Memory.h)
+  * [Definition: YAIS/Memory.h](../../yais/include/YAIS/Memory.h)
 
 The `Memory` class and its derived classes, see below, are the core memory classes in YAIS; however,
 these classes are not direclty used.  Instead, they provide the implmentation details on how memory of
@@ -151,7 +151,7 @@ Derived `Memory` Classes:
 
 ### Allocatory<MemoryType>
 
-  * [Definition: YAIS/Memory.h](src/YAIS/include/YAIS/Memory.h)
+  * [Definition: YAIS/Memory.h](../../yais/include/YAIS/Memory.h)
 
 The templated `Allocator<MemoryType>` class performs memory allocations and freeing operations.  This
 class does not have a public constructor, instead, you are required to use either the `make_shared`
@@ -187,7 +187,7 @@ I0515 08:36:56.619297 13260 test_affinity.cc:59] pinned_0 (ptr, size): (0x1005e0
 
 ### MemoryStack<AllocatorType>
 
-  * [Definition: YAIS/Memory.h](src/YAIS/include/YAIS/Memory.h)
+  * [Definition: YAIS/Memory.h](../../yais/include/YAIS/Memory.h)
 
 Generic `MemoryStack` that takes an `AllocatorType`.  The memory stack advances the stack pointer
 via `Allocate` and resets the stack pointer via `ResetAllocations`.  `MemoryStackWithTracking`
@@ -220,7 +220,7 @@ I0515 09:46:55.159710 14176 test_affinity.cc:80] Push Binding 1 - 128MB - stack_
 
 ### Pool<ResourceType>
 
-  * [Definition: YAIS/Pool.h](src/YAIS/include/YAIS/Pool.h)
+  * [Definition: YAIS/Pool.h](../../yais/include/YAIS/Pool.h)
 
 A `Pool<ResourceType>` is a generic of `Queue<std::shared_ptr<ResourceType>>` with a special `Pop`
 method.  The class inherits from `std::enabled_shared_from_this` meaning it must be constructed using
@@ -277,8 +277,8 @@ leak resources.
 
 ## TensorRT Examples
 
-  * [Definition: YAIS/TensorRT.h](src/YAIS/include/YAIS/TensorRT.h)
-  * [Implemenation: YAIS/TensorRT.cc](src/YAIS/src/TensorRT.cc)
+  * [Definition: YAIS/TensorRT.h](../../yais/include/YAIS/TensorRT.h)
+  * [Implemenation: YAIS/TensorRT.cc](../../yais/src/TensorRT.cc)
 
 TensoRT classes build on the primatives above.  For now, see the comments in the header file, as
 the header file is pretty well documented.

@@ -33,7 +33,7 @@ make
 ./build.sh
 ```
 
-The above commands build a docker image, map the current working directory inside the container,
+The above commands build a docker image, maps the current working directory inside the container,
 and finally, builds the library inside the container.  All dependencies are provided by the container, 
 but the actual source code remains on the host.  For deployment, copy or build the library as part
 of the container's filesystem.
@@ -138,6 +138,8 @@ sufficiently large not to warrant a discrete thread for performing the async H2D
 the entire inference pipeline is enqueued by workers from the CudaThreadPool.
 
 ### Internals
+
+Code [Internals](examples/03_Internals)
 
 The `internals.cc` and README provide a guide on how some of the provided classes work in
 practice.  For implementation details, go directly to the [source code](yais).
