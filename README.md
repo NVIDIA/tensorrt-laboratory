@@ -12,7 +12,17 @@ Simply implement a `Context` and an associated set of `Resources`.
 
 ## Quickstart
 
-Please ensure you have [nvidia-docker](https://github.com/NVIDIA/nvidia-docker) installed.
+Please ensure you have:
+  * Install [nvidia-docker](https://github.com/NVIDIA/nvidia-docker)
+  * Sign-up for [NVIDIA GPU Cloud](https://ngc.nvidia.com/) and acquire an [API Key]
+    (https://docs.nvidia.com/ngc/ngc-getting-started-guide/index.html#generating-api-key).
+  * Authenticate your Docker client using your NGC API key. Yes, the username is `$oauthtoken`.
+
+```
+$ docker login nvcr.io
+Username: $oauthtoken
+Password: <paste-your-ngc-api-key-here>
+```
 
 ```
 git clone https://github.com/NVIDIA/yais.git

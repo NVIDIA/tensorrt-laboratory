@@ -31,16 +31,15 @@ project(YAIS VERSION 0.1 LANGUAGES CXX)
 # Feature options
 option(BUILD_GRPC "Build with gRPC support" ON)
 option(BUILD_TENSORRT "Build with TensorRT support" ON)
-# option(BUILD_PYTHON "Build python bindings" ON)
 option(BUILD_TESTS "Build tests and benchmark suite" ON)
+# TODO: option(BUILD_PYTHON "Build python bindings" ON)
 
 # Build options
 set(CMAKE_CXX_STANDARD 17)
 set(default_build_type "Release")
 set(CMAKE_DEBUG_POSTFIX "-d")
 
-# Cmake path
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules)
+# CMake path
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Must use GNUInstallDirs to install libraries into correct

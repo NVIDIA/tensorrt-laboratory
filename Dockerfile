@@ -34,21 +34,12 @@ RUN apt update && apt install -y --no-install-recommends build-essential autocon
 env LC_ALL=C.UTF-8
 env LANG=C.UTF-8
 
+COPY requirements.txt /tmp/requirements.txt
+
 RUN python3 -m pip install --upgrade pip \
  && python3 -m pip install --upgrade setuptools \
- && python3 -m pip install cmake click jinja2
-
-# install latest cmake 
-# WORKDIR /tmp
-# RUN version=3.11 \
-#  && build=1 \
-#  && wget https://cmake.org/files/v$version/cmake-$version.$build.tar.gz \
-#  && tar xzf cmake-$version.$build.tar.gz \
-#  && cd cmake-$version.$build/ \
-#  && ./bootstrap \
-#  && make -j \
-#  && make install \
-#  && cd /tmp && rm -rf cmake-$version.$build
+ && python3 -m pip install -r /tmp/requirements.txt \
+ && rm -f /tmp/requirements.txt
 
 # install gflags
 # -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_gflags_LIB=ON .. \
@@ -99,8 +90,6 @@ RUN git clone -b v1.11.0 https://github.com/grpc/grpc \
  && make -j20 install \
  && cd /source && rm -rf grpc
 
-COPY cmake/*.cmake /usr/local/share/cmake-3.11/Modules/
-
 WORKDIR /tmp
 RUN wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh \
  && chmod +x wait-for-it.sh \
@@ -115,13 +104,6 @@ RUN git clone -b v1.0.6 https://github.com/dcdillon/cpuaff \
  && make install \
  && cd ../ \
  &&  rm -rf cpuaff
-
-RUN python3 -m pip install --upgrade pip \
- && python3 -m pip install --upgrade setuptools \
- && python3 -m pip install click jinja2
-
-env LC_ALL=C.UTF-8
-env LANG=C.UTF-8
 
 COPY --from=envoyproxy/envoy:v1.6.0 /usr/local/bin/envoy /usr/local/bin/envoy
 
