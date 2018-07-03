@@ -4,9 +4,9 @@
 
 C++ library for developing compute intensive asynchronous services built on gRPC.
 
-The goal of the library is to provided a bootstrap for CUDA, TensorRT and gRPC functionality
-such that develepers can focus directly on the implementation of the server-side RPC without 
-having to worry *too much* about the underlying messaging framework.
+YAIS provides a bootstrap for CUDA, TensorRT and gRPC functionality so developers
+can focus on the implementation of the server-side RPC without the need for a lot of
+boilerplate code.
 
 Simply implement a `Context` and an associated set of `Resources`.
 
