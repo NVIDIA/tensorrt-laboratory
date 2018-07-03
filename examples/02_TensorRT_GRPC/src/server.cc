@@ -46,7 +46,7 @@ using yais::Server;
 using yais::ThreadPool;
 using yais::TensorRT::ManagedRuntime;
 using yais::TensorRT::Model;
-using yais::TensorRT::Resources;
+using yais::TensorRT::ResourceManager;
 using yais::TensorRT::Runtime;
 
 // Flowers Protos
@@ -56,11 +56,11 @@ using yais::TensorRT::Runtime;
 // Dataset Protos
 float *GetSharedMemory(const std::string &address);
 
-class FlowersResources : public Resources
+class FlowersResources : public ResourceManager
 {
   public:
     explicit FlowersResources(int max_executions, int max_buffers, int nCuda, int nResp, float *sysv_data)
-        : Resources(max_executions, max_buffers),
+        : ResourceManager(max_executions, max_buffers),
           m_CudaThreadPool(nCuda),
           m_ResponseThreadPool(nResp),
           m_SharedMemory(sysv_data) {}

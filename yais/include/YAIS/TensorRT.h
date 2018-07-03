@@ -50,7 +50,7 @@ class Model;
 class Buffers;
 class Bindings;
 class ExecutionContext;
-class Resources;
+class ResourceManager;
 
 /**
  * @brief Deleter for nvinfer interface objects.
@@ -293,7 +293,7 @@ class Buffers : public std::enable_shared_from_this<Buffers>
     std::shared_ptr<MemoryStack<CudaDeviceAllocator>> m_DeviceStack;
     cudaStream_t m_Stream;
 
-    friend class Resources;
+    friend class ResourceManager;
 };
 
 /**
@@ -378,18 +378,18 @@ class ExecutionContext
     cudaEvent_t m_ExecutionContextFinished;
     std::shared_ptr<IExecutionContext> m_Context;
 
-    friend class Resources;
+    friend class ResourceManager;
 };
 
 
 /**
  * @brief TensorRT Resource Manager
  */
-class Resources : public ::yais::Resources
+class ResourceManager : public ::yais::Resources
 {
   public:
-    Resources(int max_executions, int max_buffers);
-    virtual ~Resources();
+    ResourceManager(int max_executions, int max_buffers);
+    virtual ~ResourceManager();
 
     void RegisterModel(std::string name, std::shared_ptr<Model> model);
     void RegisterModel(std::string name, std::shared_ptr<Model> model, uint32_t max_concurrency);

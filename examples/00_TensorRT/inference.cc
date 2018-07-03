@@ -41,7 +41,7 @@
 #endif
 
 using yais::ThreadPool;
-using yais::TensorRT::Resources;
+using yais::TensorRT::ResourceManager;
 using yais::TensorRT::Runtime;
 using yais::TensorRT::ManagedRuntime;
 
@@ -52,11 +52,11 @@ static std::string ModelName(int model_id)
     return stream.str();
 }
 
-class InferenceResources : public Resources
+class InferenceResources : public ResourceManager
 {
   public:
     InferenceResources(int max_executions, int max_buffers, int nCuda, int nResp)
-        : Resources(max_executions, max_buffers),
+        : ResourceManager(max_executions, max_buffers),
           m_CudaThreadPool(std::make_unique<ThreadPool>(nCuda)),
           m_ResponseThreadPool(std::make_unique<ThreadPool>(nResp)) {}
 

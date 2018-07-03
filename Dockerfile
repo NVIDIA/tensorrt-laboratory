@@ -28,6 +28,7 @@ RUN apt update && apt install -y --no-install-recommends build-essential autocon
         curl wget pkg-config sudo ca-certificates vim-tiny automake libssl-dev bc python3-pip \
  && apt remove -y cmake \
  && apt remove -y libgflags-dev libgflags2v5 \
+ && apt remove -y libprotobuf-dev \
  && apt -y autoremove \
  && rm -rf /var/lib/apt/lists/* 
 

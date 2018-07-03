@@ -1,5 +1,4 @@
-# nvcr.io/nvidia/tensorrt:18.06-py2 is not yet available
-BASE_IMAGE ?= ryanolson/trt4
+BASE_IMAGE ?= nvcr.io/nvidia/tensorrt:18.06-py3
 IMAGE_NAME ?= yais
 RELEASE_IMAGE ?= ryanolson/yais
 

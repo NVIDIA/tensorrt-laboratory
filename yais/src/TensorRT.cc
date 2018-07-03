@@ -534,12 +534,12 @@ void ExecutionContext::Reset()
     m_Context.reset();
 }
 
-// Resources
+// ResourceManager
 
 /**
  * @brief General TensorRT Resource class
  * 
- * Derived from yais::Resources, this Resources object provides the basic memory and compute resources
+ * Derived from yais::Resources, this ResourceManager object provides the basic memory and compute resources
  * needed for using with a TensorRT Context.  Limited quanity resources such as Buffers and ExecutionContexts
  * are managed by thead-safe Pools.  In general, the compute is always limited by the number of resources.
  * For example, limiting the number of ExecutionContexts to 1 will ensure only 1 Inference calcuation is
@@ -553,7 +553,7 @@ void ExecutionContext::Reset()
  * 
  * @see Pool for more details on how limited quantity Resources are managed.
  */
-Resources::Resources(int max_executions, int max_buffers)
+ResourceManager::ResourceManager(int max_executions, int max_buffers)
     : m_MaxExecutions(max_executions), m_MaxBuffers(max_buffers),
       m_MinHostStack(0), m_MinDeviceStack(0),
       m_Buffers{nullptr}
@@ -569,31 +569,31 @@ Resources::Resources(int max_executions, int max_buffers)
     }
 }
 
-Resources::~Resources() {}
+ResourceManager::~ResourceManager() {}
 
 /**
- * @brief Register a Model with the Resources object
+ * @brief Register a Model with the ResourceManager object
  * 
  * @param name 
  * @param model 
  */
-void Resources::RegisterModel(std::string name, std::shared_ptr<Model> model)
+void ResourceManager::RegisterModel(std::string name, std::shared_ptr<Model> model)
 {
     RegisterModel(name, model, m_MaxExecutions);
 }
 
 /**
- * @brief Register a Model with the Resources object
+ * @brief Register a Model with the ResourceManager object
  * 
  * This variant allows you to specify an alternate maximum concurrency for this model.  The value
  * must be 1 <= concurrency <= MaxConcurrency.  Larger values will be capped to the maximum
- * concurrency allowed by the Resources object.
+ * concurrency allowed by the ResourceManager object.
  * 
  * @param name 
  * @param model 
  * @param max_concurrency 
  */
-void Resources::RegisterModel(std::string name, std::shared_ptr<Model> model, uint32_t max_concurrency)
+void ResourceManager::RegisterModel(std::string name, std::shared_ptr<Model> model, uint32_t max_concurrency)
 {
     auto item = m_Models.find(name);
     if (item != m_Models.end())
@@ -644,10 +644,10 @@ void Resources::RegisterModel(std::string name, std::shared_ptr<Model> model, ui
 /**
  * @brief Allocates Host and Device Resources for Inference
  * 
- * Buffers are sized according to the registered models.  Models registered after AllocateResources
+ * Buffers are sized according to the registered models.  Models registered after AllocateResourceManager
  * has been call that require larger buffers should throw an exception (TODO).
  */
-void Resources::AllocateResources()
+void ResourceManager::AllocateResources()
 {
     LOG(INFO) << "-- Allocating TensorRT Resources --";
     LOG(INFO) << "Creating " << m_MaxExecutions << " TensorRT execution tokens.";
@@ -670,7 +670,7 @@ void Resources::AllocateResources()
  * @param model_name 
  * @return std::shared_ptr<Model> 
  */
-auto Resources::GetModel(std::string model_name) -> std::shared_ptr<Model>
+auto ResourceManager::GetModel(std::string model_name) -> std::shared_ptr<Model>
 {
     auto item = m_Models.find(model_name);
     if (item == m_Models.end())
@@ -690,7 +690,7 @@ auto Resources::GetModel(std::string model_name) -> std::shared_ptr<Model>
  * 
  * @return std::shared_ptr<Buffers> 
  */
-auto Resources::GetBuffers() -> std::shared_ptr<Buffers>
+auto ResourceManager::GetBuffers() -> std::shared_ptr<Buffers>
 {
     return m_Buffers->Pop([](Buffers *ptr) {
         ptr->Reset();
@@ -710,7 +710,7 @@ auto Resources::GetBuffers() -> std::shared_ptr<Buffers>
  * 
  * @return std::shared_ptr<ExecutionContext> 
  */
-auto Resources::GetExecutionContext(const Model *model) -> std::shared_ptr<ExecutionContext>
+auto ResourceManager::GetExecutionContext(const Model *model) -> std::shared_ptr<ExecutionContext>
 {
     auto item = m_ModelExecutionContexts.find(model);
     if (item == m_ModelExecutionContexts.end())
@@ -734,12 +734,12 @@ auto Resources::GetExecutionContext(const Model *model) -> std::shared_ptr<Execu
  * @param model 
  * @return std::shared_ptr<ExecutionContext> 
  */
-auto Resources::GetExecutionContext(const std::shared_ptr<Model> &model) -> std::shared_ptr<ExecutionContext>
+auto ResourceManager::GetExecutionContext(const std::shared_ptr<Model> &model) -> std::shared_ptr<ExecutionContext>
 {
     return GetExecutionContext(model.get());
 }
 
-size_t Resources::Align(size_t size, size_t alignment)
+size_t ResourceManager::Align(size_t size, size_t alignment)
 {
     size_t remainder = size % alignment;
     size = (remainder == 0) ? size : size + alignment - remainder;
