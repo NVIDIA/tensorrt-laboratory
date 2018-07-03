@@ -12,7 +12,7 @@ Simply implement a `Context` and an associated set of `Resources`.
 
 ## Quickstart
 
-Please ensure you have:
+### Prerequisites
   * Install [nvidia-docker](https://github.com/NVIDIA/nvidia-docker)
   * Sign-up for [NVIDIA GPU Cloud](https://ngc.nvidia.com/) and acquire an [API Key](https://docs.nvidia.com/ngc/ngc-getting-started-guide/index.html#generating-api-key).
   * Authenticate your Docker client using your NGC API key. Yes, the username is `$oauthtoken`.
@@ -23,7 +23,7 @@ Username: $oauthtoken
 Password: <paste-your-ngc-api-key-here>
 ```
 
-Clone and build YAIS.
+### Clone and build YAIS
 
 ```
 git clone https://github.com/NVIDIA/yais.git
@@ -38,6 +38,8 @@ and finally, builds the library inside the container.  All dependencies are prov
 but the actual source code remains on the host.  For deployment, copy or build the library as part
 of the container's filesystem.
 
+### Compile Models
+
 Next, compile the supplied [models](models) using [TensorRT 4](https://developer.nvidia.com/tensorrt):
 
 ```
@@ -47,6 +49,8 @@ cd models
 
 Modify the setup.py file to choose the models, batch sizes, and precision types you wish to build.
 The default is configured for a Tesla V100.  Not all GPUs support all types of precision.
+
+### Run Examples
 
 Finally, run the `inference.x` executable on one of the compiled TensorRT engines.
 
