@@ -103,7 +103,7 @@ class SimpleContext final : public Context<simple::Input, simple::Output, Simple
     void ExecuteRPC(RequestType_t &input, ResponseType_t &output) final override
     {
         // We could do work here, but we'd block the TPS, i.e. the threads pulling messages 
-        // off the receive recieve queue.  Very quick responses are best done here; however,
+        // off the incoming recieve queue.  Very quick responses are best done here; however,
         // longer running workload should be offloaded so the TPS can avoid being blocked.
         GetResources()->GetThreadPool().enqueue([this, &input, &output]{
             // Now running on a worker thread of the ThreadPool defined in SimpleResources.

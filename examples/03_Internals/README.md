@@ -240,6 +240,10 @@ resources are checkedout.  This also ensures that the `shared_ptr` returned from
 safe; meaning, the resource will be returned to the pool if an exception is thrown and caught - it won't
 leak resources.
 
+Alternatively, `Pop` can be called with an `onReturn` lambda function, which will be executed just prior
+to the original object being returned to the Pool. If the `ResourceType` is stateful, this is a good 
+chance to clear the state and prepare it for the next use.
+
 ```
     struct Buffer
     {

@@ -27,6 +27,7 @@
 add_library(yais
   src/Affinity.cc
   src/Executor.cc
+  src/Metrics.cc
   src/Memory.cc
   src/MemoryStack.cc
   src/Server.cc
@@ -61,6 +62,7 @@ target_link_libraries(yais
     ${_PROTOBUF_LIBPROTOBUF}
     gflags
     glog
+    prometheus-cpp::prometheus-cpp
 )
 
 # 'make install' to the correct locations (provided by GNUInstallDirs).

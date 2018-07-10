@@ -116,12 +116,21 @@ RUN git clone -b v1.4.1 https://github.com/google/benchmark.git \
  && make -j && make install \
  && cd /tmp && rm -rf benchmark
 
-#WORKDIR /work
-#COPY . .
-#RUN mkdir build && cd build \
-# && cmake -DCMAKE_BUILD_TYPE=Release ../src ||: \
-# && cmake -DCMAKE_BUILD_TYPE=Release ../src \
-# && make -j
-#
-#CMD ["./demo.sh"]
+RUN git clone https://github.com/jupp0r/prometheus-cpp.git \
+ && cd prometheus-cpp \
+ && git checkout -b yais e7709f7e3b71bc5b1ac147971c87f2f0ae9ea358 \
+ && git submodule update --init --recursive \
+ && mkdir build && cd build \
+ && cmake .. \
+ && make -j \
+ && make install
+
+RUN wget https://dl.influxdata.com/telegraf/releases/telegraf-1.7.1-static_linux_amd64.tar.gz \
+ && tar xzf telegraf-1.7.1-static_linux_amd64.tar.gz \
+ && mv telegraf/telegraf /usr/local/bin \
+ && rm -rf telegraf-1.7.1-static_linux_amd64.tar.gz telegraf
+
+WORKDIR /work
+COPY . .
+RUN ./build.sh
 

@@ -29,6 +29,7 @@
 #pragma once
 
 #include "YAIS/Interfaces.h"
+#include "YAIS/Metrics.h"
 #include "YAIS/Resources.h"
 
 #include <thread>
@@ -81,6 +82,8 @@ class Executor : public IExecutor
         // Queue the Execution Contexts in the recieve queue
         for (int i = 0; i < m_Contexts.size(); i++)
         {
+            // Reseting the context decrements the gauge
+            Metrics::ExecutionQueueDepthIncrement();
             ResetContext(m_Contexts[i].get());
         }
     }
