@@ -40,7 +40,7 @@ class Metrics
 {
   public:
     static void Initialize(uint32_t port);
-    static auto GetRegistry() -> std::shared_ptr<Registry>;
+    static auto GetRegistry() -> Registry &;
 
     static void ExecutionQueueDepthIncrement();
     static void ExecutionQueueDepthDecrement();

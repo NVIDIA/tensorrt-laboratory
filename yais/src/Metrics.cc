@@ -33,7 +33,7 @@ namespace
 {
     auto &queue_depth_family = prometheus::BuildGauge()
             .Name("yais_executor_queue_depth")
-            .Register(*yais::Metrics::GetRegistry());
+            .Register(yais::Metrics::GetRegistry());
 
     auto &queue_depth = queue_depth_family.Add({});
 }
@@ -55,10 +55,10 @@ void Metrics::Initialize(uint32_t port)
     singleton->m_Exposer->RegisterCollectable(singleton->m_Registry);
 }
 
-auto Metrics::GetRegistry() -> std::shared_ptr<Registry>
+auto Metrics::GetRegistry() -> Registry &
 {
     auto singleton = Metrics::GetSingleton();
-    return singleton->m_Registry;
+    return *(singleton->m_Registry);
 }
 
 void Metrics::ExecutionQueueDepthIncrement()

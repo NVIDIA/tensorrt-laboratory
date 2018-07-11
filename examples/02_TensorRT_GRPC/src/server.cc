@@ -65,15 +65,15 @@ using ssd::Inference;
  * It is important to make collect measurements to find bottlenecks, performance issues,
  * and to trigger auto-scaling.
  */
-static auto registry = Metrics::GetRegistry();
+static auto &registry = Metrics::GetRegistry();
 
 // Summaries - Request and Compute duration on a per service basis
 static auto &inf_compute = prometheus::BuildSummary()
                                 .Name("yais_inference_compute_duration_ms")
-                                .Register(*registry);
+                                .Register(registry);
 static auto &inf_request = prometheus::BuildSummary()
                                 .Name("yais_inference_request_duration_ms")
-                                .Register(*registry);
+                                .Register(registry);
 static const auto &quantiles = prometheus::Summary::Quantiles{{0.5, 0.05}, {0.90, 0.01}, {0.99, 0.001}};
 
 // Histogram - Load Ratio = Request/Compute duration - should just above one for a service
@@ -83,7 +83,7 @@ static const auto &quantiles = prometheus::Summary::Quantiles{{0.5, 0.05}, {0.90
 static const std::vector<double> buckets = {1.25, 1.50, 2.0, 10.0, 100.0}; // unitless
 static auto &inf_load_ratio_fam = prometheus::BuildHistogram()
                                 .Name("yais_inference_load_ratio")
-                                .Register(*registry);
+                                .Register(registry);
 static auto &inf_load_ratio = inf_load_ratio_fam.Add({}, buckets);
 
 // Gauge - Periodically measure and report GPU power utilization.  As the load increases
@@ -92,7 +92,7 @@ static auto &inf_load_ratio = inf_load_ratio_fam.Add({}, buckets);
 //         will begin to increase under futher increases in traffic
 static auto &power_gauge_fam = prometheus::BuildGauge()
                                 .Name("yais_gpus_power_usage")
-                                .Register(*registry);
+                                .Register(registry);
 static auto &power_gauge = power_gauge_fam.Add({{"gpu", "0"}});
 
 /*
