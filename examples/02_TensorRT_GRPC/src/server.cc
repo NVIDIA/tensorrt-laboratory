@@ -157,8 +157,8 @@ class FlowersContext final : public Context<BatchInput, BatchPredictions, Flower
                 WriteBatchPredictions(input, output, (float *)bindings->HostAddress(1));
                 bindings.reset(); // Finished with Buffers - Release it to competing threads
                 auto request_time = Walltime();
-                output.set_compute_time((float)compute_time);
-                output.set_total_time((float)request_time);
+                output.set_compute_time(static_cast<float>(compute_time));
+                output.set_total_time(static_cast<float>(request_time));
                 inf_compute.Add({{"model", model->Name()}}, quantiles).Observe(compute_time * 1000);
                 inf_request.Add({{"model", model->Name()}}, quantiles).Observe(request_time * 1000);
                 inf_load_ratio.Observe(request_time / compute_time);
