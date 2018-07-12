@@ -1,3 +1,5 @@
+#!/bin/bash -e
+#
 # Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -23,31 +25,29 @@
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+cleanup() {
+  kill $(jobs -p) ||:
+}
+trap "cleanup" EXIT SIGINT SIGTERM
 
-INCLUDE(GRPCGenerateCPP)
-PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS protos/simple.proto)
-PROTOBUF_GENERATE_GRPC_CPP(PROTO_GRPC_SRCS PROTO_GRPC_HDRS protos/simple.proto)
+NCTX=${1:-1}
+BS=${2:-1}
+ENG=${3:-/work/models/ResNet-50-b1-int8.engine}
 
-add_library(echo-protos
-    ${PROTO_SRCS}
-    ${PROTO_GRPC_SRCS})
+if [ ! -e $ENG ]; then
+    echo "$ENG not found"
+    exit 911
+fi
 
-target_include_directories(echo-protos PUBLIC
-    ${CMAKE_CURRENT_BINARY_DIR}
-)
+port=50051
+/work/build/examples/02_TensorRT_GRPC/inference-grpc.x --port=$port --engine=${ENG} --contexts=$NCTX &
+wait-for-it.sh localhost:$port --timeout=0 -- echo "YAIS Service is ready." > /dev/null 2>&1
 
-add_executable(echo-grpc.x
-    src/server.cpp)
+echo "warmup with client-async.x"
+/work/build/examples/02_TensorRT_GRPC/client-async.x --count=1000 --port=$port
 
-target_link_libraries(echo-grpc.x
-    yais
-    echo-protos
-)
-
-add_executable(echo-client.x
-    src/client.cpp)
-
-target_link_libraries(echo-client.x
-    yais
-    echo-protos
-)
+echo
+echo "Starting a shell keeping the services and load-balancer running..."
+echo "Try /work/build/examples/02_TensorRT_GRPC/siege.x --rate=2000 --port=$port"
+bash --rcfile <(echo "PS1='$NCTX x $ENG Subshell: '")

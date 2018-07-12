@@ -8,7 +8,7 @@ YAIS provides a bootstrap for CUDA, TensorRT and gRPC functionality so developer
 can focus on the implementation of the server-side RPC without the need for a lot of
 boilerplate code.
 
-Simply implement a `Context` and an associated set of `Resources`.
+Simply implement define the gRPC service and request/response `Context` and an associated set of `Resources`.
 
 ## Quickstart
 
@@ -113,45 +113,74 @@ For details on the integrated convenience classes, see the [Internals document](
 
 Code: [TensorRT](examples/00_TensorRT)
 
-Example TensoRT pipline with fixed resources pools for input/output tensors and execution
-contexts.  Thread pools are used to provide maximum overlap for async sections such that 
-if a resource pool is starved, only that part of the pipeline will stall.
+Example TensoRT pipline. This example uses fixed-size resources pools for input/output 
+tensors and execution contexts. Thread pools are used to provide maximum overlap for 
+async sections. Concurrency is limited by the size of the resource pools.  If a resource
+pool is starved, only that part of the pipeline will stall.
 
 ### Basic GRPC Service
 
 Code: [Basic GRPC Service](examples/01_Basic_GRPC)
 
-Ping-pong / Echo message service based on gRPC.  Demonstrates the core messaging gRPC
-components of the library.
+Simple Ping-Pong application to demonstrate the key gRPC wrappers provided by YAIS.
+The [server.cc](examples/01_GRPC/src/server.cc) provides the best documentation of how
+a YAIS server is structured.
 
 ### Inference Service
 
 Code: [TensorRT GPRC Service](examples/02_TensorRT_GRPC)
 
 Combines the ideas of the first two examples to implement the compute side of an inference
-service.  The code show an example (`/* commented out */`) on how you might link to an
+service.  The code shows an example (`/* commented out */`) on how one might connect to an
 external data service (e.g. an image decode service) via System V shared memory.
 
-This example is based on our flowers demo, simplified to skip the sysv ipc shared memory 
+This example is based on our flowers demo, but simplified to skip the sysv ipc shared memory 
 input buffers.  Typically this demo is run using ResNet-152, in which case, the compute is
 sufficiently large not to warrant a discrete thread for performing the async H2D copy. Instead
 the entire inference pipeline is enqueued by workers from the CudaThreadPool.
 
 ### Internals
 
-Code [Internals](examples/03_Internals)
+Code: [Internals](examples/03_Internals)
 
-The `internals.cc` and README provide a guide on how some of the provided classes work in
-practice.  For implementation details, go directly to the [source code](yais).
+The `internals.cc` and [README](examples/03_Internals/README.md) provide a guide on the provided 
+convenience classes. practice.  The sample codes builds a NUMA aware set of buffers and threads.
+For implementation details, go directly to the [source code](yais).
 
-### MPS
+### Kubernetes
 
-Code: [MPS Example](examples/98_MPS)
+The [Kubernetes example](examples/90_Kubernetes) might be useful for those who are new to developing
+a Kubernetes application.  We start by developing and building in a docker container. Next, we 
+link our development container as an external service to a minikube cluster to expose metrics.
+
+The remaining items are TODOs:
+  - Build an optimized deployment container
+  - Demostrate Envoy load-balancing
+  - Use Istio to simplify the load-balacing deployments
+  - Use metrics scraped by Prometheus to trigger auto-scaling
+
+### Execution Models
+
+There are two primary ways on which you can expose concurrency in deployment.  The preferred
+method is to use a [single process with multiple streams](examples/97_SingleProcessMultiStream).
+Alternatively, one can use [NVIDIA's Multi-Process Server, aka MPS](https://docs.nvidia.com/deploy/pdf/CUDA_Multi_Process_Service_Overview.pdf).
+
+Single Process / Multiple Streams is preferred for:
+  * serving models that are logically grouped
+  * simplifed and more efficient memory management
+
+#### Single Process / Multiple Streams (SPMS)
+
+#### Multiple Process Server (MPS)
+
+Code: [MPS Example](examples/98_MultiProcessSingleStream)
 
 Tests multiple TensorRT inference services running on the same GPU. `N` services are started, a
 load-balancer is created to round robin incoming requests between services, and finally a client
 sending 1000 requests to the load-balancer and measures the time.  The `run_throughput_test`
 starts a subshell after the initial 1000 requests have been sent.
+
+#### Clients
 
 Three clients are available:
   * `client-sync.x` - send a blocking inference request to the service and waits for the

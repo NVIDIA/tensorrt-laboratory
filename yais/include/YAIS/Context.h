@@ -29,7 +29,7 @@
 #pragma once
 
 #include "YAIS/Interfaces.h"
-#include "YAIS/ThreadPool.h"
+#include "YAIS/Metrics.h"
 
 #include "glog/logging.h"
 
@@ -54,18 +54,18 @@ class Context : public IContext
 
   protected:
 
-    /**
+    /*
      * Derived classes use this to access the Resources object
      */
     const std::shared_ptr<ResourceType> GetResources() { return m_Resources; }
 
-    /**
+    /*
      * Allows derived classes a hook into FactoryInitializer and Reset
      */
     virtual void OnInitialize() {}
     virtual void OnReset() {}
 
-    /**
+    /*
      * Triggers the response message to be sent; this will re-queue the context as the response messgage
      * is being sent.  If a context fails to call one of the following two functions, that context will be
      * in permanent limbo.  This is the equivalent of a memory leak.  The service will eventually exhaust
@@ -74,9 +74,10 @@ class Context : public IContext
     void FinishResponse() { m_ResponseWriter->Finish(m_Response, ::grpc::Status::OK, IContext::Tag()); }
     void CancelResponse() { m_ResponseWriter->Finish(m_Response, ::grpc::Status::CANCELLED, IContext::Tag()); }
 
+    double Walltime() const;
 
   private:
-    /**
+    /*
      * Called by the CreateContext factory to initialize the context
      */
     void FactoryInitializer(QueuingFunc_t q_fn, std::shared_ptr<ResourceType> resources)
@@ -86,22 +87,12 @@ class Context : public IContext
         OnInitialize();
     }
 
-    /**
+    /*
      * Implemetnation of the IContext virtual functions
      */
     bool RunNextState(bool ok) final override { (this->*m_NextState)(ok); }
 
-    void Reset() final override
-    {
-        DLOG(INFO) << "Context::Reset " << IContext::Tag();
-        m_Request.Clear();
-        m_Response.Clear();
-        m_Context.reset(new ::grpc::ServerContext);
-        m_ResponseWriter.reset(new ::grpc::ServerAsyncResponseWriter<ResponseType>(m_Context.get()));
-        m_NextState = &Context<RequestType, ResponseType, ResourceType>::InitState;
-        OnReset(); // Allows a derived object to perform an action prior to re-queuing
-        QueuingFunc(m_Context.get(), &m_Request, m_ResponseWriter.get(), IContext::Tag());
-    }
+    void Reset() final override;
 
     /**
      * Manage the Execution state of the Context. Derived classes must implement ExecuteRPC to either
@@ -111,32 +102,18 @@ class Context : public IContext
      *  2) FiniState - the context has completed the ExecuteRPC and the response message was sent;
      *                 the context will be reset and the NextState set to InitState
      */
+    bool InitState(bool ok);
+    bool FiniState(bool ok);
+
     virtual void ExecuteRPC(RequestType &request, ResponseType &response) = 0;
 
-    bool InitState(bool ok)
-    {
-        DLOG(INFO) << "Context::Init " << IContext::Tag();
-        if (!ok) { return false; }
-        ExecuteRPC(m_Request, m_Response);
-        DLOG(INFO) << "Context::ExecuteRPC finished " << IContext::Tag();
-        m_NextState = &Context<RequestType, ResponseType, ResourceType>::FiniState;
-        return true;
-    }
-
-    bool FiniState(bool ok)
-    { 
-        DLOG(INFO) << "Context::Fini " << IContext::Tag();
-        return false; 
-    }
-
-
-    /**
+    /*
      * Function pointers
      */
     QueuingFunc_t QueuingFunc;
     bool (Context<RequestType, ResponseType, ResourceType>::*m_NextState)(bool);
 
-    /**
+    /*
      * Variables
      */
     RequestType m_Request;
@@ -144,6 +121,7 @@ class Context : public IContext
     std::shared_ptr<ResourceType> m_Resources;
     std::unique_ptr<::grpc::ServerContext> m_Context;
     std::unique_ptr<::grpc::ServerAsyncResponseWriter<ResponseType>> m_ResponseWriter;
+    std::chrono::high_resolution_clock::time_point m_StartTime;
 
     /**
      * Allows the CreateContext factory to access private members, e.g. FactoryInitializer
@@ -162,6 +140,52 @@ class Context : public IContext
     }
 };
 
+
+// Implementations
+
+template <class RequestType, class ResponseType, class ResourceType>
+bool Context<RequestType, ResponseType, ResourceType>::InitState(bool ok)
+{
+    DLOG(INFO) << "Context::Init " << IContext::Tag();
+    if (!ok) { return false; }
+    m_StartTime = std::chrono::high_resolution_clock::now();
+    Metrics::ExecutionQueueDepthIncrement();
+    ExecuteRPC(m_Request, m_Response);
+    DLOG(INFO) << "Context::ExecuteRPC finished " << IContext::Tag();
+    m_NextState = &Context<RequestType, ResponseType, ResourceType>::FiniState;
+    return true;
+}
+
+template <class RequestType, class ResponseType, class ResourceType>
+bool Context<RequestType, ResponseType, ResourceType>::FiniState(bool ok)
+{ 
+    DLOG(INFO) << "Context::Fini " << IContext::Tag();
+    return false; 
+}
+
+template <class RequestType, class ResponseType, class ResourceType>
+void Context<RequestType, ResponseType, ResourceType>::Reset()
+{
+    DLOG(INFO) << "Context::Reset " << IContext::Tag();
+    m_Request.Clear();
+    m_Response.Clear();
+    m_Context.reset(new ::grpc::ServerContext);
+    m_ResponseWriter.reset(new ::grpc::ServerAsyncResponseWriter<ResponseType>(m_Context.get()));
+    m_NextState = &Context<RequestType, ResponseType, ResourceType>::InitState;
+    OnReset(); // Allows a derived object to perform an action prior to re-queuing
+    Metrics::ExecutionQueueDepthDecrement();
+    QueuingFunc(m_Context.get(), &m_Request, m_ResponseWriter.get(), IContext::Tag());
+}
+
+/**
+ * @brief Number of seconds since the start of the RPC
+ * return float - number of seconds
+ */
+template <class RequestType, class ResponseType, class ResourceType>
+double Context<RequestType, ResponseType, ResourceType>::Walltime() const
+{
+    return std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - m_StartTime).count();
+}
 
 /**
  * ContextFactory is the only function in the library allowed to create an IContext object.

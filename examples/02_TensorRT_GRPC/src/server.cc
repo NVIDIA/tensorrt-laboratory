@@ -32,19 +32,21 @@
 #include <sys/shm.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "nvml.h"
 
 #include "YAIS/YAIS.h"
 #include "YAIS/TensorRT.h"
 #include "YAIS/Affinity.h"
+#include "YAIS/Metrics.h"
 
 using yais::Affinity;
 using yais::AsyncRPC;
 using yais::AsyncService;
 using yais::Context;
 using yais::Executor;
+using yais::Metrics;
 using yais::Server;
 using yais::ThreadPool;
-using yais::TensorRT::ManagedRuntime;
 using yais::TensorRT::Model;
 using yais::TensorRT::ResourceManager;
 using yais::TensorRT::Runtime;
@@ -53,9 +55,58 @@ using yais::TensorRT::Runtime;
 #include "inference.pb.h"
 #include "inference.grpc.pb.h"
 
-// Dataset Protos
+using ssd::BatchInput;
+using ssd::BatchPredictions;
+using ssd::Inference;
+
+/*
+ * YAIS Metrics
+ * 
+ * It is important to make collect measurements to find bottlenecks, performance issues,
+ * and to trigger auto-scaling.
+ */
+static auto &registry = Metrics::GetRegistry();
+
+// Summaries - Request and Compute duration on a per service basis
+static auto &inf_compute = prometheus::BuildSummary()
+                                .Name("yais_inference_compute_duration_ms")
+                                .Register(registry);
+static auto &inf_request = prometheus::BuildSummary()
+                                .Name("yais_inference_request_duration_ms")
+                                .Register(registry);
+static const auto &quantiles = prometheus::Summary::Quantiles{{0.5, 0.05}, {0.90, 0.01}, {0.99, 0.001}};
+
+// Histogram - Load Ratio = Request/Compute duration - should just above one for a service
+//             that can keep up with its current load.  This metrics provides more 
+//             detailed information on the impact of the queue depth because it accounts
+//             for request time.
+static const std::vector<double> buckets = {1.25, 1.50, 2.0, 10.0, 100.0}; // unitless
+static auto &inf_load_ratio_fam = prometheus::BuildHistogram()
+                                .Name("yais_inference_load_ratio")
+                                .Register(registry);
+static auto &inf_load_ratio = inf_load_ratio_fam.Add({}, buckets);
+
+// Gauge - Periodically measure and report GPU power utilization.  As the load increases
+//         on the service, the power should increase proprotionally, until the power is capped
+//         either by device limits or compute resources.  At this level, the inf_load_ratio
+//         will begin to increase under futher increases in traffic
+static auto &power_gauge_fam = prometheus::BuildGauge()
+                                .Name("yais_gpus_power_usage")
+                                .Register(registry);
+static auto &power_gauge = power_gauge_fam.Add({{"gpu", "0"}});
+
+/*
+ * External Data Source
+ * 
+ * Attaches to a System V shared memory segment owned by an external resources.
+ * Example: the results of an image decode service could use this mechanism to transfer
+ *          large tensors to an inference service by simply passing an offset.
+ */
 float *GetSharedMemory(const std::string &address);
 
+/*
+ * YAIS Resources - TensorRT ResourceManager + ThreadPools + External Datasource
+ */
 class FlowersResources : public ResourceManager
 {
   public:
@@ -63,7 +114,9 @@ class FlowersResources : public ResourceManager
         : ResourceManager(max_executions, max_buffers),
           m_CudaThreadPool(nCuda),
           m_ResponseThreadPool(nResp),
-          m_SharedMemory(sysv_data) {}
+          m_SharedMemory(sysv_data)
+    {
+    }
 
     ThreadPool &GetCudaThreadPool() { return m_CudaThreadPool; }
     ThreadPool &GetResponseThreadPool() { return m_ResponseThreadPool; }
@@ -76,7 +129,10 @@ class FlowersResources : public ResourceManager
     float *m_SharedMemory;
 };
 
-class FlowersContext final : public Context<ssd::BatchInput, ssd::BatchPredictions, FlowersResources>
+/*
+ * YAIS Context - Defines the logic of the RPC. 
+ */
+class FlowersContext final : public Context<BatchInput, BatchPredictions, FlowersResources>
 {
     void ExecuteRPC(RequestType_t &input, ResponseType_t &output) final override
     {
@@ -84,25 +140,28 @@ class FlowersContext final : public Context<ssd::BatchInput, ssd::BatchPredictio
         GetResources()->GetCudaThreadPool().enqueue([this, &input, &output]() {
             // Executed on a thread from CudaThreadPool
             auto model = GetResources()->GetModel("flowers");
-            auto buffers = GetResources()->GetBuffers();            // <=== Limited Resource; May Block !!!
+            auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
             auto bindings = buffers->CreateAndConfigureBindings(model, input.batch_size());
             bindings->SetHostAddress(0, GetResources()->GetSysvOffset(input.sysv_offset()));
             bindings->CopyToDevice(bindings->InputBindings());
-            auto ctx = GetResources()->GetExecutionContext(model);  // <=== Limited Resource; May Block !!!
-            auto t_start = std::chrono::high_resolution_clock::now();
+            auto ctx = GetResources()->GetExecutionContext(model); // <=== Limited Resource; May Block !!!
+            auto t_start = Walltime();
             ctx->Infer(bindings);
             bindings->CopyFromDevice(bindings->OutputBindings());
             // All Async CUDA work has been queued - this thread's work is done.
-            GetResources()->GetResponseThreadPool().enqueue([this, &input, &output, bindings, ctx, t_start]() mutable {
+            GetResources()->GetResponseThreadPool().enqueue([this, &input, &output, model, bindings, ctx, t_start]() mutable {
                 // Executed on a thread from ResponseThreadPool
-                ctx->Synchronize(); ctx.reset();    // Finished with the Execution Context - Release it to competing threads
-                bindings->Synchronize();            // Blocks on H2D, Compute, D2H Pipeline
+                ctx->Synchronize(); ctx.reset(); // Finished with the Execution Context - Release it to competing threads
+                auto compute_time = Walltime() - t_start;
+                bindings->Synchronize(); // Blocks on H2D, Compute, D2H Pipeline
                 WriteBatchPredictions(input, output, (float *)bindings->HostAddress(1));
-                bindings.reset();                   // Finished with Buffers - Release it to competing threads
-                auto t_end = std::chrono::high_resolution_clock::now();
-                output.set_compute_time(std::chrono::duration<float>(t_end - t_start).count());
-                output.set_total_time(std::chrono::duration<float>(t_end - t_start).count());
-                LOG_EVERY_N(INFO, 200) << output.batch_id() << " " << output.compute_time();
+                bindings.reset(); // Finished with Buffers - Release it to competing threads
+                auto request_time = Walltime();
+                output.set_compute_time(static_cast<float>(compute_time));
+                output.set_total_time(static_cast<float>(request_time));
+                inf_compute.Add({{"model", model->Name()}}, quantiles).Observe(compute_time * 1000);
+                inf_request.Add({{"model", model->Name()}}, quantiles).Observe(request_time * 1000);
+                inf_load_ratio.Observe(request_time / compute_time);
                 this->FinishResponse();
             });
         });
@@ -118,14 +177,16 @@ class FlowersContext final : public Context<ssd::BatchInput, ssd::BatchPredictio
             auto element = output.add_elements();
             float max_val = -1.0;
             int max_idx = -1;
-            for (int i=0; i < nClasses; i++) {
-                if(max_val < scores[cntr]) {
+            for (int i = 0; i < nClasses; i++)
+            {
+                if (max_val < scores[cntr])
+                {
                     max_val = scores[cntr];
                     max_idx = i;
                 }
                 cntr++;
             }
-	        auto top1 = element->add_predictions();
+            auto top1 = element->add_predictions();
             top1->set_class_id(max_idx);
             top1->set_score(max_val);
         }
@@ -142,8 +203,9 @@ static bool ValidateEngine(const char *flagname, const std::string &value)
 DEFINE_string(engine, "/path/to/tensorrt.engine", "TensorRT serialized engine");
 DEFINE_validator(engine, &ValidateEngine);
 DEFINE_string(dataset, "127.0.0.1:4444", "GRPC Dataset/SharedMemory Service Address");
-DEFINE_int32(nctx, 1, "Number of Execution Contexts");
-DEFINE_int32(port, 50051, "Port to listen on");
+DEFINE_int32(contexts, 1, "Number of Execution Contexts");
+DEFINE_int32(port, 50051, "Port to listen for gRPC requests");
+DEFINE_int32(metrics, 50078, "Port to expose metrics for scraping");
 
 int main(int argc, char *argv[])
 {
@@ -151,18 +213,21 @@ int main(int argc, char *argv[])
     ::google::InitGoogleLogging("flowers");
     ::google::ParseCommandLineFlags(&argc, &argv, true);
 
-    // set affinity to device
+    // Set CPU Affinity to be near the GPU
     auto cpus = Affinity::GetDeviceAffinity(0);
     Affinity::SetAffinity(cpus);
 
-    // A server will bind an IP:PORT to listen on
+    // Enable metrics on port
+    Metrics::Initialize(FLAGS_metrics);
+
+    // Create a gRPC server bound to IP:PORT
     std::ostringstream ip_port;
     ip_port << "0.0.0.0:" << FLAGS_port;
     Server server(ip_port.str());
 
     // A server can host multiple services
     LOG(INFO) << "Register Service (flowers::Inference) with Server";
-    auto inferenceService = server.RegisterAsyncService<ssd::Inference>();
+    auto inferenceService = server.RegisterAsyncService<Inference>();
 
     // An RPC has two components that need to be specified when registering with the service:
     //  1) Type of Execution Context (FlowersContext).  The execution context defines the behavor
@@ -172,13 +237,13 @@ int main(int argc, char *argv[])
     //     RPC's execution context to the
     LOG(INFO) << "Register RPC (flowers::Inference::Compute) with Service (flowers::Inference)";
     auto rpcCompute = inferenceService->RegisterRPC<FlowersContext>(
-        &ssd::Inference::AsyncService::RequestCompute);
+        &Inference::AsyncService::RequestCompute);
 
     // Initialize Resources
     LOG(INFO) << "Initializing Resources for RPC (flowers::Inference::Compute)";
     auto rpcResources = std::make_shared<FlowersResources>(
-        FLAGS_nctx,                    // number of IExecutionContexts - scratch space for DNN activations
-        FLAGS_nctx * 2,                // number of host/device buffers for input/output tensors
+        FLAGS_contexts,                    // number of IExecutionContexts - scratch space for DNN activations
+        FLAGS_contexts + 2,                // number of host/device buffers for input/output tensors
         1,                             // number of threads used to execute cuda kernel launches
         2,                             // number of threads used to write and complete responses
         GetSharedMemory(FLAGS_dataset) // pointer to data in shared memory
@@ -196,6 +261,14 @@ int main(int argc, char *argv[])
 
     LOG(INFO) << "Running Server";
     server.Run(std::chrono::milliseconds(2000), [] {
+        // Query GPU Power
+        nvmlDevice_t gpu;
+        unsigned int power;
+        CHECK_EQ(nvmlDeviceGetHandleByIndex(0, &gpu), NVML_SUCCESS)
+            << "Failed to get Device for index=" << 0;
+        CHECK_EQ(nvmlDeviceGetPowerUsage(gpu, &power), NVML_SUCCESS)
+            << "Failed to get Power Usage for GPU=" << 0;
+        power_gauge.Set((double)power * 0.001);
     });
 }
 

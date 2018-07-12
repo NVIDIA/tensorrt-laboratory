@@ -1,17 +1,21 @@
 # Inference Example
 
-Basic CLI for executing TensorRT engines.
+Basic CLI tool for executing TensorRT engines.
 
 Provide an engine and `inference.x` will run a simplifed inference pipeline using synthetic data.
 
 The program will run a pipelined H2D -> TensorRT -> D2H calculation for `--seconds` (default: 5) with a
-0.1 second warmup run.  By default, only 1 TensorRT Execution Context is used to perform the evaulation.
-You can modify the number of contexts using the `--contexts`.  By default this will increase the number of
-Input/Output Buffers used as well.  See Options below for more details.
+0.1 second warmup run. By default, only 1 TensorRT Execution Context is used to perform the evaulation.
+You can modify the number of contexts using the `--contexts`. Unless provided, the number of Input/Output
+Buffers is set to `(2 * contexts)`.  See below for the list of [options](#options).
 
-The `inference.x` program is fully pipelined and asynchronous.  It performs the full pipeline: H2D -> TensorRT -> D2H.
-If you see numbers that differ from the output of `giexec`, you may have an IO bottleneck in that the transfers are
-more expensive than the compute.
+The `inference.x` program is fully pipelined and asynchronous.  It performs uses three threads (default)
+to: 1) async copy input H2D, 2) launch the async inference evaluation and return output tensor to the host,
+and 3) to wait on the resouces used during execution and release them when finished.  This final thread is
+where one might build a return message or do something else with the results.
+
+Note: If you see numbers that differ from the output of `giexec`, you may have an IO bottleneck in that 
+the transfers are more expensive than the compute.
 
  * TODO: Update the program to output avg xfer time.
  * TODO: Build .engine files as part of the build

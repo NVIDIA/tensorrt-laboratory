@@ -74,6 +74,12 @@ message(STATUS "Using gRPC ${gRPC_VERSION}")
 set(_GRPC_GRPCPP_UNSECURE gRPC::grpc++_unsecure)
 set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
 
+# Prometheus C++ Client
+find_package(prometheus-cpp CONFIG REQUIRED)
+if(prometheus-cpp_FOUND)
+  message(STATUS "Prometheus Metics Enabled")
+endif(prometheus-cpp_FOUND)
+
 # Targets
 add_subdirectory(yais)
 add_subdirectory(examples)

@@ -13,7 +13,12 @@ The load-balancer overhead appears to be about 150us.  Running the `client-sync.
 directly to a backend vs. through the load-balancer shows about 150us overhead per
 transaction.
 
-```Throughput Subshell: /work/build/examples/02_TensorRT_GRPC/client-sync.x --port 50051
+```
+# direct
+Throughput Subshell: /work/build/examples/02_TensorRT_GRPC/client-sync.x --port 50051
 1000 requests in 2.69029 seconds; inf/sec: 371.707
+
+# proxied via envoy load-balancer
 Throughput Subshell: /work/build/examples/02_TensorRT_GRPC/client-sync.x --port 50050
-1000 requests in 2.8411 seconds; inf/sec: 351.977```
+1000 requests in 2.8411 seconds; inf/sec: 351.977
+```
