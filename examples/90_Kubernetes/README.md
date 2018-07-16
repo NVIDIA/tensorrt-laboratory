@@ -27,7 +27,7 @@ The following packages will be installed on your Kubernetes cluster:
 
 After the installation of those packages, we will deploy the following:
 * Scalable [K8s Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
-of the [TensorRT GRPC example](examples/02_TensorRT_GRPC) `inference-grpc.x` 
+of the [TensorRT GRPC example](../02_TensorRT_GRPC) `inference-grpc.x` 
 * YAIS specific instance of a Prometheus server that will scrape any Pods labeled `scrape: yais`
 * Istio `Gateway` and `VirtualService` to route load-balanced traffic to our gRPC service.
 
@@ -35,7 +35,7 @@ of the [TensorRT GRPC example](examples/02_TensorRT_GRPC) `inference-grpc.x`
 
 Starting at this point, you should have a Kubernetes cluter with all the prerequisites.
 
-If you use the [minikube setup](examples/90_Kubernetes/minikube/README.md) you can simply run:
+If you use the [minikube setup](minikube/README.md) you can simply run:
 ```
 ./bootstrap-minikube.sh
 ```
@@ -54,7 +54,7 @@ cd ..
 
 Monitor `kubectl get pods -n monitoring` and wait everything to come up.
 
-Customize any settings in the [custom-settings.yml](examples/90_Kubernetes/prometheus/custom-settings.yml)
+Customize any settings in the [custom-settings.yml](prometheus/custom-settings.yml)
 file.  This project is exposing the Grafana server as a `NodePort` and providing custom 
 datasource and dashboards for YAIS metrics.
 
