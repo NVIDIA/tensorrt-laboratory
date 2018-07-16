@@ -70,7 +70,7 @@ client library.  In this example, we expose four custom
 
   * `compute_duration` and `request_duration` are summaries recored with the model
      name as a component of the metric.  This is useful for evaluating how a given
-     model is performing, but this is not a good method of aggregation across multiple
+     model is performing, but this is not a good metric to aggregate across multiple
      service.
   * `load_ratio` is a histogram of `request_duraton / compute_duration`.  Ideally, this
      unitless value is just over 1.0.  Values higher than 1.0 are indictive of some

@@ -36,8 +36,8 @@ models = [
 
 precisions = [
     ("fp32", ""),
-    ("fp16", "--fp16"),
-    ("int8", "--int8")
+#   ("fp16", "--fp16"),
+#   ("int8", "--int8")
 ]
 
 def main():

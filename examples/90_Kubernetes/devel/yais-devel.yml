@@ -1,0 +1,40 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: yais-devel
+  labels:
+    app: yais-devel
+spec:
+  ports:
+  - name: metrics
+    port: 51078
+    targetPort: 50078
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: yais-devel
+subsets:
+- addresses:
+  - ip: 10.0.0.10
+  ports:
+  - name: metrics
+    port: 50078
+---
+# this will get scraped by the default kube-prometheus
+# and the yais-metric prometheus service (if it is running)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: yais-devel
+  labels:
+    scrape: yais
+spec:
+  selector:
+    matchLabels:
+      app: yais-devel
+  endpoints:
+  - port: metrics
+    interval: 2s
+    honorLabels: true
