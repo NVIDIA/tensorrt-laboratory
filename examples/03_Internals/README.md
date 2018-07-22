@@ -149,14 +149,14 @@ Derived `Memory` Classes:
   * `CudaDeviceMemory`
   * `CudaManagedMemory`
 
-### Allocatory<MemoryType>
+### Allocator<MemoryType>
 
   * [Definition: YAIS/Memory.h](../../yais/include/YAIS/Memory.h)
 
 The templated `Allocator<MemoryType>` class performs memory allocations and freeing operations.  This
 class does not have a public constructor, instead, you are required to use either the `make_shared`
-or `make_unique` static methods.  In doing so, the method to free the allocation is captured as the
-`Deleter` in the subsequent `shared_ptr` and `unique_ptr` created respectively.
+or `make_unique` static methods.  In doing so, the method to free the allocation is captured by the
+deconstructor which is triggered by the default deleter of `shared_ptr` and `unique_ptr`.
 
 An allocated memory segments is of type `Allocator<MemoryType>` which inherits from `MemoryType`.
 The base `Memory` class provides three functions, `GetPointer()`, `GetSize()`, and `WriteZeros()`.

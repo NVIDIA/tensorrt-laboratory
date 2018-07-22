@@ -130,6 +130,8 @@ RUN wget https://dl.influxdata.com/telegraf/releases/telegraf-1.7.1-static_linux
  && mv telegraf/telegraf /usr/local/bin \
  && rm -rf telegraf-1.7.1-static_linux_amd64.tar.gz telegraf
 
+# NVIDIA/YAIS
+
 WORKDIR /work
 COPY . .
 RUN ./build.sh
