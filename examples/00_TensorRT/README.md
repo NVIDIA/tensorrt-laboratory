@@ -14,6 +14,11 @@ to: 1) async copy input H2D, 2) launch the async inference evaluation and return
 and 3) to wait on the resouces used during execution and release them when finished.  This final thread is
 where one might build a return message or do something else with the results.
 
+While running `inference.x`, you may find it useful to monitor GPU metrics using:
+```
+nvidia-smi dmon -i 0 -s put
+```
+
 Note: If you see numbers that differ from the output of `giexec`, you may have an IO bottleneck in that 
 the transfers are more expensive than the compute.
 
