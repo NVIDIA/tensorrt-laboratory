@@ -58,6 +58,8 @@
 
 #include "inference.grpc.pb.h"
 
+#include "YAIS/Memory.h"
+
 using grpc::Channel;
 using grpc::ClientAsyncResponseReader;
 using grpc::ClientContext;
@@ -69,16 +71,17 @@ using ssd::Inference;
 
 class GreeterClient {
   public:
-    explicit GreeterClient(std::shared_ptr<Channel> channel)
-            : stub_(Inference::NewStub(channel)), m_OutstandingMessageCount(0) {}
+    explicit GreeterClient(std::shared_ptr<Channel> channel, int max_outstanding)
+            : stub_(Inference::NewStub(channel)), m_OutstandingMessageCount(0),
+              m_MaxOutstandingMessageCount(max_outstanding) {}
 
     // Assembles the client's payload and sends it to the server.
-    void SayHello(const size_t batch_id, const int batch_size) {
+    void SayHello(const size_t batch_id, const int batch_size, char *bytes, uint64_t total) {
         // Data we are sending to the server.
         {
             std::unique_lock<std::mutex> lock(m_Mutex);
             m_OutstandingMessageCount++;
-            while(m_OutstandingMessageCount >= 950) {
+            while(m_OutstandingMessageCount >= m_MaxOutstandingMessageCount) {
                 LOG_FIRST_N(WARNING, 10) << "Initiated Backoff - (Siege Rate > Server Compute Rate) - Server Queues are full.";
                 m_Condition.wait(lock);
             }
@@ -89,6 +92,9 @@ class GreeterClient {
         BatchInput request;
         request.set_batch_id(batch_id);
         request.set_batch_size(batch_size);
+        if(total) {
+            request.set_data(bytes, total);
+        }
 
         // Call object to store rpc data
         AsyncClientCall* call = new AsyncClientCall;
@@ -191,19 +197,34 @@ class GreeterClient {
     std::mutex m_Mutex;
     std::condition_variable m_Condition;
     int m_OutstandingMessageCount;
+    int m_MaxOutstandingMessageCount;
     float m_TotalRequestTime;
     size_t m_RequestCalls;
 };
 
+static bool ValidateBytes(const char *flagname, const std::string &value)
+{
+    yais::StringToBytes(value);
+    return true;
+}
+
 DEFINE_int32(count, 1000000, "number of grpc messages to send");
 DEFINE_int32(batch_size, 1, "batch_size");
+DEFINE_int32(max_outstanding, 950, "maximum outstanding requests");
 DEFINE_int32(port, 50051, "server_port");
 DEFINE_double(rate, 1.0, "messages per second");
+DEFINE_string(bytes, "0B", "add extra bytes to the request payload");
+DEFINE_validator(bytes, &ValidateBytes);
 
 int main(int argc, char** argv) {
 
     FLAGS_alsologtostderr = 1; // It will dump to console
     ::google::ParseCommandLineFlags(&argc, &argv, true);
+
+    auto bytes = yais::StringToBytes(FLAGS_bytes);
+    char extra_bytes[bytes];
+    if (bytes)
+        LOG(INFO) << "Sending an addition " << yais::BytesToString(bytes) << " bytes in request payload";
 
     // using a fixed rate of 15us per rpc call.  i could adjust dynamically as i'm tracking
     // the call overhead, but it's close enough.
@@ -217,15 +238,21 @@ int main(int argc, char** argv) {
     // (use of InsecureChannelCredentials()).
     std::ostringstream ip_port;
     ip_port << "localhost:" << FLAGS_port;
-    GreeterClient greeter(grpc::CreateChannel(
-            ip_port.str(), grpc::InsecureChannelCredentials()));
+   
+    grpc::ChannelArguments ch_args;
+    ch_args.SetMaxReceiveMessageSize(-1);
+    GreeterClient greeter(
+        grpc::CreateCustomChannel(
+            ip_port.str(), grpc::InsecureChannelCredentials(), ch_args),
+        FLAGS_max_outstanding
+    );
 
     // Spawn reader thread that loops indefinitely
     std::thread thread_ = std::thread(&GreeterClient::AsyncCompleteRpc, &greeter);
 
     auto start = std::chrono::system_clock::now();
     for (size_t i = 0; i < FLAGS_count; i++) {
-        greeter.SayHello(i, FLAGS_batch_size);  // The actual RPC call!
+        greeter.SayHello(i, FLAGS_batch_size, extra_bytes, bytes);  // The actual RPC call!
         // std::this_thread::sleep_for(sleep_time); // <== way too much overhead
         auto start = std::chrono::high_resolution_clock::now();
         while (std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count() < sleepy) {

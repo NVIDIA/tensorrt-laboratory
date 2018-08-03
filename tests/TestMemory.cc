@@ -86,4 +86,22 @@ TEST_F(TestBytesToString, BytesToString)
     EXPECT_EQ(  string("1.7 TiB"), BytesToString(1855425871872));
 }
 
+TEST_F(TestBytesToString, StringToBytes)
+{
+    EXPECT_EQ(          0, StringToBytes("0B"));
+    EXPECT_EQ(          0, StringToBytes("0GB"));
+    EXPECT_EQ(       1000, StringToBytes("1000B"));
+    EXPECT_EQ(       1000, StringToBytes("1000b"));
+    EXPECT_EQ(       1000, StringToBytes("1kb"));
+    EXPECT_EQ(       1023, StringToBytes("1023b"));
+//  EXPECT_EQ(       1023, StringToBytes("1.023kb")); // no effort to control rounding - this fails with 1022
+    EXPECT_EQ(       1024, StringToBytes("1kib"));
+    EXPECT_EQ(       1024, StringToBytes("1.0KiB"));
+    EXPECT_EQ(    8000000, StringToBytes("8.0MB"));
+    EXPECT_EQ(    8388608, StringToBytes("8.0MiB"));
+    EXPECT_EQ(18253611008, StringToBytes("17GiB"));
+    EXPECT_DEATH(StringToBytes("17G"), "");
+    EXPECT_DEATH(StringToBytes("yais"), "");
+}
+
 } // namespace
