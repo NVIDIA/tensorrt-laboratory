@@ -130,6 +130,13 @@ RUN wget https://dl.influxdata.com/telegraf/releases/telegraf-1.7.1-static_linux
  && mv telegraf/telegraf /usr/local/bin \
  && rm -rf telegraf-1.7.1-static_linux_amd64.tar.gz telegraf
 
+RUN git clone https://github.com/bloomen/transwarp.git \
+ && cd transwarp \
+ && git checkout 1.7.0 \
+ && mkdir -p /usr/local/include/transwarp \
+ && cp src/transwarp.h /usr/local/include/transwarp/transwarp.h \
+ && cd .. && rm -rf transwarp
+
 # NVIDIA/YAIS
 
 WORKDIR /work

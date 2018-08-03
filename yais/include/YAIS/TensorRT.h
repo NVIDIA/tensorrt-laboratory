@@ -414,6 +414,23 @@ class ResourceManager : public ::yais::Resources
     std::map<const Model*, std::shared_ptr<Pool<IExecutionContext>>> m_ModelExecutionContexts;
 };
 
+
+class Inference
+{
+  public:
+    virtual ~Inference() = default;
+};
+
+class InferenceUnary : public Inference
+{
+  public:
+};
+
+class InferenceStreamingBatch : public Inference
+{
+  public:
+};
+
 } // end namespace TensorRT
 } // end namespace yais
 

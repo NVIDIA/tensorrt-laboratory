@@ -50,10 +50,7 @@
 //   3. This notice may not be removed or altered from any source
 //   distribution.
 //
-// Modifications:
-//   * Header-only file was split into .h/.cc files
-//   * Added an extra safety check (lines 30-31) in the construction (.cc file).
-//   * Added CPU affinity options to the constructor
+// Modifications: see header file
 //
 #include "YAIS/ThreadPool.h"
 #include <glog/logging.h>

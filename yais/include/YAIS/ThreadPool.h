@@ -54,12 +54,14 @@
 //   * Header-only file was split into .h/.cc files
 //   * Added an extra safety check (lines 30-31) in the construction (.cc file).
 //   * Added CPU affinity options to the constructor
+//   * Implemented transwarp::executor protocol
 //
-#ifndef NVIS_THREADPOOL_H_
-#define NVIS_THREADPOOL_H_
+#ifndef _YAIS_THREADPOOL_H_
+#define _YAIS_THREADPOOL_H_
 #pragma once
 
 #include "YAIS/Affinity.h"
+#include "YAIS/TaskGraph.h"
 
 #include <future>
 #include <queue>
@@ -75,7 +77,7 @@ namespace yais
  * is provided as a convenience class.  Many thanks to the original authors for a beautifully
  * designed class.
  */
-class ThreadPool
+class ThreadPool : public tw::executor
 {
   public:
     /**
@@ -103,7 +105,7 @@ class ThreadPool
      * @param cpu_set 
      */
     ThreadPool(const CpuSet& cpu_set);
-    ~ThreadPool();
+    ~ThreadPool() override;
 
     /**
      * @brief Enqueue Work to the ThreadPool by passing a Lambda Function
@@ -124,6 +126,19 @@ class ThreadPool
      */
     template <class F, class... Args>
     auto enqueue(F &&f, Args &&... args) -> std::future<typename std::result_of<F(Args...)>::type>;
+
+    // The name of the executor
+    std::string get_name() const final override { return "yais::ThreadPool"; }
+    
+    // Only ever called on the thread of the caller to schedule()
+    void execute(const std::function<void()>& functor, const std::shared_ptr<tw::node>& node) final override
+    {
+        {
+            std::unique_lock<std::mutex> lock(queue_mutex);
+            tasks.push(functor);
+        }
+        condition.notify_one();
+    }
 
   private:
     void InitThread(const CpuSet& affinity_mask);
@@ -166,4 +181,4 @@ auto ThreadPool::enqueue(F &&f, Args &&... args) -> std::future<typename std::re
 
 } // end namespace yais
 
-#endif // NVIS_THREADPOOL_H_
+#endif // _YAIS_THREADPOOL_H_
