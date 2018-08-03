@@ -175,6 +175,7 @@ class FlowersContext final : public Context<BatchInput, BatchPredictions, Flower
         for (int p = 0; p < N; p++)
         {
             auto element = output.add_elements();
+            /* Customize the post-processing of the output tensor *\
             float max_val = -1.0;
             int max_idx = -1;
             for (int i = 0; i < nClasses; i++)
@@ -189,6 +190,7 @@ class FlowersContext final : public Context<BatchInput, BatchPredictions, Flower
             auto top1 = element->add_predictions();
             top1->set_class_id(max_idx);
             top1->set_score(max_val);
+            \* Customize the post-processing of the output tensor */
         }
         output.set_batch_id(input.batch_id());
     }
@@ -204,6 +206,11 @@ DEFINE_string(engine, "/path/to/tensorrt.engine", "TensorRT serialized engine");
 DEFINE_validator(engine, &ValidateEngine);
 DEFINE_string(dataset, "127.0.0.1:4444", "GRPC Dataset/SharedMemory Service Address");
 DEFINE_int32(contexts, 1, "Number of Execution Contexts");
+DEFINE_int32(buffers,  0, "Number of Input/Output Buffers");
+DEFINE_int32(execution_threads, 1, "Number of RPC execution threads");
+DEFINE_int32(preprocessing_threads, 0, "Number of preprocessing threads");
+DEFINE_int32(kernel_launching_threads, 1, "Number of threads to launch CUDA kernels");
+DEFINE_int32(postprocessing_threads, 2, "Number of postprocessing threads");
 DEFINE_int32(port, 50051, "Port to listen for gRPC requests");
 DEFINE_int32(metrics, 50078, "Port to expose metrics for scraping");
 
@@ -239,14 +246,20 @@ int main(int argc, char *argv[])
     auto rpcCompute = inferenceService->RegisterRPC<FlowersContext>(
         &Inference::AsyncService::RequestCompute);
 
+    // Buffers default to execution contexts + 2
+    // Allows for 1 H2D, N TensorRT Executions, 1 D2H to be inflight
+    auto buffers = FLAGS_buffers;
+    if (buffers == 0)
+        buffers = FLAGS_contexts + 2;
+
     // Initialize Resources
     LOG(INFO) << "Initializing Resources for RPC (flowers::Inference::Compute)";
     auto rpcResources = std::make_shared<FlowersResources>(
-        FLAGS_contexts,                    // number of IExecutionContexts - scratch space for DNN activations
-        FLAGS_contexts + 2,                // number of host/device buffers for input/output tensors
-        1,                             // number of threads used to execute cuda kernel launches
-        2,                             // number of threads used to write and complete responses
-        GetSharedMemory(FLAGS_dataset) // pointer to data in shared memory
+        FLAGS_contexts,                 // number of IExecutionContexts - scratch space for DNN activations
+        buffers,                        // number of host/device buffers for input/output tensors
+        FLAGS_kernel_launching_threads, // number of threads used to execute cuda kernel launches
+        FLAGS_postprocessing_threads,   // number of threads used to write and complete responses
+        GetSharedMemory(FLAGS_dataset)  // pointer to data in shared memory
     );
     rpcResources->RegisterModel("flowers", Runtime::DeserializeEngine(FLAGS_engine));
     rpcResources->AllocateResources();
