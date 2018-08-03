@@ -57,6 +57,8 @@ class Server
     void Run();
     void Run(milliseconds timeout, std::function<void()> control_fn);
 
+    ::grpc::ServerBuilder& GetBuilder();
+
   private:
     bool m_Running;
     std::string m_ServerAddress;

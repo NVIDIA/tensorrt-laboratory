@@ -202,6 +202,12 @@ static bool ValidateEngine(const char *flagname, const std::string &value)
     return (stat(value.c_str(), &buffer) == 0);
 }
 
+static bool ValidateBytes(const char *flagname, const std::string &value)
+{
+    yais::StringToBytes(value);
+    return true;
+}
+
 DEFINE_string(engine, "/path/to/tensorrt.engine", "TensorRT serialized engine");
 DEFINE_validator(engine, &ValidateEngine);
 DEFINE_string(dataset, "127.0.0.1:4444", "GRPC Dataset/SharedMemory Service Address");
@@ -211,6 +217,8 @@ DEFINE_int32(execution_threads, 1, "Number of RPC execution threads");
 DEFINE_int32(preprocessing_threads, 0, "Number of preprocessing threads");
 DEFINE_int32(kernel_launching_threads, 1, "Number of threads to launch CUDA kernels");
 DEFINE_int32(postprocessing_threads, 2, "Number of postprocessing threads");
+DEFINE_string(max_recv_bytes, "10MiB", "Maximum number of bytes for incoming messages");
+DEFINE_validator(max_recv_bytes, &ValidateBytes);
 DEFINE_int32(port, 50051, "Port to listen for gRPC requests");
 DEFINE_int32(metrics, 50078, "Port to expose metrics for scraping");
 
@@ -231,6 +239,11 @@ int main(int argc, char *argv[])
     std::ostringstream ip_port;
     ip_port << "0.0.0.0:" << FLAGS_port;
     Server server(ip_port.str());
+
+    // Modify MaxReceiveMessageSize
+    auto bytes = yais::StringToBytes(FLAGS_max_recv_bytes);
+    server.GetBuilder().SetMaxReceiveMessageSize(bytes);
+    LOG(INFO) << "gRPC MaxReceiveMessageSize = " << yais::BytesToString(bytes);
 
     // A server can host multiple services
     LOG(INFO) << "Register Service (flowers::Inference) with Server";

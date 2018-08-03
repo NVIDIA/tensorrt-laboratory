@@ -31,9 +31,8 @@ cleanup() {
 }
 trap "cleanup" EXIT SIGINT SIGTERM
 
-NCTX=${1:-1}
-BS=${2:-1}
-ENG=${3:-/work/models/ResNet-50-b1-int8.engine}
+ENG=${1:-/work/models/ResNet-50-b1-fp32.engine}
+NCTX=${2:-1}
 
 if [ ! -e $ENG ]; then
     echo "$ENG not found"

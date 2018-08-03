@@ -40,6 +40,7 @@ message BatchInput {
 
     uint32 int_offset = 4;
     uint64 sysv_offset = 5;
+    bytes data = 6;
 }
 
 message BatchPredictions {

@@ -33,6 +33,7 @@ namespace yais
 {
 
 std::string BytesToString(size_t bytes);
+std::uint64_t StringToBytes(const std::string);
 
 /**
  * @brief Abstract base Memory class

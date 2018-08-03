@@ -35,7 +35,15 @@ Server::Server(std::string server_address)
     : m_ServerAddress(server_address), m_Running(false)
 {
     LOG(INFO) << "gRPC listening on: " << m_ServerAddress;
-    m_Builder.AddListeningPort(m_ServerAddress, ::grpc::InsecureServerCredentials());    
+    m_Builder.AddListeningPort(m_ServerAddress, ::grpc::InsecureServerCredentials());
+}
+
+::grpc::ServerBuilder &
+Server::GetBuilder()
+{
+    if (m_Running)
+        LOG(FATAL) << "Unable to access Builder after the Server is running.";
+    return m_Builder;
 }
 
 void 

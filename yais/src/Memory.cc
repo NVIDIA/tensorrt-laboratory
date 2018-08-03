@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <regex>
 #include <stdio.h>
 
 #include <cuda.h>
@@ -140,6 +141,26 @@ std::string BytesToString(size_t bytes)
     int exp = (int) (log(bytes) / log(unit));
     sprintf(buffer, "%.1f %ciB", bytes / pow(unit, exp), prefixes[exp-1]);
     return std::string(buffer);
+}
+
+std::uint64_t StringToBytes(const std::string str)
+{
+    // https://regex101.com/r/UVm5wT/1
+    std::smatch m;
+    std::regex r("(\\d+[.\\d+]*)([KMGTkmgt]*)([i]*)[bB]");
+    std::map<char, int> prefix = {
+        {'k', 1}, {'m', 2}, {'g', 3}, {'t', 4},
+        {'K', 1}, {'M', 2}, {'G', 3}, {'T', 4},
+    };
+
+    if (!std::regex_search(str, m, r))
+	LOG(FATAL) << "Unable to convert \"" << str << "\" to bytes. "
+                   << "Expected format: 10b, 1024B, 1KiB, 10MB, 2.4gb, etc.";
+
+    std::uint64_t base = m[3] == "" ? 1000 : 1024;
+    auto exponent = prefix[m[2].str()[0]];
+    auto scalar = std::stod(m[1]);
+    return (std::uint64_t)(scalar * pow(base, exponent));
 }
 
 } // namespace yais
