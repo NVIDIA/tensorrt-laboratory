@@ -2,6 +2,7 @@ build
 *.engine
 .Dockerfile
 .vscode
+.gitignore
 
 
 # Created by https://www.gitignore.io/api/vim,c++,cmake,python,synology
