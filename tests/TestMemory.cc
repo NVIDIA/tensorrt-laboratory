@@ -100,6 +100,8 @@ TEST_F(TestBytesToString, StringToBytes)
     EXPECT_EQ(    8000000, StringToBytes("8.0MB"));
     EXPECT_EQ(    8388608, StringToBytes("8.0MiB"));
     EXPECT_EQ(18253611008, StringToBytes("17GiB"));
+    EXPECT_DEATH(StringToBytes("17G"), "");
+    EXPECT_DEATH(StringToBytes("yais"), "");
 }
 
 } // namespace

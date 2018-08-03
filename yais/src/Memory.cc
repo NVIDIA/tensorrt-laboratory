@@ -157,7 +157,7 @@ std::uint64_t StringToBytes(const std::string str)
 	LOG(FATAL) << "Unable to convert \"" << str << "\" to bytes. "
                    << "Expected format: 10b, 1024B, 1KiB, 10MB, 2.4gb, etc.";
 
-    std::uint64_t base = m[3] == "" ? 1000 : 1024;
+    const std::uint64_t base = m.empty() || (m.size() > 3 && m[3] == "") ? 1000 : 1024;
     auto exponent = prefix[m[2].str()[0]];
     auto scalar = std::stod(m[1]);
     return (std::uint64_t)(scalar * pow(base, exponent));
