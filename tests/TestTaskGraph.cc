@@ -83,4 +83,19 @@ TEST_F(TestTaskGraph, VectorOfTasks)
     EXPECT_EQ(adder1->get(), 55.3);
 }
 
+TEST_F(TestTaskGraph, VectorOfFutures)
+{
+    std::vector<std::future<void>> tasks;
+    auto sleep = [] { std::this_thread::sleep_for(std::chrono::milliseconds(2)); };
+
+    tasks.emplace_back(executor->enqueue(sleep));
+    tasks.emplace_back(executor->enqueue(sleep));
+    tasks.emplace_back(executor->enqueue([sleep]{ sleep(); }));
+
+    for (auto & task : tasks)
+    {
+        task.wait();
+    }
+}
+
 }
