@@ -505,6 +505,10 @@ void ExecutionContext::SetContext(std::shared_ptr<IExecutionContext> context)
 void ExecutionContext::Infer(const std::shared_ptr<Bindings> &bindings)
 {
     DLOG(INFO) << "Launching Inference Execution";
+    auto start = std::chrono::system_clock::now();
+    m_ElapsedTimer = [start] { 
+        return std::chrono::duration<double>(std::chrono::system_clock::now() - start).count();
+    };
     m_Context->setDeviceMemory(bindings->ActivationsAddress());
     m_Context->enqueue(bindings->BatchSize(), bindings->DeviceAddresses(), bindings->Stream(), nullptr);
     CHECK_EQ(cudaEventRecord(m_ExecutionContextFinished, bindings->Stream()), CUDA_SUCCESS) << "ExeCtx Event Record Failed";
@@ -513,9 +517,10 @@ void ExecutionContext::Infer(const std::shared_ptr<Bindings> &bindings)
 /**
  * @brief Synchronized on the Completion of the Inference Calculation
  */
-void ExecutionContext::Synchronize()
+auto ExecutionContext::Synchronize() -> double
 {
     CHECK_EQ(cudaEventSynchronize(m_ExecutionContextFinished), CUDA_SUCCESS) << "ExeCtx Event Sync Failed";
+    return m_ElapsedTimer();
 }
 
 /**
@@ -532,6 +537,7 @@ void ExecutionContext::Reset()
 {
     m_Context->setDeviceMemory(nullptr);
     m_Context.reset();
+    m_ElapsedTimer = [] { return 0.0; };
 }
 
 // ResourceManager
