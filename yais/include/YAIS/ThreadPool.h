@@ -62,6 +62,7 @@
 
 #include "YAIS/Affinity.h"
 #include "YAIS/TaskGraph.h"
+#include "YAIS/Utils.h"
 
 #include <future>
 #include <queue>
@@ -106,6 +107,9 @@ class ThreadPool : public tw::executor
      */
     ThreadPool(const CpuSet& cpu_set);
     ~ThreadPool() override;
+
+    DELETE_COPYABILITY(ThreadPool);
+    DELETE_MOVEABILITY(ThreadPool);
 
     /**
      * @brief Enqueue Work to the ThreadPool by passing a Lambda Function
