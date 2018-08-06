@@ -119,14 +119,14 @@ int main(int argc, char **argv)
     std::ostringstream ip_port;
     ip_port << "localhost:" << FLAGS_port;
     SimpleClient client(grpc::CreateChannel(ip_port.str(), grpc::InsecureChannelCredentials()));
-    auto start = std::chrono::system_clock::now();
+    auto start = std::chrono::steady_clock::now();
     for (int i = 0; i < FLAGS_count; i++)
     {
         auto reply = client.Compute(i, FLAGS_batch);
         if (reply == -1 || reply != i)
             std::cout << "BatchId received: " << reply << std::endl;
     }
-    auto end = std::chrono::system_clock::now();
+    auto end = std::chrono::steady_clock::now();
     float elapsed = std::chrono::duration<float>(end - start).count();
     std::cout << FLAGS_count << " requests in " << elapsed << " seconds; inf/sec: " << FLAGS_count * FLAGS_batch / elapsed << std::endl;
     return 0;

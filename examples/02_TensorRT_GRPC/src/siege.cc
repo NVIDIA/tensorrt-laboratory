@@ -126,7 +126,7 @@ class GreeterClient {
         void* got_tag;
         bool ok = false;
         size_t cntr = 0;
-        auto start = std::chrono::system_clock::now();
+        auto start = std::chrono::steady_clock::now();
         float last = 0.0;
 
         // Block until the next result is available in the completion queue "cq".
@@ -147,7 +147,7 @@ class GreeterClient {
             delete call;
 
             cntr++;
-            float elapsed = std::chrono::duration<float>(std::chrono::system_clock::now() - start).count();
+            float elapsed = std::chrono::duration<float>(std::chrono::steady_clock::now() - start).count();
             if (elapsed - last > 0.5) {
                 LOG(INFO) << "avg. rate: " << (float)cntr/(elapsed - last);
                 last = elapsed;
@@ -250,7 +250,7 @@ int main(int argc, char** argv) {
     // Spawn reader thread that loops indefinitely
     std::thread thread_ = std::thread(&GreeterClient::AsyncCompleteRpc, &greeter);
 
-    auto start = std::chrono::system_clock::now();
+    auto start = std::chrono::steady_clock::now();
     for (size_t i = 0; i < FLAGS_count; i++) {
         greeter.SayHello(i, FLAGS_batch_size, extra_bytes, bytes);  // The actual RPC call!
         // std::this_thread::sleep_for(sleep_time); // <== way too much overhead
@@ -262,7 +262,7 @@ int main(int argc, char** argv) {
 
     greeter.Shutdown();
     thread_.join();  //blocks forever
-    auto end = std::chrono::system_clock::now();
+    auto end = std::chrono::steady_clock::now();
     float elapsed = std::chrono::duration<float>(end - start).count();
     std::cout << FLAGS_count << " requests in " << elapsed << "seconds; inf/sec: " << FLAGS_count*FLAGS_batch_size/elapsed << std::endl;
 

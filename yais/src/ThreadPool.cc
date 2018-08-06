@@ -53,7 +53,8 @@
 // Modifications:
 //   * Header-only file was split into .h/.cc files
 //   * Added an extra safety check (lines 30-31) in the construction (.cc file).
-//   * Added CPU affinity options to the constructor
+//   * Added CPU affinity options to the constructora
+//   * Added Size() method to get thread count
 //
 #include "YAIS/ThreadPool.h"
 #include <glog/logging.h>
@@ -68,7 +69,6 @@ ThreadPool::ThreadPool(size_t nThreads, const CpuSet &affinity_mask)
 {
     for (size_t i = 0; i < nThreads; ++i)
     {
-        auto affinity_mask = Affinity::GetAffinity();
         InitThread(affinity_mask);
     }
 }
@@ -108,6 +108,11 @@ void ThreadPool::InitThread(const CpuSet &affinity_mask)
             task();
         }
     });
+}
+
+int ThreadPool::Size()
+{
+    return workers.size();
 }
 
 // the destructor joins all threads

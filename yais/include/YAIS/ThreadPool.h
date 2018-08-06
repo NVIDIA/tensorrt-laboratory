@@ -54,6 +54,7 @@
 //   * Header-only file was split into .h/.cc files
 //   * Added an extra safety check (lines 30-31) in the construction (.cc file).
 //   * Added CPU affinity options to the constructor
+//   * Added Size() method to get thread count
 //
 #ifndef NVIS_THREADPOOL_H_
 #define NVIS_THREADPOOL_H_
@@ -124,6 +125,11 @@ class ThreadPool
      */
     template <class F, class... Args>
     auto enqueue(F &&f, Args &&... args) -> std::future<typename std::result_of<F(Args...)>::type>;
+
+    /**
+     * @brief Number of Threads in the Pool
+     */
+    int Size();
 
   private:
     void InitThread(const CpuSet& affinity_mask);

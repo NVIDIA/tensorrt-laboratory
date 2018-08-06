@@ -34,8 +34,12 @@
 namespace yais
 {
 
-struct IRPC;
-struct IExecutor;
+class IContext;
+class IExecutor;
+class IContextLifeCycle;
+class IRPC;
+class IService;
+
 
 /**
  * The IContext object and it's subsequent derivations are the single more important class
@@ -46,6 +50,7 @@ class IContext
 {
   public:
     virtual ~IContext() {}
+    static IContext *Detag(void *tag) { return static_cast<IContext *>(tag); }
 
   protected:
     IContext() = default;
@@ -59,44 +64,64 @@ class IContext
     friend class IExecutor;
 };
 
-struct IService
+class IContextLifeCycle : public IContext
 {
+  public:
+    ~IContextLifeCycle() override {}
+
+  protected:
+    IContextLifeCycle() = default;
+
+    virtual void OnLifeCycleStart() = 0;
+    virtual void OnLifeCycleReset() = 0;
+
+    virtual void FinishResponse() = 0;
+    virtual void CancelResponse() = 0;
+};
+
+class IService
+{
+  public:
     IService() = default;
     virtual ~IService() {}
 
-    virtual void Initialize(::grpc::ServerBuilder&) = 0;
+    virtual void Initialize(::grpc::ServerBuilder &) = 0;
 };
 
-struct IRPC
+class IRPC
 {
+  public:
     IRPC() = default;
     virtual ~IRPC() {}
 
   protected:
-    virtual std::unique_ptr<IContext> CreateContext(::grpc::ServerCompletionQueue*, std::shared_ptr<Resources>) = 0;
+    virtual std::unique_ptr<IContext> CreateContext(::grpc::ServerCompletionQueue *, std::shared_ptr<Resources>) = 0;
 
-  friend class IExecutor;
+    friend class IExecutor;
 };
 
-struct IExecutor
+class IExecutor
 {
+  public:
     IExecutor() = default;
     virtual ~IExecutor() {}
 
-    virtual void Initialize(::grpc::ServerBuilder&) = 0;
+    virtual void Initialize(::grpc::ServerBuilder &) = 0;
     virtual void Run() = 0;
     virtual void RegisterContexts(IRPC *rpc, std::shared_ptr<Resources> resources, int numContextsPerThread) = 0;
     //virtual void Shutdown() = 0;
 
   protected:
+    using time_point = std::chrono::system_clock::time_point;
+
+    virtual void SetTimeout(time_point, std::function<void()>) = 0;
+
     inline bool RunContext(IContext *ctx, bool ok) { return ctx->RunNextState(ok); }
     inline void ResetContext(IContext *ctx) { ctx->Reset(); }
-    inline std::unique_ptr<IContext> CreateContext(IRPC* rpc, ::grpc::ServerCompletionQueue* cq, std::shared_ptr<Resources> res)
+    inline std::unique_ptr<IContext> CreateContext(IRPC *rpc, ::grpc::ServerCompletionQueue *cq, std::shared_ptr<Resources> res)
     {
         return rpc->CreateContext(cq, res);
     }
-
-
 };
 
 } // end namespace yais

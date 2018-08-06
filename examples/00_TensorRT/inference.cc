@@ -80,9 +80,9 @@ class Inference final
         int replica = 0;
         uint64_t inf_count = 0;
 
-        auto start = std::chrono::system_clock::now();
+        auto start = std::chrono::steady_clock::now();
         auto elapsed = [start]() -> float {
-            return std::chrono::duration<float>(std::chrono::system_clock::now() - start).count();
+            return std::chrono::duration<float>(std::chrono::steady_clock::now() - start).count();
         };
 
         auto model = GetResources()->GetModel(ModelName(replica++));
