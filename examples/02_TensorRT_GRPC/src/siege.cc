@@ -69,6 +69,8 @@ using ssd::BatchInput;
 using ssd::BatchPredictions;
 using ssd::Inference;
 
+static int g_BatchSize = 1;
+
 class GreeterClient {
   public:
     explicit GreeterClient(std::shared_ptr<Channel> channel, int max_outstanding)
@@ -149,7 +151,8 @@ class GreeterClient {
             cntr++;
             float elapsed = std::chrono::duration<float>(std::chrono::system_clock::now() - start).count();
             if (elapsed - last > 0.5) {
-                LOG(INFO) << "avg. rate: " << (float)cntr/(elapsed - last);
+                LOG(INFO) << "avg. rate: " << (float)cntr/(elapsed - last) 
+                    << "( " << (float)(cntr*g_BatchSize)/(elapsed - last) << " inf/sec)";
                 last = elapsed;
                 cntr = 0;
             }
@@ -220,6 +223,8 @@ int main(int argc, char** argv) {
 
     FLAGS_alsologtostderr = 1; // It will dump to console
     ::google::ParseCommandLineFlags(&argc, &argv, true);
+
+    g_BatchSize = FLAGS_batch_size;
 
     auto bytes = yais::StringToBytes(FLAGS_bytes);
     char extra_bytes[bytes];

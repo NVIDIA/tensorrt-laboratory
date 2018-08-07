@@ -13,6 +13,8 @@ fi
 
 # istio
 kubectl apply -f istio/minikube.yml
+
+sleep 30
 kubectl label namespace default istio-injection=enabled
 
 # deploy yais example

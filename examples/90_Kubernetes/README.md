@@ -65,6 +65,7 @@ as `istio/minikube.yml`  If you are using a cloude instance, you can change to a
 
 ```
 kubectl apply -f istio/minikube.yml
+kubectl label namespace default istio-injection=enabled
 ```
 
 ### YAIS Service

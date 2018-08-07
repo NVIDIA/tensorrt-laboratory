@@ -48,6 +48,12 @@ grafana:
               "version": "5.0.0"
             },
             {
+              "type": "panel",
+              "id": "heatmap",
+              "name": "Heatmap",
+              "version": "5.0.0"
+            },
+            {
               "type": "datasource",
               "id": "prometheus",
               "name": "Prometheus",
@@ -75,7 +81,7 @@ grafana:
           "panels": [
             {
               "aliasColors": {},
-              "bars": false,
+              "bars": true,
               "dashLength": 10,
               "dashes": false,
               "datasource": "${DS_YAIS}",
@@ -106,17 +112,17 @@ grafana:
               "renderer": "flot",
               "seriesOverrides": [],
               "spaceLength": 10,
-              "stack": false,
+              "stack": true,
               "steppedLine": false,
               "targets": [
                 {
-                  "expr": "rate(yais_inference_load_ratio_count[5s])",
+                  "expr": "irate(yais_inference_load_ratio_count[5s])",
                   "format": "time_series",
                   "intervalFactor": 1,
                   "refId": "A"
                 },
                 {
-                  "expr": "irate(yais_inference_load_ratio_count[5s])",
+                  "expr": "",
                   "format": "time_series",
                   "intervalFactor": 1,
                   "refId": "B"
@@ -195,8 +201,8 @@ grafana:
               "renderer": "flot",
               "seriesOverrides": [],
               "spaceLength": 10,
-              "stack": false,
-              "steppedLine": false,
+              "stack": true,
+              "steppedLine": true,
               "targets": [
                 {
                   "expr": "yais_gpus_power_usage",
@@ -327,8 +333,69 @@ grafana:
                 "align": false,
                 "alignLevel": null
               }
+            },
+            {
+              "cards": {
+                "cardPadding": null,
+                "cardRound": null
+              },
+              "color": {
+                "cardColor": "#b4ff00",
+                "colorScale": "sqrt",
+                "colorScheme": "interpolateOranges",
+                "exponent": 0.5,
+                "mode": "spectrum"
+              },
+              "dataFormat": "timeseries",
+              "datasource": "${DS_YAIS}",
+              "gridPos": {
+                "h": 9,
+                "w": 12,
+                "x": 12,
+                "y": 9
+              },
+              "heatmap": {},
+              "highlightCards": true,
+              "id": 10,
+              "interval": "",
+              "legend": {
+                "show": false
+              },
+              "links": [],
+              "targets": [
+                {
+                  "expr": "irate(yais_inference_load_ratio_bucket[15s])",
+                  "format": "time_series",
+                  "intervalFactor": 1,
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "title": "Load Ratio (Ideal 0-1)",
+              "tooltip": {
+                "show": true,
+                "showHistogram": false
+              },
+              "type": "heatmap",
+              "xAxis": {
+                "show": true
+              },
+              "xBucketNumber": null,
+              "xBucketSize": null,
+              "yAxis": {
+                "decimals": null,
+                "format": "short",
+                "logBase": 10,
+                "max": null,
+                "min": "0",
+                "show": true,
+                "splitFactor": 2
+              },
+              "yBucketNumber": null,
+              "yBucketSize": null
             }
           ],
+          "refresh": false,
           "schemaVersion": 16,
           "style": "dark",
           "tags": [],
@@ -336,7 +403,7 @@ grafana:
             "list": []
           },
           "time": {
-            "from": "now-15m",
+            "from": "now-30m",
             "to": "now"
           },
           "timepicker": {
@@ -367,7 +434,7 @@ grafana:
           "timezone": "",
           "title": "YAIS",
           "uid": "3WLjQkdmk",
-          "version": 1
+          "version": 2
         },
         "inputs": [
           {
