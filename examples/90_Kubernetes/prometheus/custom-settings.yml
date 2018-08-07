@@ -98,7 +98,7 @@ grafana:
                 "current": false,
                 "max": false,
                 "min": false,
-                "show": true,
+                "show": false,
                 "total": false,
                 "values": false
               },
@@ -187,7 +187,7 @@ grafana:
                 "current": false,
                 "max": false,
                 "min": false,
-                "show": true,
+                "show": false,
                 "total": false,
                 "values": false
               },
@@ -270,7 +270,7 @@ grafana:
                 "current": false,
                 "max": false,
                 "min": false,
-                "show": true,
+                "show": false,
                 "total": false,
                 "values": false
               },
@@ -395,7 +395,7 @@ grafana:
               "yBucketSize": null
             }
           ],
-          "refresh": false,
+          "refresh": "5s",
           "schemaVersion": 16,
           "style": "dark",
           "tags": [],
@@ -434,7 +434,7 @@ grafana:
           "timezone": "",
           "title": "YAIS",
           "uid": "3WLjQkdmk",
-          "version": 2
+          "version": 1
         },
         "inputs": [
           {
