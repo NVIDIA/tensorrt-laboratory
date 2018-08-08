@@ -64,7 +64,8 @@ Initialize Istio.  I've provided the Istio v0.8 `istio-demo.yml` modified to use
 as `istio/minikube.yml`  If you are using a cloude instance, you can change to a `LoadBalancer`.
 
 ```
-kubectl apply -f istio/minikube.yml
+kubectl create namespace istio-system
+kubectl apply -f istio/istio-v1.0-minikube.yml
 kubectl label namespace default istio-injection=enabled
 ```
 
