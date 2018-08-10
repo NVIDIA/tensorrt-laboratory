@@ -218,7 +218,7 @@ DEFINE_int32(port, 50051, "server_port");
 DEFINE_double(rate, 1.0, "messages per second");
 DEFINE_double(ceil, 100000, "maximum number of messages per second when func is applied");
 DEFINE_double(alpha, 0, "alpha");
-DEFINE_double(beta, 0, "beta");
+DEFINE_double(beta, 1, "beta");
 DEFINE_string(func, "constant", "constant, linear or cyclic");
 DEFINE_string(bytes, "0B", "add extra bytes to the request payload");
 DEFINE_validator(bytes, &ValidateBytes);
@@ -243,13 +243,13 @@ int main(int argc, char** argv) {
         return std::chrono::duration<double>(std::chrono::system_clock::now() - start).count();
     };
     std::map<std::string, std::function<double()>> rates_by_name;
-    rates_by_name["constant"] = [FLAGS_rate, FLAGS_ceil]() -> double {
+    rates_by_name["constant"] = []() -> double {
         return std::min(FLAGS_rate, FLAGS_ceil);
     };
-    rates_by_name["linear"] = [start, wall, FLAGS_rate, FLAGS_alpha]() -> double {
+    rates_by_name["linear"] = [start, wall]() -> double {
         return std::min(FLAGS_rate + FLAGS_alpha*wall(), FLAGS_ceil); 
     };
-    rates_by_name["cyclic"] = [start, wall, FLAGS_rate, FLAGS_alpha, FLAGS_beta, FLAGS_ceil]() -> double {
+    rates_by_name["cyclic"] = [start, wall]() -> double {
         return std::min(FLAGS_rate + FLAGS_alpha * std::sin(2.0*3.14159*(FLAGS_beta/60.0)*wall()), FLAGS_ceil);
     };
     auto search = rates_by_name.find(FLAGS_func);
@@ -257,7 +257,7 @@ int main(int argc, char** argv) {
         LOG(FATAL) << "--func must be constant, linear or cyclic; your value = " << FLAGS_func;
     }
     auto sleepy = [search]() -> double {
-        auto sleep_time = ((std::chrono::seconds(1) / std::max((search->second)(), 0.00001))) - std::chrono::microseconds(15);
+        auto sleep_time = ((std::chrono::seconds(1) / std::max((search->second)(), 2.0))) - std::chrono::microseconds(15);
         return std::chrono::duration<double>(sleep_time).count();
     };
 
