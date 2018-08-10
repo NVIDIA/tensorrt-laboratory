@@ -216,8 +216,13 @@ DEFINE_int32(batch_size, 1, "batch_size");
 DEFINE_int32(max_outstanding, 950, "maximum outstanding requests");
 DEFINE_int32(port, 50051, "server_port");
 DEFINE_double(rate, 1.0, "messages per second");
+DEFINE_double(ceil, 100000, "maximum number of messages per second when func is applied");
+DEFINE_double(alpha, 0, "alpha");
+DEFINE_double(beta, 0, "beta");
+DEFINE_string(func, "constant", "constant, linear or cyclic");
 DEFINE_string(bytes, "0B", "add extra bytes to the request payload");
 DEFINE_validator(bytes, &ValidateBytes);
+
 
 int main(int argc, char** argv) {
 
@@ -233,9 +238,28 @@ int main(int argc, char** argv) {
 
     // using a fixed rate of 15us per rpc call.  i could adjust dynamically as i'm tracking
     // the call overhead, but it's close enough.
-    auto sleep_time = (std::chrono::seconds(1) / FLAGS_rate) - std::chrono::microseconds(15);
-    LOG(INFO) << "Sleep time: " << std::chrono::duration<float>(sleep_time).count();
-    auto sleepy = std::chrono::duration<float>(sleep_time).count();
+    auto start = std::chrono::system_clock::now();
+    auto wall = [start]() -> double {
+        return std::chrono::duration<double>(std::chrono::system_clock::now() - start).count();
+    };
+    std::map<std::string, std::function<double()>> rates_by_name;
+    rates_by_name["constant"] = [FLAGS_rate, FLAGS_ceil]() -> double {
+        return std::min(FLAGS_rate, FLAGS_ceil);
+    };
+    rates_by_name["linear"] = [start, wall, FLAGS_rate, FLAGS_alpha]() -> double {
+        return std::min(FLAGS_rate + FLAGS_alpha*wall(), FLAGS_ceil); 
+    };
+    rates_by_name["cyclic"] = [start, wall, FLAGS_rate, FLAGS_alpha, FLAGS_beta, FLAGS_ceil]() -> double {
+        return std::min(FLAGS_rate + FLAGS_alpha * std::sin(2.0*3.14159*(FLAGS_beta/60.0)*wall()), FLAGS_ceil);
+    };
+    auto search = rates_by_name.find(FLAGS_func);
+    if (search == rates_by_name.end()) {
+        LOG(FATAL) << "--func must be constant, linear or cyclic; your value = " << FLAGS_func;
+    }
+    auto sleepy = [search]() -> double {
+        auto sleep_time = ((std::chrono::seconds(1) / std::max((search->second)(), 0.00001))) - std::chrono::microseconds(15);
+        return std::chrono::duration<double>(sleep_time).count();
+    };
 
     // Instantiate the client. It requires a channel, out of which the actual RPCs
     // are created. This channel models a connection to an endpoint (in this case,
@@ -255,12 +279,11 @@ int main(int argc, char** argv) {
     // Spawn reader thread that loops indefinitely
     std::thread thread_ = std::thread(&GreeterClient::AsyncCompleteRpc, &greeter);
 
-    auto start = std::chrono::system_clock::now();
+
     for (size_t i = 0; i < FLAGS_count; i++) {
         greeter.SayHello(i, FLAGS_batch_size, extra_bytes, bytes);  // The actual RPC call!
-        // std::this_thread::sleep_for(sleep_time); // <== way too much overhead
         auto start = std::chrono::high_resolution_clock::now();
-        while (std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count() < sleepy) {
+        while (std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count() < sleepy()) {
             std::this_thread::yield();
         }
     }
