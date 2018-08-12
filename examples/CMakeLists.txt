@@ -27,4 +27,5 @@
 add_subdirectory(00_TensorRT)
 add_subdirectory(01_Basic_GRPC)
 add_subdirectory(02_TensorRT_GRPC)
-add_subdirectory(03_Internals)
+add_subdirectory(03_Batching)
+add_subdirectory(10_Internals)

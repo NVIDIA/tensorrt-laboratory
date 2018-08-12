@@ -24,183 +24,136 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NVIS_CONTEXT_H_
-#define NVIS_CONTEXT_H_
-#pragma once
+#ifndef _YAIS_CONTEXT_H_
+#define _YAIS_CONTEXT_H_
 
 #include "YAIS/Interfaces.h"
 #include "YAIS/Metrics.h"
-
-#include "glog/logging.h"
+#include "YAIS/LifeCycleUnary.h"
+#include "YAIS/LifeCycleBatching.h"
 
 namespace yais
 {
 
-template <class RequestType, class ResponseType, class ResourceType>
-class Context : public IContext
+template <class LifeCycle, class Resources>
+class BaseContext;
+
+template <class Request, class Response, class Resources>
+using Context = BaseContext<LifeCycleUnary<Request, Response>, Resources>;
+
+template <class Request, class Response, class Resources>
+using BatchingContext = BaseContext<LifeCycleBatching<Request, Response>, Resources>;
+
+template <class LifeCycle, class Resources>
+class BaseContext : public LifeCycle
 {
   public:
-    Context() : QueuingFunc(nullptr), m_Resources(nullptr), m_NextState(nullptr) {}
-    ~Context() override {}
+    using RequestType = typename LifeCycle::RequestType;
+    using ResponseType = typename LifeCycle::ResponseType;
+    using ResourcesType = std::shared_ptr<Resources>;
+    using QueueFuncType = typename LifeCycle::ExecutorQueueFuncType;
+    using LifeCycleType = LifeCycle;
 
-    using RequestType_t = RequestType;
-    using ResponseType_t = ResponseType;
-    using ResourceType_t = ResourceType;
-
-    // gRPC Service function used add the context object to the receive queue
-    using QueuingFunc_t = std::function<void(
-        ::grpc::ServerContext *, RequestType *,
-        ::grpc::ServerAsyncResponseWriter<ResponseType> *, void *)>;
+    virtual ~BaseContext() override {}
 
   protected:
-
-    /*
-     * Derived classes use this to access the Resources object
-     */
-    const std::shared_ptr<ResourceType> GetResources() { return m_Resources; }
-
-    /*
-     * Allows derived classes a hook into FactoryInitializer and Reset
-     */
-    virtual void OnInitialize() {}
-    virtual void OnReset() {}
-
-    /*
-     * Triggers the response message to be sent; this will re-queue the context as the response messgage
-     * is being sent.  If a context fails to call one of the following two functions, that context will be
-     * in permanent limbo.  This is the equivalent of a memory leak.  The service will eventually exhaust
-     * all available contexts and deadlock.
-     */
-    void FinishResponse() { m_ResponseWriter->Finish(m_Response, ::grpc::Status::OK, IContext::Tag()); }
-    void CancelResponse() { m_ResponseWriter->Finish(m_Response, ::grpc::Status::CANCELLED, IContext::Tag()); }
-
+    const ResourcesType &GetResources() const { return m_Resources; }
     double Walltime() const;
 
+    virtual void OnContextStart();
+    virtual void OnContextReset();
+
   private:
-    /*
-     * Called by the CreateContext factory to initialize the context
-     */
-    void FactoryInitializer(QueuingFunc_t q_fn, std::shared_ptr<ResourceType> resources)
-    {
-        QueuingFunc = q_fn;
-        m_Resources = resources;
-        OnInitialize();
-    }
+    virtual void OnLifeCycleStart() final override;
+    virtual void OnLifeCycleReset() final override;
 
-    /*
-     * Implemetnation of the IContext virtual functions
-     */
-    bool RunNextState(bool ok) final override { (this->*m_NextState)(ok); }
-
-    void Reset() final override;
-
-    /**
-     * Manage the Execution state of the Context. Derived classes must implement ExecuteRPC to either
-     * directly perform the RPC action, or expose a new structure for solving the task, e.g. see
-     * ContextWithThreadPool for a two-stage workflow.  This Unary Context has only two states:
-     *  1) InitState - context has just come off the queue and will run ExecuteRPC
-     *  2) FiniState - the context has completed the ExecuteRPC and the response message was sent;
-     *                 the context will be reset and the NextState set to InitState
-     */
-    bool InitState(bool ok);
-    bool FiniState(bool ok);
-
-    virtual void ExecuteRPC(RequestType &request, ResponseType &response) = 0;
-
-    /*
-     * Function pointers
-     */
-    QueuingFunc_t QueuingFunc;
-    bool (Context<RequestType, ResponseType, ResourceType>::*m_NextState)(bool);
-
-    /*
-     * Variables
-     */
-    RequestType m_Request;
-    ResponseType m_Response;
-    std::shared_ptr<ResourceType> m_Resources;
-    std::unique_ptr<::grpc::ServerContext> m_Context;
-    std::unique_ptr<::grpc::ServerAsyncResponseWriter<ResponseType>> m_ResponseWriter;
+    ResourcesType m_Resources;
     std::chrono::high_resolution_clock::time_point m_StartTime;
 
-    /**
-     * Allows the CreateContext factory to access private members, e.g. FactoryInitializer
-     * of the Context base class.  This is the only way to properly initialize a Context
-     */
+    void FactoryInitializer(QueueFuncType, ResourcesType);
+
+    // Factory function allowed to create unique pointers to context objects
     template <class ContextType>
     friend std::unique_ptr<ContextType> ContextFactory(
-        typename ContextType::QueuingFunc_t q_fn,
-        std::shared_ptr<typename ContextType::ResourceType_t> resources);
+        typename ContextType::QueueFuncType q_fn,
+        typename ContextType::ResourcesType resources);
 
   public:
     // Convenience method to acquire the Context base pointer from a derived class
-    Context<RequestType, ResponseType, ResourceType>* GetBase() 
-    { 
-        return dynamic_cast<Context<RequestType, ResponseType, ResourceType> *>(this); 
+    BaseContext<LifeCycle, Resources> *GetBase()
+    {
+        return dynamic_cast<BaseContext<LifeCycle, Resources> *>(this);
     }
-};
 
+};
 
 // Implementations
 
-template <class RequestType, class ResponseType, class ResourceType>
-bool Context<RequestType, ResponseType, ResourceType>::InitState(bool ok)
+/**
+ * @brief Method invoked when a request is received and the per-call context lifecycle begins.
+ */
+template <class LifeCycle, class Resources>
+void BaseContext<LifeCycle, Resources>::OnLifeCycleStart()
 {
-    DLOG(INFO) << "Context::Init " << IContext::Tag();
-    if (!ok) { return false; }
     m_StartTime = std::chrono::high_resolution_clock::now();
     Metrics::ExecutionQueueDepthIncrement();
-    ExecuteRPC(m_Request, m_Response);
-    DLOG(INFO) << "Context::ExecuteRPC finished " << IContext::Tag();
-    m_NextState = &Context<RequestType, ResponseType, ResourceType>::FiniState;
-    return true;
+    OnContextStart();
 }
 
-template <class RequestType, class ResponseType, class ResourceType>
-bool Context<RequestType, ResponseType, ResourceType>::FiniState(bool ok)
-{ 
-    DLOG(INFO) << "Context::Fini " << IContext::Tag();
-    return false; 
-}
-
-template <class RequestType, class ResponseType, class ResourceType>
-void Context<RequestType, ResponseType, ResourceType>::Reset()
+template <class LifeCycle, class Resources>
+void BaseContext<LifeCycle, Resources>::OnContextStart()
 {
-    DLOG(INFO) << "Context::Reset " << IContext::Tag();
-    m_Request.Clear();
-    m_Response.Clear();
-    m_Context.reset(new ::grpc::ServerContext);
-    m_ResponseWriter.reset(new ::grpc::ServerAsyncResponseWriter<ResponseType>(m_Context.get()));
-    m_NextState = &Context<RequestType, ResponseType, ResourceType>::InitState;
-    OnReset(); // Allows a derived object to perform an action prior to re-queuing
+}
+
+/**
+ * @brief Method invoked at the end of the per-call lifecycle just before the context is reset.
+ */
+template <class LifeCycle, class Resources>
+void BaseContext<LifeCycle, Resources>::OnLifeCycleReset()
+{
     Metrics::ExecutionQueueDepthDecrement();
-    QueuingFunc(m_Context.get(), &m_Request, m_ResponseWriter.get(), IContext::Tag());
+    OnContextReset();
+}
+
+template <class LifeCycle, class Resources>
+void BaseContext<LifeCycle, Resources>::OnContextReset()
+{
 }
 
 /**
  * @brief Number of seconds since the start of the RPC
- * return float - number of seconds
  */
-template <class RequestType, class ResponseType, class ResourceType>
-double Context<RequestType, ResponseType, ResourceType>::Walltime() const
+template <class LifeCycle, class Resources>
+double BaseContext<LifeCycle, Resources>::Walltime() const
 {
     return std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - m_StartTime).count();
 }
 
 /**
- * ContextFactory is the only function in the library allowed to create an IContext object.
+ * @brief Used by ContextFactory to initialize the Context
+ */
+template <class LifeCycle, class Resources>
+void BaseContext<LifeCycle, Resources>::FactoryInitializer(
+    QueueFuncType queue_fn, ResourcesType resources)
+{
+    this->SetQueueFunc(queue_fn);
+    m_Resources = resources;
+}
+
+/**
+ * @brief ContextFactory is the only function in the library allowed to create an IContext object.
  */
 template <class ContextType>
 std::unique_ptr<ContextType> ContextFactory(
-    typename ContextType::QueuingFunc_t q_fn, 
-    std::shared_ptr<typename ContextType::ResourceType_t> resources)
+    typename ContextType::QueueFuncType queue_fn,
+    typename ContextType::ResourcesType resources)
 {
     auto ctx = std::make_unique<ContextType>();
     auto base = ctx->GetBase();
-    base->FactoryInitializer(q_fn, resources);
+    base->FactoryInitializer(queue_fn, resources);
     return ctx;
 }
 
 } // end namespace yais
 
-#endif // NVIS_CONTEXT_H_
+#endif // _YAIS_CONTEXT_H_

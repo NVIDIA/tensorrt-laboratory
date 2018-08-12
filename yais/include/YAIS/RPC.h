@@ -37,53 +37,35 @@ class AsyncRPC : public IRPC
 {
   public:
     using ContextType_t = ContextType;
-    using RequestType_t = typename ContextType::RequestType_t;
-    using ResponseType_t = typename ContextType::ResponseType_t;
-    using RequestFunc_t = std::function<void(
-        ServiceType *, ::grpc::ServerContext *, RequestType_t *,
-        ::grpc::ServerAsyncResponseWriter<ResponseType_t> *,
-        ::grpc::CompletionQueue *, ::grpc::ServerCompletionQueue *, void *)>;
-    using QueuingFunc_t = std::function<void(
-        ::grpc::ServerContext *, RequestType_t *,
-        ::grpc::ServerAsyncResponseWriter<ResponseType_t> *, void *)>;
+    using ServiceQueueFuncType = typename ContextType::LifeCycleType::ServiceQueueFuncType;
+    using ExecutorQueueFuncType = typename ContextType::LifeCycleType::ExecutorQueueFuncType;
 
-    AsyncRPC(std::shared_ptr<ServiceType> service, RequestFunc_t req_fn);
+    AsyncRPC(ServiceQueueFuncType);
     ~AsyncRPC() override {}
 
   protected:
-    std::unique_ptr<IContext> CreateContext(::grpc::ServerCompletionQueue*, std::shared_ptr<Resources>) final override;
+    std::unique_ptr<IContext> CreateContext(::grpc::ServerCompletionQueue *, std::shared_ptr<Resources>) final override;
 
   private:
-    RequestFunc_t m_RequestFunc;
-    std::shared_ptr<ServiceType> m_Service;
-    std::vector<std::unique_ptr<IContext>> m_Contexts;
+    ServiceQueueFuncType m_RequestFunc;
 };
 
-
 template <class ContextType, class ServiceType>
-AsyncRPC<ContextType, ServiceType>::AsyncRPC(std::shared_ptr<ServiceType> service, RequestFunc_t req_fn)
-    : IRPC(), m_Service(service), m_RequestFunc(req_fn) 
+AsyncRPC<ContextType, ServiceType>::AsyncRPC(ServiceQueueFuncType req_fn)
+    : m_RequestFunc(req_fn)
 {
-
 }
-
 
 template <class ContextType, class ServiceType>
 std::unique_ptr<IContext> AsyncRPC<ContextType, ServiceType>::CreateContext(
-    ::grpc::ServerCompletionQueue *cq, std::shared_ptr<Resources> r)
+    ::grpc::ServerCompletionQueue *cq, std::shared_ptr<yais::Resources> r)
 {
-    auto ctx_resources = std::dynamic_pointer_cast<typename ContextType::ResourceType_t>(r);
-    if (!ctx_resources) { throw std::runtime_error("Incompatible Resource object"); }
-    auto q_fn = std::bind(
-        m_RequestFunc,
-        m_Service.get(),
-        std::placeholders::_1, // ServerContext*
-        std::placeholders::_2, // InputType
-        std::placeholders::_3, // AsyncResponseWriter<OutputType>
-        cq,
-        cq,
-        std::placeholders::_4 // Tag
-    );
+    auto ctx_resources = std::dynamic_pointer_cast<typename ContextType::ResourcesType::element_type>(r);
+    if (!ctx_resources)
+    {
+        throw std::runtime_error("Incompatible Resource object");
+    }
+    auto q_fn = ContextType::LifeCycleType::BindExecutorQueueFunc(m_RequestFunc, cq);
     std::unique_ptr<IContext> ctx = ContextFactory<ContextType>(q_fn, ctx_resources);
     return ctx;
 }

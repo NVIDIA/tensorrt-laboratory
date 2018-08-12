@@ -1,5 +1,3 @@
-#!/bin/bash -e
-#
 # Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,47 +23,20 @@
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-cleanup() {
-  kill $(jobs -p) ||:
-  echo quit | nvidia-cuda-mps-control > /dev/null 2>&1 ||:
-}
-trap "cleanup" EXIT SIGINT SIGTERM
 
-NCTX=${1:-1}
-BS=${2:-1}
-ENG=${3:-/work/models/ResNet-50-b1-fp32.engine}
-MPS=${4:-"MPS"}
+add_executable(batched-echo-grpc.x
+    echo-server.cc
+)
+target_link_libraries(batched-echo-grpc.x
+    yais
+    echo-protos
+)
 
-if [ ! -e $ENG ]; then
-    echo "$ENG not found"
-    exit 911
-fi
+add_executable(batching-echo-service.x
+    inference-batcher.cc
+)
 
-if [ "$MPS" = "MPS" ]; then
-  nvidia-cuda-mps-control -d ||:
-fi
-
-sleep 1
-
-echo "starting $NCTX inference services"
-for i in $(seq 1 $NCTX);
-do
-  port=$(echo "50050 + $i" | bc)
-  /work/build/examples/02_TensorRT_GRPC/inference-grpc.x --port $port --engine=${ENG} > /dev/null 2>&1 &
-  wait-for-it.sh localhost:$port --timeout=0 -- echo "Server ${i} is ready." > /dev/null 2>&1
-done
-
-echo "starting load balancer"
-../99_LoadBalancer/run_loadbalancer.py -n $NCTX 
-# envoy -c /tmp/lb-envoy.yaml --disable-hot-restart > /dev/null 2>&1 &
-envoy -c /tmp/lb-envoy.yaml > /dev/null 2>&1 &
-wait-for-it.sh localhost:50050 --timeout=0 -- echo "Load balancer is ready." > /dev/null 2>&1
-
-echo "running test client"
-/work/build/examples/02_TensorRT_GRPC/client-async.x --count=1000 --port=50050
-
-echo
-echo "Starting a shell keeping the services and load-balancer running..."
-echo "Try /work/build/examples/02_TensorRT_GRPC/siege.x --rate=2000 --port=50050"
-bash --rcfile <(echo "PS1='Throughput Subshell: '")
+target_link_libraries(batching-echo-service.x
+    yais
+    echo-protos
+)

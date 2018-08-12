@@ -177,14 +177,14 @@ int main(int argc, char** argv) {
     // Spawn reader thread that loops indefinitely
     std::thread thread_ = std::thread(&GreeterClient::AsyncCompleteRpc, &greeter);
 
-    auto start = std::chrono::system_clock::now();
+    auto start = std::chrono::steady_clock::now();
     for (size_t i = 0; i < FLAGS_count; i++) {
         greeter.SayHello(i, FLAGS_batch_size);  // The actual RPC call!
     }
 
     greeter.Shutdown();
     thread_.join();  //blocks forever
-    auto end = std::chrono::system_clock::now();
+    auto end = std::chrono::steady_clock::now();
     float elapsed = std::chrono::duration<float>(end - start).count();
     std::cout << FLAGS_count << " requests in " << elapsed << "seconds; inf/sec: " << FLAGS_count*FLAGS_batch_size/elapsed << std::endl;
 

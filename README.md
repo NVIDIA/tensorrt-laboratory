@@ -105,7 +105,7 @@ There are two fundamental classes of the YAIS library:
 
 For a high-level overview see the [YAIS Slide Deck](https://docs.google.com/presentation/d/1n0g082jMJfq72dxbef9bThn4mQbzWKG6TzirJIuCEjE/edit?usp=sharing).
 
-For details on the integrated convenience classes, see the [Internals document](examples/03_Internals/README.md). 
+For details on the integrated convenience classes, see the [Internals document](examples/10_Internals/README.md). 
 
 ## Examples
 
@@ -141,9 +141,9 @@ the entire inference pipeline is enqueued by workers from the CudaThreadPool.
 
 ### Internals
 
-Code: [Internals](examples/03_Internals)
+Code: [Internals](examples/10_Internals)
 
-The `internals.cc` and [README](examples/03_Internals/README.md) provide a guide on the provided 
+The `internals.cc` and [README](examples/10_Internals/README.md) provide a guide on the provided 
 convenience classes. practice.  The sample codes builds a NUMA aware set of buffers and threads.
 For implementation details, go directly to the [source code](yais).
 

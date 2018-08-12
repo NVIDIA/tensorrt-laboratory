@@ -27,6 +27,7 @@
 #include "YAIS/Server.h"
 
 #include <thread>
+#include <glog/logging.h>
 
 namespace yais
 {

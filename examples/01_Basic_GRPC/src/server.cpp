@@ -96,11 +96,11 @@ struct SimpleResources : public Resources
 
 // Contexts hold the state and provide the definition of the work to be performed by the RPC.
 // This is where you define what gets executed for a given RPC.
-// Incoming Message = simple::Input (RequestType_t)
-// Outgoing Message = simple::Output (ResponseType_t)
+// Incoming Message = simple::Input (RequestType)
+// Outgoing Message = simple::Output (ResponseType)
 class SimpleContext final : public Context<simple::Input, simple::Output, SimpleResources>
 {
-    void ExecuteRPC(RequestType_t &input, ResponseType_t &output) final override
+    void ExecuteRPC(RequestType &input, ResponseType &output) final override
     {
         // We could do work here, but we'd block the TPS, i.e. the threads pulling messages 
         // off the incoming recieve queue.  Very quick responses are best done here; however,

@@ -130,6 +130,12 @@ RUN wget https://dl.influxdata.com/telegraf/releases/telegraf-1.7.1-static_linux
  && mv telegraf/telegraf /usr/local/bin \
  && rm -rf telegraf-1.7.1-static_linux_amd64.tar.gz telegraf
 
+RUN git clone https://github.com/cameron314/concurrentqueue.git \
+ && cd concurrentqueue \
+ && git checkout 8f65a87 \
+ && mkdir -p /usr/local/include/moodycamel \
+ && cp *.h /usr/local/include/moodycamel/
+
 # NVIDIA/YAIS
 
 WORKDIR /work

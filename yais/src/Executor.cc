@@ -31,27 +31,44 @@
 namespace yais
 {
 
+Executor::Executor()
+    : Executor(1)
+{
+}
+
+Executor::Executor(int numThreads)
+    : Executor(std::make_unique<ThreadPool>(numThreads))
+{
+}
+
+Executor::Executor(std::unique_ptr<ThreadPool> threadpool)
+    : IExecutor(), m_ThreadPool(std::move(threadpool)),
+      m_TimeoutDeadline(::grpc::Timespec2Timepoint(gpr_inf_future(GPR_CLOCK_REALTIME)))
+{
+    m_TimeoutCallback = []{};
+}
+
 void Executor::ProgressEngine(int thread_id)
 {
     bool ok;
     void *tag;
-    auto deadline = GetTimeout();
     auto myCQ = m_ServerCompletionQueues[thread_id].get();
     using NextStatus = ::grpc::ServerCompletionQueue::NextStatus;
 
     while (true)
     {
-        auto status = myCQ->AsyncNext(&tag, &ok, deadline);
-        if (status == NextStatus::SHUTDOWN) return;
+        auto status = myCQ->AsyncNext(&tag, &ok, m_TimeoutDeadline);
+        if (status == NextStatus::SHUTDOWN)
+            return;
         else if (status == NextStatus::TIMEOUT)
         {
-            RunTimeoutCycle();
-            deadline = GetTimeout();
+            m_TimeoutDeadline = ::grpc::Timespec2Timepoint(gpr_inf_future(GPR_CLOCK_REALTIME));
+            m_TimeoutCallback(); // the callback function is allowed to set the dealine
         }
         else if (status == NextStatus::GOT_EVENT)
         {
-            auto ctx = static_cast<IContext *>(tag);
-            if (!RunContext(ctx, ok)) 
+            auto ctx = IContext::Detag(tag);
+            if (!RunContext(ctx, ok))
             {
                 ResetContext(ctx);
             }
@@ -59,22 +76,10 @@ void Executor::ProgressEngine(int thread_id)
     }
 }
 
-void Executor::RunTimeoutCycle()
+void Executor::SetTimeout(time_point deadline, std::function<void()> callback)
 {
-    static auto last = std::chrono::system_clock::now();
-    auto now = std::chrono::system_clock::now();
-    float elapsed = std::chrono::duration<float>(now - last).count();
-    if (elapsed >= 5.0 && m_TxCount)
-    {
-        LOG(INFO) << m_TxCount << "transactions over " << elapsed << "seconds [" << (float)m_TxCount / elapsed << " txs/sec]";
-        m_TxCount = 0;
-        last = now;
-    }
+    m_TimeoutDeadline = deadline;
+    m_TimeoutCallback = callback;
 }
 
-time_point Executor::GetTimeout()
-{
-    return std::chrono::system_clock::now() + std::chrono::seconds(1);
-}
-
-}
+} // namespace yais

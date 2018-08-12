@@ -40,7 +40,7 @@ class AsyncService : public IService
   public:
     using ServiceType_t = ServiceType;
 
-    AsyncService() : IService(), m_Service(std::make_shared<ServiceType>()) {}
+    AsyncService() : IService(), m_Service(std::make_unique<ServiceType>()) {}
     ~AsyncService() override {}
 
     void Initialize(::grpc::ServerBuilder& builder) final override
@@ -48,27 +48,18 @@ class AsyncService : public IService
         builder.RegisterService(m_Service.get());
     }
 
-    template <typename ContextType, typename RequestFunction>
-    IRPC* RegisterRPC(RequestFunction req_fn)
+    template <typename ContextType, typename RequestFuncType>
+    IRPC* RegisterRPC(RequestFuncType req_fn)
     {
-        auto rpc = new AsyncRPC<ContextType, ServiceType>(m_Service, req_fn);
+        auto q_fn = ContextType::LifeCycleType::BindServiceQueueFunc(req_fn, m_Service.get());
+        auto rpc = new AsyncRPC<ContextType, ServiceType>(q_fn);
         auto base = static_cast<IRPC*>(rpc);
         m_RPCs.emplace_back(base);
         return base;
     }
-
-  protected:
-/*
-    template <class RPCType>
-    IRPC *RegisterRPC(typename RPCType::RequestFunc_t req_fn)
-    {
-        auto rpc = new RPCType(m_Service, req_fn);
-        m_RPCs.emplace_back(rpc);
-        return rpc
-    }
-*/
+ 
   private:
-    std::shared_ptr<ServiceType> m_Service;
+    std::unique_ptr<ServiceType> m_Service;
     std::vector<std::unique_ptr<IRPC>> m_RPCs;
 };
 

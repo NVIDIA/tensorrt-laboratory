@@ -31,12 +31,11 @@
 #include "YAIS/Interfaces.h"
 #include "YAIS/Metrics.h"
 #include "YAIS/Resources.h"
+#include "YAIS/ThreadPool.h"
 
 #include <thread>
 
 #include <glog/logging.h>
-
-using time_point = std::chrono::system_clock::time_point;
 
 namespace yais
 {
@@ -44,13 +43,14 @@ namespace yais
 class Executor : public IExecutor
 {
   public:
-    Executor(int numThreads) : IExecutor(), m_ThreadCount(numThreads), m_TxCount(0) {}
-    Executor() : Executor(1) {}
+    Executor();
+    Executor(int numThreads);
+    Executor(std::unique_ptr<ThreadPool> threadpool);
     ~Executor() override {}
 
     void Initialize(::grpc::ServerBuilder &builder) final override
     {
-        for (int i = 0; i < m_ThreadCount; i++)
+        for (int i = 0; i < m_ThreadPool->Size(); i++)
         {
             m_ServerCompletionQueues.emplace_back(builder.AddCompletionQueue());
         }
@@ -59,8 +59,8 @@ class Executor : public IExecutor
     void RegisterContexts(IRPC *rpc, std::shared_ptr<Resources> resources, int numContextsPerThread) final override
     {
         auto base = dynamic_cast<IExecutor *>(this);
-        CHECK_EQ(m_ThreadCount, m_ServerCompletionQueues.size()) << "Incorrect number of CQs";
-        for (int i = 0; i < m_ThreadCount; i++)
+        CHECK_EQ(m_ThreadPool->Size(), m_ServerCompletionQueues.size()) << "Incorrect number of CQs";
+        for (int i = 0; i < m_ThreadPool->Size(); i++)
         {
             auto cq = m_ServerCompletionQueues[i].get();
             for (int j = 0; j < numContextsPerThread; j++)
@@ -75,9 +75,12 @@ class Executor : public IExecutor
     void Run() final override
     {
         // Launch the threads polling on their CQs
-        for (int i = 0; i < m_ThreadCount; i++)
+        for (int i = 0; i < m_ThreadPool->Size(); i++)
         {
-            m_Threads.emplace_back(&Executor::ProgressEngine, this, i);
+            m_ThreadPool->enqueue([this, i]{
+                ProgressEngine(i);
+            });
+            // m_Threads.emplace_back(&Executor::ProgressEngine, this, i);
         }
         // Queue the Execution Contexts in the recieve queue
         for (int i = 0; i < m_Contexts.size(); i++)
@@ -89,18 +92,18 @@ class Executor : public IExecutor
     }
 
   protected:
-    void RunTimeoutCycle();
-    time_point GetTimeout();
+    void SetTimeout(time_point, std::function<void()>) final override;
 
   private:
     void ProgressEngine(int thread_id);
 
-    size_t m_TxCount;
-    int m_ThreadCount;
+    time_point m_TimeoutDeadline;
+    std::function<void()> m_TimeoutCallback;
     std::vector<std::thread> m_Threads;
     std::vector<std::unique_ptr<IContext>> m_Contexts;
     std::vector<std::unique_ptr<::grpc::ServerCompletionQueue>> m_ServerCompletionQueues;
     // std::vector<std::unique_ptr<PerThreadState>> m_ShutdownState;
+    std::unique_ptr<ThreadPool> m_ThreadPool;
 };
 
 } // end namespace yais

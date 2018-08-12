@@ -134,7 +134,7 @@ class FlowersResources : public ResourceManager
  */
 class FlowersContext final : public Context<BatchInput, BatchPredictions, FlowersResources>
 {
-    void ExecuteRPC(RequestType_t &input, ResponseType_t &output) final override
+    void ExecuteRPC(RequestType &input, ResponseType &output) final override
     {
         // Executing on a Executor threads - we don't want to block message handling, so we offload
         GetResources()->GetCudaThreadPool().enqueue([this, &input, &output]() {
@@ -159,15 +159,16 @@ class FlowersContext final : public Context<BatchInput, BatchPredictions, Flower
                 auto request_time = Walltime();
                 output.set_compute_time(static_cast<float>(compute_time));
                 output.set_total_time(static_cast<float>(request_time));
+                this->FinishResponse();
+                // The Response is now sending; Record some metrics and be done
                 inf_compute.Add({{"model", model->Name()}}, quantiles).Observe(compute_time * 1000);
                 inf_request.Add({{"model", model->Name()}}, quantiles).Observe(request_time * 1000);
                 inf_load_ratio.Observe(request_time / compute_time);
-                this->FinishResponse();
             });
         });
     }
 
-    void WriteBatchPredictions(RequestType_t &input, ResponseType_t &output, float *scores)
+    void WriteBatchPredictions(RequestType &input, ResponseType &output, float *scores)
     {
         int N = input.batch_size();
         auto nClasses = GetResources()->GetModel("flowers")->GetBinding(1).elementsPerBatchItem;
