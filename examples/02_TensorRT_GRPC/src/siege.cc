@@ -216,7 +216,7 @@ DEFINE_int32(batch_size, 1, "batch_size");
 DEFINE_int32(max_outstanding, 950, "maximum outstanding requests");
 DEFINE_int32(port, 50051, "server_port");
 DEFINE_double(rate, 1.0, "messages per second");
-DEFINE_double(ceil, 100000, "maximum number of messages per second when func is applied");
+DEFINE_double(max_rate, 100000, "maximum number of messages per second when func is applied");
 DEFINE_double(alpha, 0, "alpha");
 DEFINE_double(beta, 1, "beta");
 DEFINE_string(func, "constant", "constant, linear or cyclic");
@@ -239,18 +239,18 @@ int main(int argc, char** argv) {
     // using a fixed rate of 15us per rpc call.  i could adjust dynamically as i'm tracking
     // the call overhead, but it's close enough.
     auto start = std::chrono::system_clock::now();
-    auto wall = [start]() -> double {
+    auto walltime = [start]() -> double {
         return std::chrono::duration<double>(std::chrono::system_clock::now() - start).count();
     };
     std::map<std::string, std::function<double()>> rates_by_name;
     rates_by_name["constant"] = []() -> double {
-        return std::min(FLAGS_rate, FLAGS_ceil);
+        return std::min(FLAGS_rate, FLAGS_max_rate);
     };
-    rates_by_name["linear"] = [start, wall]() -> double {
-        return std::min(FLAGS_rate + FLAGS_alpha*wall(), FLAGS_ceil); 
+    rates_by_name["linear"] = [start, walltime]() -> double {
+        return std::min(FLAGS_rate + (FLAGS_alpha/60.0)*walltime(), FLAGS_max_rate); 
     };
-    rates_by_name["cyclic"] = [start, wall]() -> double {
-        return std::min(FLAGS_rate + FLAGS_alpha * std::sin(2.0*3.14159*(FLAGS_beta/60.0)*wall()), FLAGS_ceil);
+    rates_by_name["cyclic"] = [start, walltime]() -> double {
+        return std::min(FLAGS_rate + FLAGS_alpha * std::sin(2.0*3.14159*(FLAGS_beta/60.0)*walltime()), FLAGS_max_rate);
     };
     auto search = rates_by_name.find(FLAGS_func);
     if (search == rates_by_name.end()) {
@@ -271,8 +271,7 @@ int main(int argc, char** argv) {
     grpc::ChannelArguments ch_args;
     ch_args.SetMaxReceiveMessageSize(-1);
     GreeterClient greeter(
-        grpc::CreateCustomChannel(
-            ip_port.str(), grpc::InsecureChannelCredentials(), ch_args),
+        grpc::CreateCustomChannel(ip_port.str(), grpc::InsecureChannelCredentials(), ch_args),
         FLAGS_max_outstanding
     );
 
@@ -289,8 +288,7 @@ int main(int argc, char** argv) {
 
     greeter.Shutdown();
     thread_.join();  //blocks forever
-    auto end = std::chrono::steady_clock::now();
-    float elapsed = std::chrono::duration<float>(end - start).count();
+    auto elapsed = walltime();
     std::cout << FLAGS_count << " requests in " << elapsed << "seconds; inf/sec: " << FLAGS_count*FLAGS_batch_size/elapsed << std::endl;
 
     return 0;
