@@ -92,7 +92,7 @@ struct BatchingService
             std::shared_ptr<ThreadPool> thread_pool)
             : m_Stub(ServiceType::NewStub(channel)), m_ThreadPool(thread_pool), m_CurrentCQ(0)
         {
-            for (int i = 0; i < m_ThreadPool->Size(); i++)
+            for (decltype(m_ThreadPool->Size()) i = 0; i < m_ThreadPool->Size(); i++)
             {
                 LOG(INFO) << "Starting Client Progress Engine #" << i;
                 m_CQs.emplace_back(new ::grpc::CompletionQueue);
@@ -109,7 +109,7 @@ struct BatchingService
             LOG(INFO) << "Client using CQ: " << (void *)cq;
 
             auto ctx = new Call;
-            for (int i = 0; i < messages_count; i++)
+            for (uint32_t i=0; i < messages_count; i++)
             {
                 ctx->Push(messages[i]);
             }
@@ -302,8 +302,8 @@ struct BatchingService
 
         void ProgressEngine()
         {
-            const uint64_t quanta = 100;
-            const double timeout = ((double)m_Timeout - quanta) / 1000000;
+            constexpr uint64_t quanta = 100;
+            const double timeout = static_cast<double>(m_Timeout - quanta) / 1000000.0;
             size_t total_count;
             size_t max_batch;
 
