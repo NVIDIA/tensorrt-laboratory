@@ -45,6 +45,8 @@ using yais::TensorRT::ResourceManager;
 using yais::TensorRT::Runtime;
 using yais::TensorRT::ManagedRuntime;
 
+static int g_Concurrency = 0;
+
 static std::string ModelName(int model_id)
 {
     std::ostringstream stream;
@@ -128,8 +130,11 @@ class Inference final
         auto total_time = std::chrono::duration<float>(elapsed()).count();
         auto inferences = inf_count * batch_size;
         if (!warmup)
-            LOG(INFO) << "Inference Results: " << inf_count << " batches in " << total_time << " seconds; "
-                      << "sec/batch: " << total_time / inf_count << "; inf/sec: " << inferences / total_time;
+            LOG(INFO) << "Inference Results: " << inf_count 
+                      << "; batches in " << total_time << " seconds"
+                      << "; sec/batch/stream: " << total_time / (inf_count / g_Concurrency)  
+                      << "; batches/sec: " << inf_count / total_time
+                      << "; inf/sec: " << inferences / total_time;
     }
 
   protected:
@@ -162,7 +167,7 @@ int main(int argc, char *argv[])
 
     MPI_CHECK(MPI_Init(&argc, &argv));
 
-    auto contexts = FLAGS_contexts;
+    auto contexts = g_Concurrency = FLAGS_contexts;
     auto buffers = FLAGS_buffers ? FLAGS_buffers : 2 * FLAGS_contexts;
 
     auto resources = std::make_shared<InferenceResources>(

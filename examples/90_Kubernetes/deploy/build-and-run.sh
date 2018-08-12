@@ -1,6 +1,6 @@
 #!/bin/bash
 
-default_engine=/work/models/ResNet-50-b1-fp32.engine
+default_engine=/work/models/ResNet-152-b8-fp16.engine
 concurrency=${YAIS_CONCURRENCY:-1}
 engine=${YAIS_TRT_ENGINE:-$default_engine}
 

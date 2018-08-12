@@ -3,36 +3,21 @@
 ## Install
 
 ```
+# Istio 0.8
 helm template install/kubernetes/helm/istio --name istio --namespace istio-system > yais-istio.yml
-```
 
-Modify the sidecar injetor to require annotations;
-
-```
-# Source: istio/templates/sidecar-injector-configmap.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: istio-sidecar-injector
-  namespace: istio-system
-  labels:
-    app: istio
-    chart: istio-0.8.0
-    release: istio
-    heritage: Tiller
-    istio: sidecar-injector
-data:
-  config: |-
-    policy: disabled  # <== default : enabled
-    template: |-
-...
+# Istio 1.0
+helm template install/kubernetes/helm/istio --name istio --namespace istio-system \
+  --set gateways.istio-ingressgateway.type=NodePort \
+  --set gateways.istio-egressgateway.type=NodePort  > istio-v1.0-minikube.yml
 ```
 
 Install Istio and enable the default namespace for injection; however, only
 pods with the proper annotations will have sidecars injected.
 
 ```
-kubectl apply -f yais-istio.yml
+kubectl create namespace istio-system
+kubectl apply -f istio-v1.0-minikube.yml
 kubectl label namespace default istio-injection=enabled
 kubectl get namespace -L istio-injection
 ```
