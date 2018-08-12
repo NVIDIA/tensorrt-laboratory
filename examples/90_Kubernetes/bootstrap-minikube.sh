@@ -20,3 +20,6 @@ kubectl label namespace default istio-injection=enabled
 
 # deploy yais example
 kubectl apply -f yais-deploy.yml
+
+# sleep 15
+# kubectl label namespace default istio-injection-
