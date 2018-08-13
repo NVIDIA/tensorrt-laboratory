@@ -15,9 +15,9 @@ grafana:
       {
         "access": "proxy",
         "basicAuth": false,
-        "name": "yais",
+        "name": "NVIDIA Inference",
         "type": "prometheus",
-        "url": "http://yais-metrics.default:9090"
+        "url": "http://nv-inference-prom.default:9090"
       }
   serverDashboardFiles:
     yais-dashboard.json: |+
@@ -26,8 +26,8 @@ grafana:
         {
           "__inputs": [
             {
-              "name": "DS_YAIS",
-              "label": "yais",
+              "name": "DS_NVIDIA_INFERENCE",
+              "label": "NVIDIA Inference",
               "description": "",
               "type": "datasource",
               "pluginId": "prometheus",
@@ -81,10 +81,10 @@ grafana:
           "panels": [
             {
               "aliasColors": {},
-              "bars": true,
+              "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "${DS_YAIS}",
+              "datasource": "${DS_NVIDIA_INFERENCE}",
               "fill": 1,
               "gridPos": {
                 "h": 9,
@@ -93,11 +93,14 @@ grafana:
                 "y": 0
               },
               "id": 8,
+              "interval": "2s",
               "legend": {
+                "alignAsTable": false,
                 "avg": false,
                 "current": false,
                 "max": false,
                 "min": false,
+                "rightSide": false,
                 "show": false,
                 "total": false,
                 "values": false
@@ -107,9 +110,10 @@ grafana:
               "links": [],
               "nullPointMode": "null",
               "percentage": false,
-              "pointradius": 5,
-              "points": false,
+              "pointradius": 0.5,
+              "points": true,
               "renderer": "flot",
+              "repeat": null,
               "seriesOverrides": [],
               "spaceLength": 10,
               "stack": true,
@@ -122,7 +126,7 @@ grafana:
                   "refId": "A"
                 },
                 {
-                  "expr": "",
+                  "expr": "irate(attis_inference_load_ratio_count[5s])",
                   "format": "time_series",
                   "intervalFactor": 1,
                   "refId": "B"
@@ -131,7 +135,7 @@ grafana:
               "thresholds": [],
               "timeFrom": null,
               "timeShift": null,
-              "title": "Inference Rate (FPS)",
+              "title": "Queries Per Second (QPS)",
               "tooltip": {
                 "shared": true,
                 "sort": 0,
@@ -173,7 +177,7 @@ grafana:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "${DS_YAIS}",
+              "datasource": "${DS_NVIDIA_INFERENCE}",
               "fill": 1,
               "gridPos": {
                 "h": 9,
@@ -182,6 +186,7 @@ grafana:
                 "y": 0
               },
               "id": 4,
+              "interval": "2s",
               "legend": {
                 "avg": false,
                 "current": false,
@@ -256,7 +261,7 @@ grafana:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "${DS_YAIS}",
+              "datasource": "${DS_NVIDIA_INFERENCE}",
               "fill": 1,
               "gridPos": {
                 "h": 9,
@@ -265,6 +270,7 @@ grafana:
                 "y": 9
               },
               "id": 2,
+              "interval": "2s",
               "legend": {
                 "avg": false,
                 "current": false,
@@ -292,6 +298,12 @@ grafana:
                   "format": "time_series",
                   "intervalFactor": 1,
                   "refId": "A"
+                },
+                {
+                  "expr": "histogram_quantile(0.95, sum(rate(attis_inference_load_ratio_sum[15s])))",
+                  "format": "time_series",
+                  "intervalFactor": 1,
+                  "refId": "D"
                 }
               ],
               "thresholds": [],
@@ -347,7 +359,7 @@ grafana:
                 "mode": "spectrum"
               },
               "dataFormat": "timeseries",
-              "datasource": "${DS_YAIS}",
+              "datasource": "${DS_NVIDIA_INFERENCE}",
               "gridPos": {
                 "h": 9,
                 "w": 12,
@@ -357,7 +369,7 @@ grafana:
               "heatmap": {},
               "highlightCards": true,
               "id": 10,
-              "interval": "",
+              "interval": "2s",
               "legend": {
                 "show": false
               },
@@ -403,7 +415,7 @@ grafana:
             "list": []
           },
           "time": {
-            "from": "now-30m",
+            "from": "now-15m",
             "to": "now"
           },
           "timepicker": {
@@ -432,16 +444,16 @@ grafana:
             ]
           },
           "timezone": "",
-          "title": "YAIS",
+          "title": "NVIDIA Inference",
           "uid": "3WLjQkdmk",
-          "version": 1
+          "version": 2
         },
         "inputs": [
           {
-            "name": "DS_YAIS",
+            "name": "DS_NVIDIA_INFERENCE",
             "pluginId": "prometheus",
             "type": "datasource",
-            "value": "yais"
+            "value": "NVIDIA Inference"
           }
         ],
         "overwrite": true

@@ -41,7 +41,7 @@ see [README::Quickstart](README.md#quickstart).
 ```
 cd examples/97_SingleProcessMultiSteam
 
-root@dgx:/work/examples/97_SingleProcessMultiSteam# ./launch_service.sh 1 1 /work/models/ResNet-50-b1-fp32.engine
+root@dgx:/work/examples/97_SingleProcessMultiSteam# ./launch_service.sh /work/models/ResNet-50-b1-fp32.engine
 I0709 10:13:41.175212   468 Server.cc:37] gRPC listening on: 0.0.0.0:50051
 I0709 10:13:41.175477   468 server.cc:229] Register Service (flowers::Inference) with Server
 I0709 10:13:41.175492   468 server.cc:238] Register RPC (flowers::Inference::Compute) with Service (flowers::Inference)
@@ -80,11 +80,3 @@ It can up to a minute or so until you see scraping from your k8s cluster.
 > exposer_bytes_transferred,host=dgx,url=http://localhost:50078/metrics counter=0 1531131559000000000 # <== watch the counter
 ...
 ```
-
-## Round 2: Package and Deploy
-
-TODO - We could use some community help here.
-
-## Round 3: Optimize Deploy Contaienr
-
-TODO - We could use some community help here.
