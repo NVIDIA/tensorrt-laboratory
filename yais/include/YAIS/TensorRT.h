@@ -336,7 +336,7 @@ class Bindings
     auto BatchSize() const { return m_BatchSize; }
 
     inline cudaStream_t Stream() const { return m_Buffers->Stream(); }
-    void Synchronize() const { m_Buffers->Synchronize(); };
+    void Synchronize() const { m_Buffers->Synchronize(); }
 
   private:
     Bindings(const std::shared_ptr<Model>, const std::shared_ptr<Buffers>, uint32_t batch_size);

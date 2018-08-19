@@ -35,6 +35,8 @@ namespace yais
 std::string BytesToString(size_t bytes);
 std::uint64_t StringToBytes(const std::string);
 
+std::size_t GetDeviceAlignment();
+
 /**
  * @brief Abstract base Memory class
  * 

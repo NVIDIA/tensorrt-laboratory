@@ -39,6 +39,13 @@ namespace yais
 {
 
 
+std::size_t GetDeviceAlignment()
+{
+    struct cudaDeviceProp properties;
+    CHECK_EQ(CUDA_SUCCESS, cudaGetDeviceProperties(&properties, 0));
+    return properties.textureAlignment;
+}
+
 
 // HostMemory
 
@@ -56,7 +63,7 @@ void HostMemory::WriteZeros()
 
 size_t DeviceMemory::DefaultAlignment()
 {
-    return 256;
+    return GetDeviceAlignment();
 }
 
 void DeviceMemory::WriteZeros()

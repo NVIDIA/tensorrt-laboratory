@@ -609,8 +609,8 @@ void ResourceManager::RegisterModel(std::string name, std::shared_ptr<Model> mod
         max_concurrency = m_MaxExecutions;
     }
 
-    // Size according to largest padding - hardcoded to 256
-    size_t bindings = model->GetBindingMemorySize() + model->GetBindingsCount() * 256;
+    // Size according to largest padding - device alignment
+    size_t bindings = model->GetBindingMemorySize() + model->GetBindingsCount() * GetDeviceAlignment();
     size_t activations = model->GetActivationsMemorySize() + 128 * 1024; // add a cacheline
 
     size_t host = Align(bindings, 32 * 1024);
@@ -618,9 +618,11 @@ void ResourceManager::RegisterModel(std::string name, std::shared_ptr<Model> mod
 
     // TODO: Check to see if m_Buffers has been allocated.  If so, we should thown an exception
     // if the registered model requirements are larger than our allocated buffers.
-    if (m_Buffers)
-        if (host > m_MinHostStack || device > m_MinDeviceStack)
+    if (m_Buffers) {
+        if (host > m_MinHostStack || device > m_MinDeviceStack) {
             throw std::runtime_error("Model requires more resources than currently allocated");
+        }
+    }
 
     m_MinHostStack = std::max(m_MinHostStack, host);
     m_MinDeviceStack = std::max(m_MinDeviceStack, device);
@@ -637,7 +639,7 @@ void ResourceManager::RegisterModel(std::string name, std::shared_ptr<Model> mod
     m_ModelExecutionContexts[model.get()] = Pool<IExecutionContext>::Create();
     for (int i = 0; i < max_concurrency; i++)
     {
-                m_ModelExecutionContexts[model.get()]->Push(model->CreateExecutionContext());
+        m_ModelExecutionContexts[model.get()]->Push(model->CreateExecutionContext());
     }
 }
 
