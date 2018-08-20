@@ -77,7 +77,7 @@ class Inference final
   public:
     Inference(std::shared_ptr<InferenceResources> resources) : m_Resources(resources) {}
 
-    void Run(float seconds, bool warmup, int replicas = 1)
+    void Run(float seconds, bool warmup, int replicas, uint32_t requested_batch_size)
     {
         int replica = 0;
         uint64_t inf_count = 0;
@@ -88,11 +88,15 @@ class Inference final
         };
 
         auto model = GetResources()->GetModel(ModelName(replica++));
-        auto batch_size = model->GetMaxBatchSize();
+        auto batch_size = requested_batch_size ? requested_batch_size : model->GetMaxBatchSize();
+        if (batch_size > model->GetMaxBatchSize()) {
+            LOG(FATAL) << "Requested batch_size greater than allowed by the compiled TensorRT Engine";
+        }
 
         // Inference Loop - Main thread copies, cuda thread launches, response thread completes
-        if (!warmup)
+        if (!warmup) {
             LOG(INFO) << "-- Inference: Running for ~" << (int)seconds << " seconds with batch_size " << batch_size << " --";
+        }
 
         while (elapsed() < seconds && ++inf_count)
         {
@@ -101,7 +105,7 @@ class Inference final
             // This thread only async copies buffers H2D
             auto model = GetResources()->GetModel(ModelName(replica++));
             auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
-            auto bindings = buffers->CreateAndConfigureBindings(model, model->GetMaxBatchSize());
+            auto bindings = buffers->CreateAndConfigureBindings(model, batch_size);
             bindings->CopyToDevice(bindings->InputBindings());
 
             GetResources()->GetCudaThreadPool()->enqueue([this, bindings]() mutable {
@@ -158,6 +162,7 @@ DEFINE_int32(buffers, 0, "Number of Buffers (default: 2x contexts)");
 DEFINE_int32(cudathreads, 1, "Number Cuda Launcher Threads");
 DEFINE_int32(respthreads, 1, "Number Response Sync Threads");
 DEFINE_int32(replicas, 1, "Number of Replicas of the Model to load");
+DEFINE_int32(batch_size, 0, "Overrides the max batch_size of the provided engine");
 
 int main(int argc, char *argv[])
 {
@@ -185,11 +190,11 @@ int main(int argc, char *argv[])
     }
 
     Inference inference(resources);
-    inference.Run(0.1, true); // warmup
+    inference.Run(0.1, true, 1, 0); // warmup
 
     // if testing mps - sync all processes before executing timed loop
     MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
-    inference.Run(FLAGS_seconds, false, FLAGS_replicas);
+    inference.Run(FLAGS_seconds, false, FLAGS_replicas, FLAGS_batch_size);
     MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
 
     // todo: perform an mpi_allreduce to collect the per process timings
