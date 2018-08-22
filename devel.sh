@@ -28,7 +28,7 @@
 #
 models_path=${YAIS_MODEL_PATH:-"../yais-models"}
 models_cli=""
-if [ -e $model_path ]; then
+if [ -d "$model_path" ]; then
   models_cli=" -v $(realpath $models_path):/work/models "
 fi
 NV_GPU=0 nvidia-docker run --rm -ti -v $PWD:/work $models_cli --workdir /work --name yais --net=host yais
