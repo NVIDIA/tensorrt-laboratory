@@ -1,3 +1,5 @@
+#!/bin/bash -e
+#
 # Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -23,20 +25,23 @@
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+cleanup() {
+  kill $(jobs -p) ||:
+}
+trap "cleanup" EXIT SIGINT SIGTERM
 
-add_executable(streaming-service-echo.x
-    streaming-service.cc
-)
-target_link_libraries(streaming-service-echo.x
-    yais
-    echo-protos
-)
+sleep 1
 
-add_executable(batching-service-echo.x
-    inference-batcher.cc
-)
+echo "starting streaming services"
+/work/build/examples/03_Batching/streaming-service-echo.x &
+wait-for-it.sh localhost:50051 --timeout=0 -- echo "Streaming service is ready."
 
-target_link_libraries(batching-service-echo.x
-    yais
-    echo-protos
-)
+echo "starting batching service"
+/work/build/examples/03_Batching/batching-service-echo.x &
+wait-for-it.sh localhost:50049 --timeout=0 -- echo "Batching service is ready."
+
+echo
+echo "Starting a shell keeping the services and load-balancer running..."
+echo "Try python unary_client.py - exit shell to kill services"
+bash --rcfile <(echo "PS1='Batching Subshell: '")
