@@ -62,11 +62,9 @@ using moodycamel::ProducerToken;
  * request, a stream only get balanced when it is opened.  All items of a stream
  * go to the same endpoint service.
  * 
- * 
- * 
- * @tparam ServiceType 
- * @tparam Request 
- * @tparam Response 
+ * @tparam ServiceType
+ * @tparam Request
+ * @tparam Response
  */
 template <class ServiceType, class Request, class Response>
 struct BatchingService
@@ -87,10 +85,12 @@ struct BatchingService
     class Client
     {
       public:
+        using PrepareFunc = std::function<std::unique_ptr<::grpc::ClientAsyncReaderWriter<Request, Response>>(::grpc::ClientContext*, ::grpc::CompletionQueue*)>;
+
         Client(
-            std::shared_ptr<::grpc::Channel> channel,
+            PrepareFunc prepare_func,
             std::shared_ptr<ThreadPool> thread_pool)
-            : m_Stub(ServiceType::NewStub(channel)), m_ThreadPool(thread_pool), m_CurrentCQ(0)
+            : m_PrepareFunc(prepare_func), m_ThreadPool(thread_pool), m_CurrentCQ(0)
         {
             for (decltype(m_ThreadPool->Size()) i = 0; i < m_ThreadPool->Size(); i++)
             {
@@ -114,8 +114,7 @@ struct BatchingService
                 ctx->Push(messages[i]);
             }
 
-            // TODO - figure out how to generalize this
-            ctx->m_Stream = m_Stub->PrepareAsyncBatchedCompute(&ctx->m_Context, cq);
+            ctx->m_Stream = m_PrepareFunc(&ctx->m_Context, cq);
             ctx->Start();
         }
 
@@ -282,7 +281,7 @@ struct BatchingService
         }
 
         int m_CurrentCQ;
-        std::unique_ptr<typename ServiceType::Stub> m_Stub;
+        PrepareFunc m_PrepareFunc;
         std::shared_ptr<ThreadPool> m_ThreadPool;
         std::vector<std::unique_ptr<::grpc::CompletionQueue>> m_CQs;
     };
@@ -293,10 +292,13 @@ struct BatchingService
         Resources(uint32_t max_batch_size, uint64_t timeout, std::shared_ptr<Client> client)
             : m_MaxBatchsize(max_batch_size), m_Timeout(timeout), m_Client(client) {}
 
+        virtual void PreprocessRequest(Request *req) {}
+
         void Push(Request *req, Response *resp, Callback callback)
         {
             // thread_local ProducerToken token(m_MessageQueue);
             // m_MessageQueue.enqueue(token, MessageType(req, resp, callback));
+            PreprocessRequest(req);
             m_MessageQueue.enqueue(MessageType{req, resp, callback});
         }
 
@@ -367,15 +369,17 @@ using InferenceBatchingService = BatchingService<simple::Inference, simple::Inpu
 int main(int argc, char *argv[])
 {
     FLAGS_alsologtostderr = 1; // Log to console
-    ::google::InitGoogleLogging("simpleServer");
+    ::google::InitGoogleLogging("simpleBatchingService");
     ::google::ParseCommandLineFlags(&argc, &argv, true);
-
     auto forwarding_threads = std::make_shared<ThreadPool>(FLAGS_forwarding_threads);
-    auto forwarding_channel = grpc::CreateChannel(
-        FLAGS_forwarding_target, grpc::InsecureChannelCredentials());
+    auto channel = grpc::CreateChannel(FLAGS_forwarding_target, grpc::InsecureChannelCredentials());
+    auto stub = ::simple::Inference::NewStub(channel);
+    auto forwarding_prepare_func = [&stub](::grpc::ClientContext *context, ::grpc::CompletionQueue *cq) -> auto {
+        return std::move(stub->PrepareAsyncBatchedCompute(context, cq));
+    };
 
     auto client = std::make_shared<InferenceBatchingService::Client>(
-        forwarding_channel, forwarding_threads);
+        forwarding_prepare_func, forwarding_threads);
 
     auto rpcResources = std::make_shared<InferenceBatchingService::Resources>(
         FLAGS_max_batch_size, FLAGS_timeout_usecs, client);
@@ -386,7 +390,7 @@ int main(int argc, char *argv[])
         &::simple::Inference::AsyncService::RequestCompute);
 
     uint64_t context_count = FLAGS_max_batch_size * FLAGS_max_batches_in_flight;
-    uint64_t contexts_per_executor_thread = context_count / FLAGS_receiving_threads;
+    uint64_t contexts_per_executor_thread = std::max(context_count / FLAGS_receiving_threads, 1UL);
 
     auto executor = server.RegisterExecutor(new Executor(FLAGS_receiving_threads));
     executor->RegisterContexts(rpcCompute, rpcResources, contexts_per_executor_thread);
@@ -395,4 +399,6 @@ int main(int argc, char *argv[])
     server.Run(std::chrono::milliseconds(1), [rpcResources] {
         rpcResources->ProgressEngine();
     });
+
+    return 0;
 }
