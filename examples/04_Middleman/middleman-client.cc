@@ -30,6 +30,7 @@
 #include <thread>
 
 #include "YAIS/YAIS.h"
+#include "YAIS/Memory.h"
 #include "moodycamel/blockingconcurrentqueue.h"
 
 using yais::Context;
@@ -41,9 +42,16 @@ using moodycamel::BlockingConcurrentQueue;
 using moodycamel::ConsumerToken;
 using moodycamel::ProducerToken;
 
-#include "echo.pb.h"
-#include "echo.grpc.pb.h"
+// NVIDIA Inference Server Protos
+#include "nvidia_inference.pb.h"
+#include "nvidia_inference.grpc.pb.h"
 
+namespace easter = ::nvidia::inferenceserver;
+/*
+using nvidia::inferenceserver::GRPCService;
+using nvidia::inferenceserver::InferRequest;
+using nvidia::inferenceserver::InferResponse;
+*/
 
 /**
  * @brief Batching Service for Unary Requests
@@ -67,7 +75,7 @@ using moodycamel::ProducerToken;
  * @tparam Response
  */
 template <class ServiceType, class Request, class Response>
-struct BatchingService
+struct MiddlemanService
 {
     using Callback = std::function<void(bool)>;
 
@@ -85,7 +93,7 @@ struct BatchingService
     class Client
     {
       public:
-        using PrepareFunc = std::function<std::unique_ptr<::grpc::ClientAsyncReaderWriter<Request, Response>>(::grpc::ClientContext*, ::grpc::CompletionQueue*)>;
+        using PrepareFunc = std::function<std::unique_ptr<::grpc::ClientAsyncResponseReader<Response>>(::grpc::ClientContext*, const Request &, ::grpc::CompletionQueue*)>;
 
         Client(
             PrepareFunc prepare_func,
@@ -106,7 +114,8 @@ struct BatchingService
         void WriteAndCloseStream(uint32_t messages_count, MessageType *messages)
         {
             auto cq = m_CQs[++m_CurrentCQ % m_CQs.size()].get();
-            LOG(INFO) << "Client using CQ: " << (void *)cq;
+            DLOG(INFO) << "Client using CQ: " << (void *)cq;
+            CHECK_EQ(1U, messages_count) << "forwarder; not batcher";
 
             auto ctx = new Call;
             for (uint32_t i=0; i < messages_count; i++)
@@ -114,31 +123,23 @@ struct BatchingService
                 ctx->Push(messages[i]);
             }
 
-            ctx->m_Stream = m_PrepareFunc(&ctx->m_Context, cq);
-            ctx->Start();
+            ctx->m_Reader = m_PrepareFunc(&ctx->m_Context, *ctx->m_Request, cq);
+            ctx->m_Reader->StartCall();
+            ctx->m_Reader->Finish(ctx->m_Response, &ctx->m_Status, ctx->Tag());
         }
 
       private:
         class Call
         {
           public:
-            Call() : m_Started(false), m_NextState(&Call::StateInvalid) {}
+            Call() : m_NextState(&Call::StateFinishedDone) {}
             virtual ~Call() {}
 
             void Push(MessageType &message)
             {
-                if (m_Started)
-                    LOG(FATAL) << "Stream started; No pushing allowed.";
-                m_Requests.push(message.request);
-                m_Responses.push(message.response);
-                m_CallbackByResponse[message.response] = message.callback;
-            }
-
-            void Start()
-            {
-                LOG(INFO) << "Starting Batch Forwarding of Size " << m_Requests.size() << " for Tag " << Tag();
-                m_NextState = &Call::StateWriteDone;
-                m_Stream->StartCall(Tag());
+                m_Request = message.request;
+                m_Response = message.response;
+                m_Callback = message.callback;
             }
 
           private:
@@ -161,104 +162,27 @@ struct BatchingService
                 return false;
             }
 
-            void WriteNext()
-            {
-                if (m_Requests.size())
-                {
-                    auto request = m_Requests.front();
-                    m_Requests.pop();
-                    DLOG(INFO) << "forwarding request";
-                    m_NextState = &Call::StateWriteDone;
-                    m_Stream->Write(*request, Tag());
-                }
-                else
-                {
-                    DLOG(INFO) << "closing client stream for writing";
-                    m_NextState = &Call::StateCloseStreamDone;
-                    m_Stream->WritesDone(Tag());
-                }
-            }
-
-            void ReadNext()
-            {
-                if (m_Responses.size())
-                {
-                    DLOG(INFO) << "waiting on response";
-                    auto response = m_Responses.front();
-                    m_NextState = &Call::StateReadDone;
-                    m_Stream->Read(response, Tag());
-                }
-                else
-                {
-                    DLOG(INFO) << "waiting on finished message from server";
-                    m_NextState = &Call::StateFinishedDone;
-                    m_Stream->Finish(&m_Status, Tag());
-                }
-            }
-
-            bool StateWriteDone(bool ok)
-            {
-                if (!ok)
-                    return Fail();
-                DLOG(INFO) << "request forwarded!";
-                WriteNext();
-                return true;
-            }
-
-            bool StateReadDone(bool ok)
-            {
-                if (!ok)
-                    return Fail();
-                DLOG(INFO) << "response received";
-                auto response = m_Responses.front();
-                m_Responses.pop();
-                auto search = m_CallbackByResponse.find(response);
-                if (search == m_CallbackByResponse.end())
-                    LOG(FATAL) << "Callback for response not found";
-                ReadNext();
-                // Execute callback which will complete the unary request for this stream item
-                DLOG(INFO) << "triggering callback on held receive context";
-                search->second(true);
-                DLOG(INFO) << "callback completed";
-                return true;
-            }
-
-            bool StateCloseStreamDone(bool ok)
-            {
-                if (!ok)
-                    return Fail();
-                DLOG(INFO) << "closed client stream for writing";
-                ReadNext();
-                return true;
-            }
-
             bool StateFinishedDone(bool ok)
             {
                 if (m_Status.ok())
                     DLOG(INFO) << "ClientContext: " << Tag() << " finished with OK";
                 else
                     DLOG(INFO) << "ClientContext: " << Tag() << " finished with CANCELLED";
-                m_NextState = &Call::StateInvalid;
-                LOG(INFO) << "Batch Forwarding Completed for Tag " << Tag();
+                m_Callback(m_Status.ok());
+                DLOG(INFO) << "Forwarding Completed for Tag " << Tag();
                 return false;
             }
 
-            bool StateInvalid(bool ok)
-            {
-                LOG(FATAL) << "This should never be called";
-            }
-
           private:
-            std::queue<Request *> m_Requests;
-            std::queue<Response *> m_Responses;
-            std::map<const Response *, Callback> m_CallbackByResponse;
+            Request *m_Request;
+            Response *m_Response;
+            Callback m_Callback;
 
             bool (Call::*m_NextState)(bool);
 
             ::grpc::Status m_Status;
             ::grpc::ClientContext m_Context;
-            std::unique_ptr<::grpc::ClientAsyncReaderWriter<Request, Response>> m_Stream;
-            bool m_Started;
+            std::unique_ptr<::grpc::ClientAsyncResponseReader<Response>> m_Reader;
 
             friend class Client;
         };
@@ -286,6 +210,7 @@ struct BatchingService
         std::vector<std::unique_ptr<::grpc::CompletionQueue>> m_CQs;
     };
 
+  public:
     class Resources : public ::yais::Resources
     {
       public:
@@ -322,6 +247,7 @@ struct BatchingService
                 do
                 {
                     auto count = m_MessageQueue.wait_dequeue_bulk_timed(token, &messages[total_count], max_batch, quanta);
+                    CHECK_LE(count, max_batch);
                     total_count += count;
                     max_batch -= count;
                 } while (total_count && total_count < m_MaxBatchsize && elapsed() < timeout);
@@ -343,7 +269,7 @@ struct BatchingService
     {
         void ExecuteRPC(Request &request, Response &response) final override
         {
-            LOG(INFO) << "incoming unary request";
+            DLOG(INFO) << "incoming unary request";
             this->GetResources()->Push(&request, &response, [this](bool ok) {
                 if (ok)
                     this->FinishResponse();
@@ -357,37 +283,89 @@ struct BatchingService
     };
 };
 
-DEFINE_uint32(max_batch_size, 8, "Maximum batch size to collect and foward");
-DEFINE_uint64(timeout_usecs, 2000, "Batching window timeout in microseconds");
-DEFINE_uint32(max_batches_in_flight, 1, "Maximum number of forwarded batches");
-DEFINE_uint32(receiving_threads, 1, "Number of Forwarding threads");
-DEFINE_uint32(forwarding_threads, 1, "Number of Forwarding threads");
-DEFINE_string(forwarding_target, "localhost:50051", "Batched Compute Service / Load-Balancer");
+DEFINE_uint32(max_batch_size, 1, "Maximum batch size to collect and foward");
+DEFINE_uint64(timeout_usecs, 200, "Batching window timeout in microseconds");
+DEFINE_uint32(max_batches_in_flight, 300, "Maximum number of forwarded batches");
+DEFINE_uint32(receiving_threads, 2, "Number of Forwarding threads");
+DEFINE_uint32(forwarding_threads, 2, "Number of Forwarding threads");
+DEFINE_string(forwarding_target, "localhost:8001", "Batched Compute Service / Load-Balancer");
 
-using InferenceBatchingService = BatchingService<simple::Inference, simple::Input, simple::Output>;
+using InferMiddlemanService = MiddlemanService<easter::GRPCService, easter::InferRequest, easter::InferResponse>;
+using StatusMiddlemanService = MiddlemanService<easter::GRPCService, easter::StatusRequest, easter::StatusResponse>;
+
+class DemoMiddlemanService : public InferMiddlemanService
+{
+  public:
+    class Resources : public InferMiddlemanService::Resources
+    {
+      public:
+        using InferMiddlemanService::Resources::Resources;
+        void PreprocessRequest(easter::InferRequest *req) override
+        {
+            static auto local_data = yais::SystemMallocAllocator::make_unique(10*1024*1024);
+            DLOG(INFO) << "Boom - preprocess request here!";
+            auto bytes = req->meta_data().batch_size() * req->meta_data().input(0).byte_size();
+            CHECK_EQ(0, req->raw_input_size());
+            req->add_raw_input(local_data->Data(), bytes);
+        }
+    };
+};
+
 
 int main(int argc, char *argv[])
 {
     FLAGS_alsologtostderr = 1; // Log to console
-    ::google::InitGoogleLogging("simpleBatchingService");
+    ::google::InitGoogleLogging("easterForwardingService");
     ::google::ParseCommandLineFlags(&argc, &argv, true);
-    auto forwarding_threads = std::make_shared<ThreadPool>(FLAGS_forwarding_threads);
-    auto channel = grpc::CreateChannel(FLAGS_forwarding_target, grpc::InsecureChannelCredentials());
-    auto stub = ::simple::Inference::NewStub(channel);
-    auto forwarding_prepare_func = [&stub](::grpc::ClientContext *context, ::grpc::CompletionQueue *cq) -> auto {
-        return std::move(stub->PrepareAsyncBatchedCompute(context, cq));
-    };
 
-    auto client = std::make_shared<InferenceBatchingService::Client>(
+    grpc::ChannelArguments ch_args;
+    ch_args.SetMaxReceiveMessageSize(-1);
+    auto channel = grpc::CreateCustomChannel(FLAGS_forwarding_target, grpc::InsecureChannelCredentials(), ch_args);
+
+    // GRPCService::Infer async forwarder
+    auto forwarding_threads = std::make_shared<ThreadPool>(FLAGS_forwarding_threads);
+    auto stub = ::easter::GRPCService::NewStub(channel);
+    auto forwarding_prepare_func = [&stub](
+        ::grpc::ClientContext *context, 
+        const ::easter::InferRequest &request, 
+        ::grpc::CompletionQueue *cq) -> auto 
+        {
+            return std::move(stub->PrepareAsyncInfer(context, request, cq));
+        };
+    auto client = std::make_shared<DemoMiddlemanService::Client>(
         forwarding_prepare_func, forwarding_threads);
 
-    auto rpcResources = std::make_shared<InferenceBatchingService::Resources>(
+    // GRPCService::Status async forwarder
+    auto status_forwarding_threads = std::make_shared<ThreadPool>(1);
+    auto status_stub = ::easter::GRPCService::NewStub(channel);
+    auto status_forwarding_prepare_func = [&stub](
+        ::grpc::ClientContext *context, 
+        const ::easter::StatusRequest &request, 
+        ::grpc::CompletionQueue *cq) -> auto 
+        {
+            return std::move(stub->PrepareAsyncStatus(context, request, cq));
+        };
+    auto status_client = std::make_shared<StatusMiddlemanService::Client>(
+        status_forwarding_prepare_func, status_forwarding_threads);
+
+
+
+    auto rpcResources = std::make_shared<DemoMiddlemanService::Resources>(
         FLAGS_max_batch_size, FLAGS_timeout_usecs, client);
 
+    auto statusResources = std::make_shared<StatusMiddlemanService::Resources>(
+        FLAGS_max_batch_size, FLAGS_timeout_usecs, status_client);
+
     Server server("0.0.0.0:50049");
-    auto recvService = server.RegisterAsyncService<::simple::Inference>();
-    auto rpcCompute = recvService->RegisterRPC<InferenceBatchingService::ReceiveContext>(
-        &::simple::Inference::AsyncService::RequestCompute);
+    auto bytes = yais::StringToBytes("100MiB");
+    server.GetBuilder().SetMaxReceiveMessageSize(bytes);
+    LOG(INFO) << "gRPC MaxReceiveMessageSize = " << yais::BytesToString(bytes);
+
+    auto recvService = server.RegisterAsyncService<::easter::GRPCService>();
+    auto rpcCompute = recvService->RegisterRPC<DemoMiddlemanService::ReceiveContext>(
+        &::easter::GRPCService::AsyncService::RequestInfer);
+    auto rpcStatus = recvService->RegisterRPC<StatusMiddlemanService::ReceiveContext>(
+        &::easter::GRPCService::AsyncService::RequestStatus);
 
     uint64_t context_count = FLAGS_max_batch_size * FLAGS_max_batches_in_flight;
     uint64_t contexts_per_executor_thread = std::max(context_count / FLAGS_receiving_threads, 1UL);
@@ -395,10 +373,13 @@ int main(int argc, char *argv[])
     auto executor = server.RegisterExecutor(new Executor(FLAGS_receiving_threads));
     executor->RegisterContexts(rpcCompute, rpcResources, contexts_per_executor_thread);
 
-    LOG(INFO) << "Running Server";
-    server.Run(std::chrono::milliseconds(1), [rpcResources] {
-        rpcResources->ProgressEngine();
-    });
+    auto status_executor = server.RegisterExecutor(new Executor(1));
+    status_executor->RegisterContexts(rpcStatus, statusResources, 1);
 
-    return 0;
+    auto executor_threads = std::make_shared<ThreadPool>(2);
+    executor_threads->enqueue([rpcResources] { rpcResources->ProgressEngine(); });
+    executor_threads->enqueue([statusResources] { statusResources->ProgressEngine(); });
+
+    LOG(INFO) << "Running Server";
+    server.Run(std::chrono::milliseconds(1), []{});
 }

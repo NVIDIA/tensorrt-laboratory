@@ -40,3 +40,4 @@ target_link_libraries(batching-service-echo.x
     yais
     echo-protos
 )
+
