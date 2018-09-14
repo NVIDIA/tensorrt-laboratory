@@ -1,0 +1,149 @@
+// Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//  * Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+//  * Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in the
+//    documentation and/or other materials provided with the distribution.
+//  * Neither the name of NVIDIA CORPORATION nor the names of its
+//    contributors may be used to endorse or promote products derived
+//    from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+// PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+syntax = "proto3";
+
+package nvidia.inferenceserver;
+
+import "model_config.proto";
+
+// Statistic collecting a duration metric
+message StatDuration {
+  // Cummulative number of times this metric occurred.
+  uint64 count = 1;
+
+  // Total collected duration of this metric in nanoseconds.
+  uint64 total_time_ns = 2;
+}
+
+// Stats collected for Status requests.
+message StatusRequestStats {
+  // Total time required to service api/status requests, not including
+  // HTTP or gRPC endpoint termination time.
+  StatDuration success = 1;
+}
+
+// Stats collected for Profile requests.
+message ProfileRequestStats {
+  // Total time required to service profile requests, not including
+  // HTTP or gRPC endpoint termination time.
+  StatDuration success = 1;
+}
+
+// Stats collected for Health requests.
+message HealthRequestStats {
+  // Total time required to service health requests, not including
+  // HTTP or gRPC endpoint termination time.
+  StatDuration success = 1;
+}
+
+// Stats collected for Infer requests.
+message InferRequestStats {
+  // Total time required to service successful inference requests,
+  // not including HTTP or gRPC endpoint termination time.
+  StatDuration success = 1;
+
+  // Total time required to service failed inference requests, not
+  // including HTTP or gRPC endpoint termination time.
+  StatDuration failed = 2;
+
+  // Time required to run inferencing including time waiting for an
+  // available model instance, time copying input tensors to GPU
+  // memory, time executing the model, and time copying output tensors
+  // from GPU memory. Wait time is also captured separately 'run_wait'
+  // so to get inferencing time not including wait time use 'run' -
+  // 'run_wait'.
+  StatDuration run = 3;
+
+  // Time waiting for an available model instance.
+  StatDuration run_wait = 4;
+}
+
+// Server readiness states.
+enum ModelReadyState {
+  MODEL_UNKNOWN = 0;
+  MODEL_READY = 1;
+  MODEL_UNAVAILABLE = 2;
+  MODEL_LOADING = 3;
+  MODEL_UNLOADING = 4;
+}
+
+// Status for a version of a model.
+message ModelVersionStatus {
+  // Current readiness state for the model version.
+  ModelReadyState ready_state = 1;
+
+  // Duration statistics for each batch size used for this version of
+  // the model.
+  map<uint32, InferRequestStats> infer_stats = 2;
+}
+
+// Status for a model.
+message ModelStatus {
+  // The configuration for the model.
+  ModelConfig config = 1;
+
+  // Duration statistics for each version of this model.
+  map<uint32, ModelVersionStatus> version_status = 2;
+}
+
+// Server readiness states.
+enum ServerReadyState {
+  SERVER_INVALID = 0;
+  SERVER_INITIALIZING = 1;
+  SERVER_READY = 2;
+  SERVER_EXITING = 3;
+
+  SERVER_FAILED_TO_INITIALIZE = 10;
+}
+
+// Status for inference server
+message ServerStatus {
+  // Server ID.
+  string id = 1;
+
+  // Server version.
+  string version = 2;
+
+  // Current readiness state for the server.
+  ServerReadyState ready_state = 7;
+
+  // Server uptime in nanoseconds
+  uint64 uptime_ns = 3;
+
+  // Status for each model on the server as map from <model name> ->
+  // ModelStatus.
+  map<string, ModelStatus> model_status = 4;
+
+  // Statistics for Status requests.
+  StatusRequestStats status_stats = 5;
+
+  // Statistics for Profile requests.
+  ProfileRequestStats profile_stats = 6;
+
+  // Statistics for Health requests.
+  HealthRequestStats health_stats = 8;
+}

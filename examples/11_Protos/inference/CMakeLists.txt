@@ -24,18 +24,26 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-add_executable(echo-grpc.x
-    src/server.cpp)
+INCLUDE(GRPCGenerateCPP)
 
-target_link_libraries(echo-grpc.x
-    yais
-    echo-protos
+PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS 
+    nvidia_inference.proto
+    api.proto
+    model_config.proto
+    request_status.proto
+    server_status.proto
 )
 
-add_executable(echo-client.x
-    src/client.cpp)
-
-target_link_libraries(echo-client.x
-    yais
-    echo-protos
+PROTOBUF_GENERATE_GRPC_CPP(PROTO_GRPC_SRCS PROTO_GRPC_HDRS 
+    nvidia_inference.proto
 )
+
+add_library(nv-inference-protos
+    ${PROTO_SRCS}
+    ${PROTO_GRPC_SRCS}
+)
+
+target_include_directories(nv-inference-protos PUBLIC
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+

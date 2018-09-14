@@ -33,7 +33,7 @@
 #include <glog/logging.h>
 #include <grpcpp/grpcpp.h>
 
-#include "simple.grpc.pb.h"
+#include "echo.grpc.pb.h"
 
 using grpc::Channel;
 using grpc::ClientContext;

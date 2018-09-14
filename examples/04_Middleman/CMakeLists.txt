@@ -24,18 +24,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-add_executable(echo-grpc.x
-    src/server.cpp)
-
-target_link_libraries(echo-grpc.x
-    yais
-    echo-protos
+add_executable(middleman-client.x
+    middleman-client.cc
 )
 
-add_executable(echo-client.x
-    src/client.cpp)
-
-target_link_libraries(echo-client.x
+target_link_libraries(middleman-client.x
     yais
-    echo-protos
+    nv-inference-protos
 )

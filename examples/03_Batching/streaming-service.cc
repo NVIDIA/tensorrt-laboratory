@@ -31,8 +31,8 @@
 
 #include "YAIS/YAIS.h"
 
-#include "simple.pb.h"
-#include "simple.grpc.pb.h"
+#include "echo.pb.h"
+#include "echo.grpc.pb.h"
 
 using yais::AsyncService;
 using yais::AsyncRPC;

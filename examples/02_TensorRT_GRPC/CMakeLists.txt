@@ -24,30 +24,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-INCLUDE(GRPCGenerateCPP)
-PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS 
-    protos/inference.proto
-    protos/dataset.proto)
-
-PROTOBUF_GENERATE_GRPC_CPP(PROTO_GRPC_SRCS PROTO_GRPC_HDRS 
-    protos/inference.proto
-    protos/dataset.proto)
-
-add_library(inference-protos
-    ${PROTO_SRCS}
-    ${PROTO_GRPC_SRCS})
-
-target_include_directories(inference-protos PUBLIC
-    ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-
 add_executable(inference-grpc.x
     src/server.cc
 )
 target_link_libraries(inference-grpc.x
     yais
-    inference-protos
+    demo-protos
 )
 
 add_executable(client-sync.x
@@ -55,7 +37,7 @@ add_executable(client-sync.x
 )
 target_link_libraries(client-sync.x
     yais
-    inference-protos
+    demo-protos
 )
 
 add_executable(client-async.x
@@ -63,7 +45,7 @@ add_executable(client-async.x
 )
 target_link_libraries(client-async.x
     yais
-    inference-protos
+    demo-protos
 )
 
 add_executable(siege.x
@@ -71,5 +53,5 @@ add_executable(siege.x
 )
 target_link_libraries(siege.x
     yais
-    inference-protos
+    demo-protos
 )
