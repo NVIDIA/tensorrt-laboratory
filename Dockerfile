@@ -79,7 +79,7 @@ RUN git clone -b v1.11.0 https://github.com/grpc/grpc \
  && cd ../../../.. \ 
  && rm -rf third_party/zlib \
  && cd third_party/protobuf && mkdir -p cmake/build && cd cmake/build \
- && cmake -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX:PATH=/usr -DCMAKE_BUILD_TYPE=Release .. \
+ && cmake -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX:PATH=/usr -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE .. \
  && make -j20 install \
  && cd ../../../.. \ 
  && rm -rf third_party/protobuf \
@@ -121,7 +121,7 @@ RUN git clone https://github.com/jupp0r/prometheus-cpp.git \
  && git checkout -b yais e7709f7e3b71bc5b1ac147971c87f2f0ae9ea358 \
  && git submodule update --init --recursive \
  && mkdir build && cd build \
- && cmake .. \
+ && cmake -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE .. \
  && make -j \
  && make install
 

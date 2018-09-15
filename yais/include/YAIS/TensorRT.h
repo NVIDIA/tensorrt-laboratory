@@ -237,6 +237,8 @@ class Model
 
     struct Binding
     {
+        std::string name;
+        nvinfer1::DataType dtype;
         bool isInput;
         int dtypeSize;
         size_t bytesPerBatchItem;
