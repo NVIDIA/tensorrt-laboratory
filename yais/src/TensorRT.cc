@@ -223,6 +223,8 @@ void Model::ConfigureBinding(Binding &binding, uint32_t i)
         elements *= dims.d[j];
     }
 
+    binding.name = name;
+    binding.dtype = dtype;
     binding.elementsPerBatchItem = elements;
     binding.bytesPerBatchItem = elements * binding.dtypeSize;
     binding.isInput = m_Engine->bindingIsInput(i);

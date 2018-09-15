@@ -38,6 +38,7 @@ option(BUILD_TESTS "Build tests and benchmark suite" ON)
 set(CMAKE_CXX_STANDARD 17)
 set(default_build_type "Release")
 set(CMAKE_DEBUG_POSTFIX "-d")
+set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
 # CMake path
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
@@ -81,6 +82,7 @@ if(prometheus-cpp_FOUND)
 endif(prometheus-cpp_FOUND)
 
 # Targets
+add_subdirectory(third_party/pybind11)
 add_subdirectory(yais)
 add_subdirectory(examples)
 

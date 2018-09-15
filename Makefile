@@ -1,4 +1,4 @@
-BASE_IMAGE ?= nvcr.io/nvidia/tensorrt:18.06-py3
+BASE_IMAGE ?= gitlab-dl.nvidia.com:5005/dgx/tensorrt:18.09-py3-stage
 IMAGE_NAME ?= yais
 RELEASE_IMAGE ?= ryanolson/yais
 
