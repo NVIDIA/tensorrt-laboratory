@@ -128,6 +128,7 @@ std::string tensorrt_engine(std::string model_name, std::string engine, int conc
     auto instance_group = config.add_instance_group();
     CHECK(concurrency > 0) << "Concurrency must be >= 0";
     instance_group->set_count(concurrency);
+    instance_group->add_gpus(0);
 
     return config.DebugString();
 }
