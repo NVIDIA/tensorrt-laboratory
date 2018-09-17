@@ -40,17 +40,6 @@ using nvidia::inferenceserver::ModelConfig;
 
 using yais::TensorRT::Runtime;
 
-/*
-    struct Binding
-    {
-        bool isInput;
-        int dtypeSize;
-        size_t bytesPerBatchItem;
-        size_t elementsPerBatchItem;
-        std::vector<size_t> dims;
-    };
-*/
-
 static size_t DataTypeToBytes(nvidia::inferenceserver::DataType dataType)
 {
     switch (dataType) {
@@ -79,12 +68,6 @@ static size_t DataTypeToBytes(nvidia::inferenceserver::DataType dataType)
     }
 }
 
-/*
-    kFLOAT = 0, //!< FP32 format.
-    kHALF = 1,  //!< FP16 format.
-    kINT8 = 2,  //!< quantized INT8 format.
-    kINT32 = 3  //!< INT32 format.
-*/
 static nvidia::inferenceserver::DataType ConvertTensorRTDataType(nvinfer1::DataType trt_datatype)
 {
     switch(trt_datatype) {
@@ -156,33 +139,3 @@ PYBIND11_MODULE(config_generator, m) {
 #endif
 }
 
-/*
-int main(int argc, char *argv[])
-{
-    FLAGS_alsologtostderr = 1; // Log to console
-    ::google::InitGoogleLogging("TensorRT Inference Server Config Generator");
-    ::google::ParseCommandLineFlags(&argc, &argv, true);
-
-    auto model = Runtime::DeserializeEngine(FLAGS_engine);
-    auto model_config = trtis::ModelConfig(model);
-    
-
-    for (int i = 1; i < FLAGS_replicas; i++)
-    {
-        resources->RegisterModel(ModelName(i), ManagedRuntime::DeserializeEngine(FLAGS_engine));
-    }
-
-    Inference inference(resources);
-    inference.Run(0.1, true, 1, 0); // warmup
-
-    // if testing mps - sync all processes before executing timed loop
-    MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
-    inference.Run(FLAGS_seconds, false, FLAGS_replicas, FLAGS_batch_size);
-    MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
-
-    // todo: perform an mpi_allreduce to collect the per process timings
-    //       for a simplified report
-    MPI_CHECK(MPI_Finalize());
-    return 0;
-}
-*/
