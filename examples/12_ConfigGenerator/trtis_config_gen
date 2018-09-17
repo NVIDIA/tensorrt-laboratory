@@ -51,15 +51,17 @@ class ModelStore:
         print(config)
 
 @click.command()
-@click.option("--engine", type=FileType, required=True)
-@click.option("--concurrency", type=int, default=1)
-@click.option("--name", default=None)
-@click.option("--store", type=FileType, default=None)
-def main(engine, concurrency, name, store):
-    store = ModelStore(path="model-store")
+@click.option("--engine", type=FileType, required=True, help="TensorRT serialized engine")
+@click.option("--concurrency", type=int, default=1, help="max number of concurrency executions allowed")
+@click.option("--name", default=None, help="model name; default to basename(engine) with the ext dropped")
+@click.option("--version", type=int, default=0, help="model version")
+@click.option("--store-path", default=None, help="model store path; default to ./model-store")
+def main(engine, concurrency, name, store_path, version):
+    store_path = store_path or "model-store"
+    store = ModelStore(path=store_path, create=True)
     base = os.path.basename(engine)
     name = name or base.replace(".engine", "")
-    store.add_tensorrt_engine(engine=engine, name=name, concurrency=concurrency)
+    store.add_tensorrt_engine(engine=engine, name=name, concurrency=concurrency, version=version)
 
 if __name__ == "__main__":
     main()
