@@ -30,25 +30,40 @@ class ModelStore:
         self.path = os.path.abspath(path)
         self.name = os.path.basename(self.path)
 
-    def add_tensorrt_engine(self, *, engine, name=None, concurrency=1, version=0):
-        engine = os.path.abspath(engine)
-        if not os.path.isfile(engine):
-            raise RuntimeError("{} does not exist".format(engine))
+    def model_name(self, *, engine, name=None):
         base = os.path.basename(engine)
         model = name or base.replace(".engine", "")
-        model_path = os.path.join(self.path, model)
-        engine_path = os.path.join(model_path, str(version))
+        return model
+
+    def model_path(self, *, name):
+        return os.path.join(self.path, name)
+
+    def engine_path(self, *, name, version=0):
+        return os.path.join(self.model_path(name=name), str(version))
+
+    def create_engine_path(self, *, name, version):
+        engine_path = self.engine_path(name=name, version=version)
         if os.path.exists(engine_path):
             raise RuntimeError("{} already exists in the model store".format(model))
-        config = cg.tensorrt_engine(model, engine, concurrency)
         pathlib.Path(engine_path).mkdir(parents=True, exist_ok=True)
+        return engine_path
+
+    def copy_and_link_engine(self, *, name, version, engine):
+        engine_path = self.create_engine_path(name=name, version=version)
         shutil.copy(engine, engine_path)
         with cd(engine_path):
             os.symlink(os.path.basename(engine), "model.plan")
+
+    def add_tensorrt_engine(self, *, engine, name=None, concurrency=1, version=0):
+        engine = os.path.abspath(engine)
+        if not os.path.isfile(engine):
+            raise RuntimeError("{} engine does not exist".format(engine))
+        name = self.model_name(engine=engine, name=name)
+        model_path = self.model_path(name=name)
+        self.copy_and_link_engine(name=name, version=version, engine=engine)
+        config = cg.tensorrt_engine(name, engine, concurrency)
         with cd(model_path), open("config.pbtxt", "w") as file:
             file.write(config)
-        print("added model config to the model store:")
-        print(config)
 
 @click.command()
 @click.option("--engine", type=FileType, required=True, help="TensorRT serialized engine")
