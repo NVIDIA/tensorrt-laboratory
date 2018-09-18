@@ -3,6 +3,29 @@
 - Ensure you built the project.
 - Run `./link.sh` in this directory
 
+## Design Requirements
+
+This example consists of a ModelStore manager (Python) and a
+ModelConfigGenerator (C++ w/ Python bindings).
+
+The ModelConfigGenerator shall:
+  - [X] parse serialized TensorRT engine files
+  - [X] translate the necessary properties of the ICudaEngine to a
+    ::nvidia::inferneceserver::ModelConfig proto message
+  - [ ] not require the presence of Cuda or a GPU to perform the actions
+
+The ModelStore manager consists of a Python class for direct consumption and a
+command-line application that shall:
+  - [ ] create and manage a user-supplied file system directory 
+  - [X] add TensorRT model files to the model store using the
+    ModelConfigGenerator and user-specified arguments
+  - [ ] add new version of TensorRT models to a ModelStore
+  - [ ] remove versions of entire models from the ModelStore
+  - [ ] add, edit, update and remove Tensorflow models
+  - [ ] add, edit, update and remove PyTorch/Caffe2 models
+
+## Prototype Implementation
+
 ```
 ./trtis_config_gen --help
 Usage: trtis_config_gen [OPTIONS]
