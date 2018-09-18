@@ -27,8 +27,8 @@ command-line application that shall:
 ## Prototype Implementation
 
 ```
-./trtis_config_gen --help
-Usage: trtis_config_gen [OPTIONS]
+./ms_mgmt --help
+Usage: ms_mgmt [OPTIONS]
 
 Options:
   --engine PATH          TensorRT serialized engine  [required]
@@ -41,7 +41,7 @@ Options:
 ```
 
 ```
-./trtis_config_gen --store-path=/tmp/model-store --engine=/work/models/ResNet-50-b1-fp32.engine --name=overridden-model-name --version=1337 --concurrency=10
+./ms_mgmt --store-path=/tmp/model-store --engine=/work/models/ResNet-50-b1-fp32.engine --name=overridden-model-name --version=1337 --concurrency=10
 
 ls /tmp/model-store/
 overridden-model-name
