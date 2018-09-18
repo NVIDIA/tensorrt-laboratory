@@ -10,8 +10,8 @@ ModelConfigGenerator (C++ w/ Python bindings).
 
 The ModelConfigGenerator shall:
   - [X] parse serialized TensorRT engine files
-  - [X] translate the necessary properties of the ICudaEngine to a
-    ::nvidia::inferneceserver::ModelConfig proto message
+  - [X] translate the necessary properties of the ICudaEngine to an
+    `::nvidia::inferenceserver::ModelConfig` protobuf message
   - [ ] not require the presence of Cuda or a GPU to perform the actions
 
 The ModelStore manager consists of a Python class for direct consumption and a
