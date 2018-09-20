@@ -1,4 +1,4 @@
-BASE_IMAGE ?= nvcr.io/nvidia/tensorrt:18.06-py3
+BASE_IMAGE ?= nvcr.io/nvidia/tensorrt:18.09-py3
 IMAGE_NAME ?= yais
 RELEASE_IMAGE ?= ryanolson/yais
 
@@ -7,6 +7,7 @@ RELEASE_IMAGE ?= ryanolson/yais
 default: clean build
 
 build: 
+	@git submodule update --init third_party/pybind11
 	@echo FROM ${BASE_IMAGE} > .Dockerfile
 	@cat Dockerfile >> .Dockerfile
 	docker build -t ${IMAGE_NAME} -f .Dockerfile . 

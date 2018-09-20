@@ -16,7 +16,7 @@ The ModelConfigGenerator shall:
 
 The ModelStore manager consists of a Python class for direct consumption and a
 command-line application that shall:
-  - [ ] create and manage a user-supplied file system directory 
+  - [ ] create and manage a model-store in a user-supplied filesystem directory 
   - [X] add TensorRT model files to the model store using the
     ModelConfigGenerator and user-specified arguments
   - [ ] add new version of TensorRT models to a ModelStore
