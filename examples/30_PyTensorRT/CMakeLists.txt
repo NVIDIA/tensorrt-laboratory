@@ -24,12 +24,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-add_subdirectory(00_TensorRT)
-add_subdirectory(01_Basic_GRPC)
-add_subdirectory(02_TensorRT_GRPC)
-add_subdirectory(03_Batching)
-add_subdirectory(04_Middleman)
-add_subdirectory(10_Internals)
-add_subdirectory(11_Protos)
-add_subdirectory(12_ConfigGenerator)
-add_subdirectory(30_PyTensorRT)
+pybind11_add_module(py_yais inference.cc)
+
+target_link_libraries(py_yais
+  PUBLIC
+     yais
+     nv-inference-protos
+)
+
