@@ -29,6 +29,8 @@
 
 #include <memory>
 
+#include "YAIS/Utils.h"
+
 namespace yais
 {
 
@@ -86,7 +88,7 @@ public:
   /**
      * @brief Destroy the Memory object
      */
-  virtual ~IMemory() {}
+  virtual ~IMemory() = default;
 
 protected:
   /**
@@ -141,6 +143,9 @@ class CudaManagedMemory : public DeviceMemory
 protected:
   CudaManagedMemory(size_t size);
   virtual ~CudaManagedMemory() override;
+
+  DELETE_COPYABILITY(CudaManagedMemory);
+  DELETE_MOVEABILITY(CudaManagedMemory);
 };
 
 /**
@@ -153,6 +158,8 @@ class CudaDeviceMemory : public DeviceMemory
 protected:
   CudaDeviceMemory(size_t size);
   virtual ~CudaDeviceMemory() override;
+  DELETE_COPYABILITY(CudaDeviceMemory);
+  DELETE_MOVEABILITY(CudaDeviceMemory);
 };
 
 /**
@@ -166,6 +173,8 @@ class CudaHostMemory : public HostMemory
 protected:
   CudaHostMemory(size_t size);
   virtual ~CudaHostMemory() override;
+  DELETE_COPYABILITY(CudaHostMemory);
+  DELETE_MOVEABILITY(CudaHostMemory);
 };
 
 /**
@@ -176,6 +185,8 @@ class SystemMallocMemory : public HostMemory
 protected:
   SystemMallocMemory(size_t size);
   virtual ~SystemMallocMemory() override;
+  DELETE_COPYABILITY(SystemMallocMemory);
+  DELETE_MOVEABILITY(SystemMallocMemory);
 };
 
 /**
@@ -192,6 +203,9 @@ class Allocator final : public MemoryType
 protected:
   // Inherit Constructors from Base Class
   using MemoryType::MemoryType;
+
+  DELETE_COPYABILITY(Allocator);
+  DELETE_MOVEABILITY(Allocator);
 
 public:
   /**

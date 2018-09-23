@@ -281,7 +281,7 @@ chance to clear the state and prepare it for the next use.
 
 ## TensorRT Examples
 
-  * [Definition: YAIS/TensorRT.h](../../yais/include/YAIS/TensorRT.h)
+  * [Definition: YAIS/YAIS/TensorRT/TensorRT.h](../../yais/include/YAIS/TensorRT/TensorRT.h)
   * [Implemenation: YAIS/TensorRT.cc](../../yais/src/TensorRT.cc)
 
 TensoRT classes build on the primatives above.  For now, see the comments in the header file, as

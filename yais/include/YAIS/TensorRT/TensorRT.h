@@ -32,6 +32,7 @@
 #include "YAIS/Memory.h"
 #include "YAIS/MemoryStack.h"
 #include "YAIS/Pool.h"
+#include "YAIS/Utils.h"
 
 #include "NvInfer.h"
 
@@ -279,7 +280,7 @@ class Buffers : public std::enable_shared_from_this<Buffers>
     virtual ~Buffers();
 
     void *AllocateHost(size_t size) { return m_HostStack->Allocate(size); }
-    void *AllocateDevice(size_t size) { return m_DeviceStack->Allocate(size); } 
+    void *AllocateDevice(size_t size) { return m_DeviceStack->Allocate(size); }
 
     auto CreateBindings(const std::shared_ptr<Model> &model, uint32_t batch_size) -> std::shared_ptr<Bindings>;
     auto CreateAndConfigureBindings(const std::shared_ptr<Model> &model, uint32_t batch_size) -> std::shared_ptr<Bindings>;
@@ -324,17 +325,17 @@ class Bindings
     void SetActivationsAddress(void *addr) { m_ActivationsAddress = addr; }
 
     void CopyToDevice(uint32_t);
-    void CopyToDevice(const std::vector<uint32_t>&);
+    void CopyToDevice(const std::vector<uint32_t> &);
     void CopyToDevice(uint32_t, void *, size_t);
 
     void CopyFromDevice(uint32_t);
-    void CopyFromDevice(const std::vector<uint32_t>&);
+    void CopyFromDevice(const std::vector<uint32_t> &);
     void CopyFromDevice(uint32_t, void *, size_t);
 
     auto InputBindings() const { return m_Model->GetInputBindingIds(); }
     auto OutputBindings() const { return m_Model->GetOutputBindingIds(); }
 
-    auto GetModel() -> const std::shared_ptr<Model>& { return m_Model; }
+    auto GetModel() -> const std::shared_ptr<Model> & { return m_Model; }
     auto BatchSize() const { return m_BatchSize; }
 
     inline cudaStream_t Stream() const { return m_Buffers->Stream(); }
@@ -348,8 +349,8 @@ class Bindings
     const std::shared_ptr<Buffers> m_Buffers;
     uint32_t m_BatchSize;
 
-    std::vector<void*> m_HostAddresses;
-    std::vector<void*> m_DeviceAddresses;
+    std::vector<void *> m_HostAddresses;
+    std::vector<void *> m_DeviceAddresses;
     void *m_ActivationsAddress;
 
     friend class Buffers;
@@ -369,25 +370,28 @@ class ExecutionContext
   public:
     virtual ~ExecutionContext();
 
+    DELETE_COPYABILITY(ExecutionContext);
+    DELETE_MOVEABILITY(ExecutionContext);
+
     void SetContext(std::shared_ptr<IExecutionContext> context);
     void Infer(const std::shared_ptr<Bindings> &);
-    void Synchronize();
+    auto Synchronize() -> double;
 
   private:
     ExecutionContext();
     void Reset();
 
+    std::function<double()> m_ElapsedTimer;
     cudaEvent_t m_ExecutionContextFinished;
     std::shared_ptr<IExecutionContext> m_Context;
 
     friend class ResourceManager;
 };
 
-
 /**
  * @brief TensorRT Resource Manager
  */
-class ResourceManager : public ::yais::Resources
+class ResourceManager : public ::yais::InheritableResources<ResourceManager>
 {
   public:
     ResourceManager(int max_executions, int max_buffers);
@@ -401,7 +405,7 @@ class ResourceManager : public ::yais::Resources
     auto GetBuffers() -> std::shared_ptr<Buffers>;
     auto GetModel(std::string model_name) -> std::shared_ptr<Model>;
     auto GetExecutionContext(const Model *model) -> std::shared_ptr<ExecutionContext>;
-    auto GetExecutionContext(const std::shared_ptr<Model>& model) -> std::shared_ptr<ExecutionContext>;
+    auto GetExecutionContext(const std::shared_ptr<Model> &model) -> std::shared_ptr<ExecutionContext>;
 
   private:
     size_t Align(size_t size, size_t alignment);
@@ -413,10 +417,10 @@ class ResourceManager : public ::yais::Resources
     std::shared_ptr<Pool<Buffers>> m_Buffers;
     std::shared_ptr<Pool<ExecutionContext>> m_ExecutionContexts;
     std::map<std::string, std::shared_ptr<Model>> m_Models;
-    std::map<const Model*, std::shared_ptr<Pool<IExecutionContext>>> m_ModelExecutionContexts;
+    std::map<const Model *, std::shared_ptr<Pool<IExecutionContext>>> m_ModelExecutionContexts;
 };
 
-} // end namespace TensorRT
-} // end namespace yais
+} // namespace TensorRT
+} // namespace yais
 
 #endif // NVIS_TENSORRT_H_

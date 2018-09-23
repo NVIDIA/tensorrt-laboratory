@@ -24,35 +24,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NVIS_RESOURCES_H_
-#define NVIS_RESOURCES_H_
-#pragma once
+#ifndef _YAIS_UTILS_H_
+#define _YAIS_UTILS_H_
 
-#include <memory>
+#define DELETE_COPYABILITY(foo) \
+    foo(const foo &) = delete;  \
+    foo &operator=(const foo &other) = delete;
 
-namespace yais
-{
+#define DELETE_MOVEABILITY(foo) \
+    foo(foo &&) = delete;       \
+    foo &operator=(foo &&other) = delete;
 
-struct Resources : public std::enable_shared_from_this<Resources>
-{
-    virtual ~Resources() {}
-
-    template <class Target>
-    std::shared_ptr<Target> casted_shared_from_this() {
-        return std::dynamic_pointer_cast<Target>(Resources::shared_from_this());
-    }
-};
-
-// credit: https://stackoverflow.com/questions/16082785/use-of-enable-shared-from-this-with-multiple-inheritance
-template <class T>
-class InheritableResources : virtual public Resources
-{
-  public:
-    std::shared_ptr<T> shared_from_this() {
-        return std::dynamic_pointer_cast<T>(Resources::shared_from_this());
-    }
-};
-
-}
-
-#endif // NVIS_RESOURCES_H_
+#endif

@@ -31,6 +31,7 @@ add_executable(yais_test
   TestMemoryStack.cc
   TestPool.cc
   TestThreadPool.cc
+  TestTaskGraph.cc
 )
 
 target_link_libraries(yais_test PRIVATE yais ${GTEST_BOTH_LIBRARIES})

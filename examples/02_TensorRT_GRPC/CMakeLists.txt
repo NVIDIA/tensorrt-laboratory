@@ -28,7 +28,7 @@ add_executable(inference-grpc.x
     src/server.cc
 )
 target_link_libraries(inference-grpc.x
-    yais
+    yais-tensorrt
     demo-protos
 )
 

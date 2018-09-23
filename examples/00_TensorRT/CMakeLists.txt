@@ -34,6 +34,7 @@ add_executable(inference.x
 
 target_link_libraries(inference.x
     yais
+    yais-tensorrt
 )
 
 if(YAIS_ENABLE_MPI)

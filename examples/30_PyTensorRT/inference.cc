@@ -25,7 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "YAIS/YAIS.h"
-#include "YAIS/TensorRT.h"
+#include "YAIS/TensorRT/TensorRT.h"
 
 #include <glog/logging.h>
 #include <pybind11/pybind11.h>
@@ -33,10 +33,12 @@
 namespace py = pybind11;
 
 using yais::ThreadPool;
+using yais::InheritableResources;
 using yais::TensorRT::ResourceManager;
 using yais::TensorRT::Runtime;
 using yais::TensorRT::ManagedRuntime;
 
+class Inference;
 
 class InferenceManager : public ResourceManager
 {
@@ -48,10 +50,11 @@ class InferenceManager : public ResourceManager
 
     ~InferenceManager() override {}
 
-    void RegisterModelByPath(std::string path, std::string name) 
+    std::shared_ptr<Inference> RegisterModelByPath(std::string path, std::string name) 
     {
         auto model = Runtime::DeserializeEngine(path);
         RegisterModel(name, model);
+        return std::make_shared<Inference>(name, casted_shared_from_this<InferenceManager>());
     }
 
     std::unique_ptr<ThreadPool> &GetCudaThreadPool() { return m_CudaThreadPool; }
@@ -64,33 +67,47 @@ class InferenceManager : public ResourceManager
 
 class Inference : public std::enable_shared_from_this<Inference>
 {
+
   public:
     Inference(std::string model_name, std::shared_ptr<InferenceManager> resources) 
       : m_Resources(resources), m_ModelName(model_name) {}
 
-    void Compute()
+    class Result {};
+    using FutureResult = std::shared_future<std::shared_ptr<Result>>;
+
+    FutureResult Compute()
     {
         // This thread only async copies buffers H2D
+        DLOG(INFO) << "in compute";
         auto infer = shared_from_this();
         auto model = GetResources()->GetModel(m_ModelName);
         auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
         auto bindings = buffers->CreateAndConfigureBindings(model, model->GetMaxBatchSize());
         bindings->CopyToDevice(bindings->InputBindings());
+        auto promise = std::make_shared<std::promise<std::shared_ptr<Result>>>();
+        DLOG(INFO) << "main thread finished work";
 
-        GetResources()->GetCudaThreadPool()->enqueue([this, infer, bindings]() mutable {
+        GetResources()->GetCudaThreadPool()->enqueue([infer, promise, bindings]() mutable {
+            DLOG(INFO) << "cuda launch thread";
             // This thread enqueues two async kernels:
             //  1) TensorRT execution
             //  2) D2H of output tensors
-            auto trt = GetResources()->GetExecutionContext(bindings->GetModel()); // <=== Limited Resource; May Block !!!
+            auto trt = infer->GetResources()->GetExecutionContext(bindings->GetModel()); // <=== Limited Resource; May Block !!!
             trt->Infer(bindings);
             bindings->CopyFromDevice(bindings->OutputBindings());
+            DLOG(INFO) << "cuda launch thread finished";
 
-            GetResources()->GetResponseThreadPool()->enqueue([this, infer, bindings, trt]() mutable {
+            infer->GetResources()->GetResponseThreadPool()->enqueue([infer, promise, bindings, trt]() mutable {
+                DLOG(INFO) << "response thread starting";
                 // This thread waits on the completion of the async compute and the async copy
                 trt->Synchronize(); trt.reset(); // Finished with the Execution Context - Release it to competing threads
                 bindings->Synchronize(); bindings.reset(); // Finished with Buffers - Release it to competing threads
+                promise->set_value(std::make_shared<Result>());
+                DLOG(INFO) << "response thread finished - inference done";
             });
         });
+
+        return promise->get_future().share();
     }
 
   protected:
@@ -105,10 +122,20 @@ class Inference : public std::enable_shared_from_this<Inference>
 PYBIND11_MODULE(py_yais, m) {
     py::class_<InferenceManager, std::shared_ptr<InferenceManager>>(m, "InferenceManager")
         .def(py::init([](int concurrency) { 
-            return std::make_shared<InferenceManager>(concurrency, concurrency+1, 1, 3);
+            return std::make_shared<InferenceManager>(concurrency, concurrency+2, 1, 3);
         }))
         .def("register_tensorrt_engine", &InferenceManager::RegisterModelByPath)
         .def("allocate_resources", &InferenceManager::AllocateResources);
+
+    py::class_<Inference, std::shared_ptr<Inference>>(m, "Inference")
+        .def("compute", &Inference::Compute, py::call_guard<py::gil_scoped_release>());
+
+    py::class_<Inference::FutureResult>(m, "InferenceFutureResult")
+        .def("wait", &Inference::FutureResult::wait, py::call_guard<py::gil_scoped_release>())
+        .def("get", &Inference::FutureResult::get, py::call_guard<py::gil_scoped_release>());
+
+    py::class_<Inference::Result, std::shared_ptr<Inference::Result>>(m, "InferenceResult");
+
 }
 
 /*

@@ -136,9 +136,17 @@ RUN git clone https://github.com/cameron314/concurrentqueue.git \
  && mkdir -p /usr/local/include/moodycamel \
  && cp *.h /usr/local/include/moodycamel/
 
+RUN git clone https://github.com/bloomen/transwarp.git \
+ && cd transwarp \
+ && git checkout 1.8.0 \
+ && mkdir -p /usr/local/include/transwarp \
+ && cp src/transwarp.h /usr/local/include/transwarp/transwarp.h \
+ && cd .. && rm -rf transwarp
+
+
 # NVIDIA/YAIS
 
-WORKDIR /work
-COPY . .
-RUN ./build.sh
+#WORKDIR /work
+#COPY . .
+#RUN ./build.sh
 

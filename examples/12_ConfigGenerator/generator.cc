@@ -30,7 +30,7 @@
 #include <glog/logging.h>
 
 #include "YAIS/YAIS.h"
-#include "YAIS/TensorRT.h"
+#include "YAIS/TensorRT/TensorRT.h"
 
 // NVIDIA Inference Server Protos
 #include "nvidia_inference.pb.h"

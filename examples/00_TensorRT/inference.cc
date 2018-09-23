@@ -31,7 +31,7 @@
 #include <glog/logging.h>
 
 #include "YAIS/YAIS.h"
-#include "YAIS/TensorRT.h"
+#include "YAIS/TensorRT/TensorRT.h"
 
 #ifdef YAIS_USE_MPI
 #include "mpi.h"

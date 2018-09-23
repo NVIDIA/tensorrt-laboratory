@@ -31,20 +31,26 @@ add_library(yais
   src/Memory.cc
   src/MemoryStack.cc
   src/Server.cc
-  src/TensorRT.cc
   src/ThreadPool.cc
 )
 
-# Define headers for this library. PUBLIC headers are used for
-# compiling the library, and will be added to consumers' build
-# paths.
-#   $<BUILD_INTERFACE:${GeneratedProtoHeadersPath}>
+add_library(yais-tensorrt
+  src/TensorRT/TensorRT.cc
+)
+
 target_include_directories(yais PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-    ${CUDA_INCLUDE_DIRS}
-    ${TensorRT_INCLUDE_DIRS}
-    PRIVATE src
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${CUDA_INCLUDE_DIRS}
+  PRIVATE src
+)
+
+target_include_directories(yais-tensorrt PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${CUDA_INCLUDE_DIRS}
+  ${TensorRT_INCLUDE_DIRS}
+  PRIVATE src/TensorRT
 )
 
 # If we have compiler requirements for this library, list them
@@ -55,7 +61,6 @@ target_include_directories(yais PUBLIC
 
 # Depend on a library that we defined in the top-level file
 target_link_libraries(yais 
-    ${TensorRT_LIBRARY}
     ${CUDA_LIBRARIES}
     nvidia-ml
     ${_GRPC_GRPCPP_UNSECURE}
@@ -63,6 +68,11 @@ target_link_libraries(yais
     gflags
     glog
     prometheus-cpp::prometheus-cpp
+)
+
+target_link_libraries(yais-tensorrt
+    yais
+    ${TensorRT_LIBRARY}
 )
 
 # 'make install' to the correct locations (provided by GNUInstallDirs).

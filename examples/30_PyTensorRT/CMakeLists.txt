@@ -28,7 +28,7 @@ pybind11_add_module(py_yais inference.cc)
 
 target_link_libraries(py_yais
   PUBLIC
-     yais
+     yais-tensorrt
      nv-inference-protos
 )
 
