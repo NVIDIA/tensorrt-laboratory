@@ -378,12 +378,14 @@ class ExecutionContext
     auto Synchronize() -> double;
 
   private:
-    ExecutionContext();
+    ExecutionContext(size_t workspace_size);
     void Reset();
 
     std::function<double()> m_ElapsedTimer;
     cudaEvent_t m_ExecutionContextFinished;
     std::shared_ptr<IExecutionContext> m_Context;
+
+    std::unique_ptr<CudaDeviceAllocator> m_Workspace;
 
     friend class ResourceManager;
 };
@@ -414,6 +416,7 @@ class ResourceManager : public ::yais::InheritableResources<ResourceManager>
     int m_MaxBuffers;
     size_t m_MinHostStack;
     size_t m_MinDeviceStack;
+    size_t m_MinActivations;
     std::shared_ptr<Pool<Buffers>> m_Buffers;
     std::shared_ptr<Pool<ExecutionContext>> m_ExecutionContexts;
     std::map<std::string, std::shared_ptr<Model>> m_Models;

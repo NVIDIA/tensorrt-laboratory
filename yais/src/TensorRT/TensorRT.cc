@@ -335,10 +335,12 @@ auto Buffers::CreateAndConfigureBindings(const std::shared_ptr<Model> &model, ui
         bindings->SetDeviceAddress(i, m_DeviceStack->Allocate(binding_size));
     }
 
+    /*
     DLOG(INFO) << "Reserving Memory for Activations: " << model->GetActivationsMemorySize();
     m_DeviceStack->Allocate(128 * 1024); // push a cacheline
     bindings->SetActivationsAddress(
         m_DeviceStack->Allocate(model->GetActivationsMemorySize()));
+    */
     return bindings;
 }
 
@@ -475,7 +477,8 @@ size_t Bindings::BindingSize(uint32_t binding_id) const
  * level to maximize GPU performance by using cudaEventDisabledTiming.  We don't need super accurate
  * timings, they are simply a nice-to-have, so a reasonable approximation on the host is sufficient.
  */
-ExecutionContext::ExecutionContext() : m_Context{nullptr}
+ExecutionContext::ExecutionContext(size_t workspace_size) 
+  : m_Context{nullptr}, m_Workspace{CudaDeviceAllocator::make_unique(workspace_size)}
 {
     CHECK_EQ(cudaEventCreateWithFlags(&m_ExecutionContextFinished, cudaEventDisableTiming), CUDA_SUCCESS)
         << "Failed to Create Execution Context Finished Event";
@@ -493,6 +496,7 @@ ExecutionContext::~ExecutionContext()
 void ExecutionContext::SetContext(std::shared_ptr<IExecutionContext> context)
 {
     m_Context = context;
+    m_Context->setDeviceMemory(m_Workspace->Data());
 }
 
 /**
@@ -511,7 +515,7 @@ void ExecutionContext::Infer(const std::shared_ptr<Bindings> &bindings)
     m_ElapsedTimer = [start] { 
         return std::chrono::duration<double>(std::chrono::system_clock::now() - start).count();
     };
-    m_Context->setDeviceMemory(bindings->ActivationsAddress());
+    // m_Context->setDeviceMemory(bindings->ActivationsAddress());
     m_Context->enqueue(bindings->BatchSize(), bindings->DeviceAddresses(), bindings->Stream(), nullptr);
     CHECK_EQ(cudaEventRecord(m_ExecutionContextFinished, bindings->Stream()), CUDA_SUCCESS) << "ExeCtx Event Record Failed";
 }
@@ -570,11 +574,7 @@ ResourceManager::ResourceManager(int max_executions, int max_buffers)
     LOG(INFO) << "Maximum Execution Concurrency: " << m_MaxExecutions;
     LOG(INFO) << "Maximum Copy Concurrency: " << m_MaxBuffers;
 
-    m_ExecutionContexts = Pool<ExecutionContext>::Create();
-    for (int i = 0; i < m_MaxExecutions; i++)
-    {
-        m_ExecutionContexts->EmplacePush(new ExecutionContext);
-    }
+
 }
 
 ResourceManager::~ResourceManager() {}
@@ -619,10 +619,10 @@ void ResourceManager::RegisterModel(std::string name, std::shared_ptr<Model> mod
 
     // Size according to largest padding - device alignment
     size_t bindings = model->GetBindingMemorySize() + model->GetBindingsCount() * GetDeviceAlignment();
-    size_t activations = model->GetActivationsMemorySize() + 128 * 1024; // add a cacheline
+    size_t activations = Align(model->GetActivationsMemorySize(), 128 * 1024); // add a cacheline
 
     size_t host = Align(bindings, 32 * 1024);
-    size_t device = Align(bindings + activations, 128 * 1024);
+    size_t device = Align(bindings, 128 * 1024);
 
     // TODO: Check to see if m_Buffers has been allocated.  If so, we should thown an exception
     // if the registered model requirements are larger than our allocated buffers.
@@ -631,9 +631,15 @@ void ResourceManager::RegisterModel(std::string name, std::shared_ptr<Model> mod
             throw std::runtime_error("Model requires more resources than currently allocated");
         }
     }
+    if (m_ExecutionContexts) {
+        if (activations > m_MinActivations) {
+            throw std::runtime_error("Required activation workspace is greater than allocated");
+        }
+    }
 
     m_MinHostStack = std::max(m_MinHostStack, host);
     m_MinDeviceStack = std::max(m_MinDeviceStack, device);
+    m_MinActivations = std::max(m_MinActivations, activations);
 
     LOG(INFO) << "-- Registering Model: " << name << " --";
     LOG(INFO) << "Input/Output Tensors require " << BytesToString(model->GetBindingMemorySize());
@@ -664,13 +670,19 @@ void ResourceManager::AllocateResources()
     LOG(INFO) << "Creating a Pool of " << m_MaxBuffers << " Host/Device Memory Stacks";
     LOG(INFO) << "Each Host Stack contains " << BytesToString(m_MinHostStack);
     LOG(INFO) << "Each Device Stack contains " << BytesToString(m_MinDeviceStack);
-    LOG(INFO) << "Total GPU Memory: " << BytesToString(m_MaxBuffers * m_MinDeviceStack);
+    LOG(INFO) << "Total GPU Memory: " << BytesToString(m_MaxBuffers * m_MinDeviceStack + m_MaxExecutions * m_MinActivations);
 
     m_Buffers = Pool<Buffers>::Create();
     for (int i = 0; i < m_MaxBuffers; i++)
     {
         DLOG(INFO) << "Allocating Host/Device Buffers #" << i;
         m_Buffers->Push(Buffers::Create(m_MinHostStack, m_MinDeviceStack));
+    }
+
+    m_ExecutionContexts = Pool<ExecutionContext>::Create();
+    for (int i = 0; i < m_MaxExecutions; i++)
+    {
+        m_ExecutionContexts->EmplacePush(new ExecutionContext(m_MinActivations));
     }
 }
 
