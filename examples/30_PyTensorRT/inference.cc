@@ -29,11 +29,13 @@
 
 #include <glog/logging.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
 
 namespace py = pybind11;
 
 using yais::ThreadPool;
 using yais::InheritableResources;
+using yais::TensorRT::Bindings;
 using yais::TensorRT::ResourceManager;
 using yais::TensorRT::Runtime;
 using yais::TensorRT::ManagedRuntime;
@@ -75,23 +77,42 @@ class Inference : public std::enable_shared_from_this<Inference>
     class Result {};
     using FutureResult = std::shared_future<std::shared_ptr<Result>>;
 
+    FutureResult PyData(py::array_t<float>& data)
+    {
+        // auto buffer = data.request();
+        auto bindings = GetBindings();
+        CHECK_EQ(data.shape(0), bindings->GetModel()->GetMaxBatchSize());
+        LOG(INFO) << "data from python is " << data.nbytes() << " bytes";
+        // bindings->SetHostAddress(0, (void *)data.data());
+        auto pinned = bindings->HostAddress(0);
+        std::memcpy(pinned, data.data(), data.nbytes());
+        return Infer(bindings);
+    }
+
+    std::shared_ptr<Bindings> GetBindings()
+    {
+        auto model = GetResources()->GetModel(m_ModelName);
+        auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
+        return buffers->CreateAndConfigureBindings(model, model->GetMaxBatchSize());
+    }
+
     FutureResult Compute()
+    {
+        auto bindings = GetBindings();
+        return Infer(bindings);
+    }
+
+    FutureResult Infer(std::shared_ptr<Bindings> bindings)
     {
         // This thread only async copies buffers H2D
         DLOG(INFO) << "in compute";
         auto infer = shared_from_this();
-        auto model = GetResources()->GetModel(m_ModelName);
-        auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
-        auto bindings = buffers->CreateAndConfigureBindings(model, model->GetMaxBatchSize());
-        bindings->CopyToDevice(bindings->InputBindings());
         auto promise = std::make_shared<std::promise<std::shared_ptr<Result>>>();
         DLOG(INFO) << "main thread finished work";
 
         GetResources()->GetCudaThreadPool()->enqueue([infer, promise, bindings]() mutable {
             DLOG(INFO) << "cuda launch thread";
-            // This thread enqueues two async kernels:
-            //  1) TensorRT execution
-            //  2) D2H of output tensors
+            bindings->CopyToDevice(bindings->InputBindings());
             auto trt = infer->GetResources()->GetExecutionContext(bindings->GetModel()); // <=== Limited Resource; May Block !!!
             trt->Infer(bindings);
             bindings->CopyFromDevice(bindings->OutputBindings());
@@ -128,6 +149,7 @@ PYBIND11_MODULE(py_yais, m) {
         .def("allocate_resources", &InferenceManager::AllocateResources);
 
     py::class_<Inference, std::shared_ptr<Inference>>(m, "Inference")
+        .def("pyinfer", &Inference::PyData, py::call_guard<py::gil_scoped_release>())
         .def("compute", &Inference::Compute, py::call_guard<py::gil_scoped_release>());
 
     py::class_<Inference::FutureResult>(m, "InferenceFutureResult")
