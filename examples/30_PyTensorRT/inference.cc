@@ -33,12 +33,12 @@
 
 namespace py = pybind11;
 
-using yais::ThreadPool;
 using yais::InheritableResources;
+using yais::ThreadPool;
 using yais::TensorRT::Bindings;
+using yais::TensorRT::ManagedRuntime;
 using yais::TensorRT::ResourceManager;
 using yais::TensorRT::Runtime;
-using yais::TensorRT::ManagedRuntime;
 
 class Inference;
 
@@ -48,11 +48,12 @@ class InferenceManager : public ResourceManager
     InferenceManager(int max_executions, int max_buffers, int nCuda, int nResp)
         : ResourceManager(max_executions, max_buffers),
           m_CudaThreadPool(std::make_unique<ThreadPool>(nCuda)),
-          m_ResponseThreadPool(std::make_unique<ThreadPool>(nResp)) {}
+          m_ResponseThreadPool(std::make_unique<ThreadPool>(nResp)),
+          m_PreprocessThreadPool(std::make_unique<ThreadPool>(3)) {}
 
     ~InferenceManager() override {}
 
-    std::shared_ptr<Inference> RegisterModelByPath(std::string path, std::string name) 
+    std::shared_ptr<Inference> RegisterModelByPath(std::string path, std::string name)
     {
         auto model = Runtime::DeserializeEngine(path);
         RegisterModel(name, model);
@@ -61,32 +62,40 @@ class InferenceManager : public ResourceManager
 
     std::unique_ptr<ThreadPool> &GetCudaThreadPool() { return m_CudaThreadPool; }
     std::unique_ptr<ThreadPool> &GetResponseThreadPool() { return m_ResponseThreadPool; }
+    std::unique_ptr<ThreadPool> &GetPreprocessThreadPool() { return m_PreprocessThreadPool; }
 
   private:
     std::unique_ptr<ThreadPool> m_CudaThreadPool;
     std::unique_ptr<ThreadPool> m_ResponseThreadPool;
+    std::unique_ptr<ThreadPool> m_PreprocessThreadPool;
 };
 
 class Inference : public std::enable_shared_from_this<Inference>
 {
 
   public:
-    Inference(std::string model_name, std::shared_ptr<InferenceManager> resources) 
-      : m_Resources(resources), m_ModelName(model_name) {}
+    Inference(std::string model_name, std::shared_ptr<InferenceManager> resources)
+        : m_Resources(resources), m_ModelName(model_name) {}
 
-    class Result {};
-    using FutureResult = std::shared_future<std::shared_ptr<Result>>;
+    class Result
+    {
+    };
+    using FutureResult = std::future<std::shared_ptr<Result>>;
 
-    FutureResult PyData(py::array_t<float>& data)
+    FutureResult PyData(py::array_t<float> &data)
     {
         // auto buffer = data.request();
-        auto bindings = GetBindings();
-        CHECK_EQ(data.shape(0), bindings->GetModel()->GetMaxBatchSize());
-        LOG(INFO) << "data from python is " << data.nbytes() << " bytes";
-        // bindings->SetHostAddress(0, (void *)data.data());
-        auto pinned = bindings->HostAddress(0);
-        std::memcpy(pinned, data.data(), data.nbytes());
-        return Infer(bindings);
+        auto infer = std::make_shared<Inference>(m_ModelName, m_Resources);
+        // GetResources()->GetPreprocessThreadPool()->enqueue([this, infer, &data] {
+            auto bindings = GetBindings();
+            CHECK_EQ(data.shape(0), bindings->GetModel()->GetMaxBatchSize());
+            LOG(INFO) << "data from python is " << data.nbytes() << " bytes";
+            // bindings->SetHostAddress(0, (void *)data.data());
+            auto pinned = bindings->HostAddress(0);
+            std::memcpy(pinned, data.data(), data.nbytes());
+            Infer(infer, bindings);
+        //});
+        return infer->GetFuture();
     }
 
     std::shared_ptr<Bindings> GetBindings()
@@ -98,19 +107,20 @@ class Inference : public std::enable_shared_from_this<Inference>
 
     FutureResult Compute()
     {
+        auto infer = std::make_shared<Inference>(m_ModelName, m_Resources);
         auto bindings = GetBindings();
-        return Infer(bindings);
+        Infer(infer, bindings);
+        return infer->GetFuture();
     }
 
-    FutureResult Infer(std::shared_ptr<Bindings> bindings)
+    FutureResult GetFuture()
     {
-        // This thread only async copies buffers H2D
-        DLOG(INFO) << "in compute";
-        auto infer = shared_from_this();
-        auto promise = std::make_shared<std::promise<std::shared_ptr<Result>>>();
-        DLOG(INFO) << "main thread finished work";
+        return m_Promise.get_future();
+    }
 
-        GetResources()->GetCudaThreadPool()->enqueue([infer, promise, bindings]() mutable {
+    static void Infer(std::shared_ptr<Inference> infer, std::shared_ptr<Bindings> bindings)
+    {
+        infer->GetResources()->GetCudaThreadPool()->enqueue([infer, bindings]() mutable {
             DLOG(INFO) << "cuda launch thread";
             bindings->CopyToDevice(bindings->InputBindings());
             auto trt = infer->GetResources()->GetExecutionContext(bindings->GetModel()); // <=== Limited Resource; May Block !!!
@@ -118,17 +128,17 @@ class Inference : public std::enable_shared_from_this<Inference>
             bindings->CopyFromDevice(bindings->OutputBindings());
             DLOG(INFO) << "cuda launch thread finished";
 
-            infer->GetResources()->GetResponseThreadPool()->enqueue([infer, promise, bindings, trt]() mutable {
+            infer->GetResources()->GetResponseThreadPool()->enqueue([infer, bindings, trt]() mutable {
                 DLOG(INFO) << "response thread starting";
                 // This thread waits on the completion of the async compute and the async copy
-                trt->Synchronize(); trt.reset(); // Finished with the Execution Context - Release it to competing threads
-                bindings->Synchronize(); bindings.reset(); // Finished with Buffers - Release it to competing threads
-                promise->set_value(std::make_shared<Result>());
+                trt->Synchronize();
+                trt.reset(); // Finished with the Execution Context - Release it to competing threads
+                bindings->Synchronize();
+                bindings.reset(); // Finished with Buffers - Release it to competing threads
+                infer->m_Promise.set_value(std::make_shared<Result>());
                 DLOG(INFO) << "response thread finished - inference done";
             });
         });
-
-        return promise->get_future().share();
     }
 
   protected:
@@ -137,13 +147,14 @@ class Inference : public std::enable_shared_from_this<Inference>
   private:
     std::string m_ModelName;
     std::shared_ptr<InferenceManager> m_Resources;
+    std::promise<std::shared_ptr<Result>> m_Promise;
 };
 
-
-PYBIND11_MODULE(py_yais, m) {
+PYBIND11_MODULE(py_yais, m)
+{
     py::class_<InferenceManager, std::shared_ptr<InferenceManager>>(m, "InferenceManager")
-        .def(py::init([](int concurrency) { 
-            return std::make_shared<InferenceManager>(concurrency, concurrency+2, 1, 3);
+        .def(py::init([](int concurrency) {
+            return std::make_shared<InferenceManager>(concurrency, concurrency + 6, 1, 3);
         }))
         .def("register_tensorrt_engine", &InferenceManager::RegisterModelByPath)
         .def("allocate_resources", &InferenceManager::AllocateResources);
@@ -157,7 +168,6 @@ PYBIND11_MODULE(py_yais, m) {
         .def("get", &Inference::FutureResult::get, py::call_guard<py::gil_scoped_release>());
 
     py::class_<Inference::Result, std::shared_ptr<Inference::Result>>(m, "InferenceResult");
-
 }
 
 /*
