@@ -25,6 +25,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "YAIS/YAIS.h"
+#include "YAIS/DeviceInfo.h"
+#include "YAIS/Metrics.h"
 #include "YAIS/TensorRT/TensorRT.h"
 
 #include <glog/logging.h>
@@ -33,7 +35,12 @@
 
 namespace py = pybind11;
 
+using yais::Affinity;
+using yais::Context;
+using yais::Executor;
 using yais::InheritableResources;
+using yais::Metrics;
+using yais::Server;
 using yais::ThreadPool;
 using yais::TensorRT::Bindings;
 using yais::TensorRT::ManagedRuntime;
@@ -41,6 +48,8 @@ using yais::TensorRT::ResourceManager;
 using yais::TensorRT::Runtime;
 
 class Inference;
+class InferenceManager;
+void Serve(std::shared_ptr<InferenceManager>);
 
 class InferenceManager : public ResourceManager
 {
@@ -70,6 +79,10 @@ class InferenceManager : public ResourceManager
     {
         AllocateResources();
         return casted_shared_from_this<InferenceManager>();
+    }
+
+    void serve() {
+        Serve(casted_shared_from_this<InferenceManager>());
     }
 
     std::unique_ptr<ThreadPool> &GetCudaThreadPool() { return m_CudaThreadPool; }
@@ -159,6 +172,208 @@ class Inference : public std::enable_shared_from_this<Inference>
     std::promise<std::shared_ptr<Inference>> m_Promise;
 };
 
+
+// NVIDIA Inference Server Protos
+#include "nvidia_inference.pb.h"
+#include "nvidia_inference.grpc.pb.h"
+
+using nvidia::inferenceserver::GRPCService;
+using nvidia::inferenceserver::InferRequest;
+using nvidia::inferenceserver::InferResponse;
+using nvidia::inferenceserver::StatusRequest;
+using nvidia::inferenceserver::StatusResponse;
+using nvidia::inferenceserver::ServerStatus;
+
+static auto &registry = Metrics::GetRegistry();
+
+// Counters
+static auto &inf_counter = \
+    prometheus::BuildCounter().Name("nv_inference_count").Register(registry);
+
+static auto &inf_compute_time = \
+    prometheus::BuildCounter().Name("nv_inference_compute_duration_us").Register(registry);
+
+static auto &inf_request_time = \
+    prometheus::BuildCounter().Name("nv_inference_request_duration_us").Register(registry);
+
+// Gauge - Periodically measure and report GPU power utilization.  As the load increases
+//         on the service, the power should increase proprotionally, until the power is capped
+//         either by device limits or compute resources.  At this level, the inf_load_ratio
+//         will begin to increase under futher increases in traffic
+static auto &power_usage_gauge = \
+    prometheus::BuildGauge().Name("nv_gpu_power_usage").Register(registry);
+
+static auto &power_limit_gauge = \
+    prometheus::BuildGauge().Name("nv_gpu_power_limit").Register(registry);
+
+// Histogram - Load Ratio = Request/Compute duration - should just above one for a service
+//             that can keep up with its current load.  This metrics provides more
+//             detailed information on the impact of the queue depth because it accounts
+//             for request time.
+static auto &inf_load_ratio = \
+    prometheus::BuildHistogram().Name("nv_inference_load_ratio").Register(registry);
+
+static const std::vector<double> buckets = {1.25, 1.50, 2.0, 10.0, 100.0}; // unitless
+
+
+class StatusContext final : public Context<StatusRequest, StatusResponse, InferenceManager>
+{
+    void ExecuteRPC(StatusRequest &request, StatusResponse &response) final override
+    {
+        GetResources()->GetResponseThreadPool()->enqueue([this, &request, &response] {
+	    auto model = GetResources()->GetModel(request.model_name());
+	    auto server_status = response.mutable_server_status();
+	    server_status->set_ready_state(::nvidia::inferenceserver::ServerReadyState::SERVER_READY);
+	    auto model_status = server_status->mutable_model_status();
+	    auto config = (*model_status)[model->Name()].mutable_config();
+	    config->set_name(model->Name());
+	    config->set_max_batch_size(model->GetMaxBatchSize());
+	    for(auto i : model->GetInputBindingIds()) {
+	        const auto& binding = model->GetBinding(i);
+	        auto input = config->add_input();
+		input->set_name(binding.name);
+		input->set_data_type(::nvidia::inferenceserver::DataType::TYPE_INT8);
+                for(auto d : binding.dims) { input->add_dims(d); }
+
+	    }
+	    for(auto i : model->GetOutputBindingIds()) {
+	        const auto& binding = model->GetBinding(i);
+	        auto output = config->add_output();
+		output->set_name(binding.name);
+		output->set_data_type(::nvidia::inferenceserver::DataType::TYPE_FP32);
+                for(auto d : binding.dims) { output->add_dims(d); }
+
+	    }
+	    auto request_status = response.mutable_request_status();
+	    request_status->set_code(::nvidia::inferenceserver::RequestStatusCode::SUCCESS);
+            LOG(INFO) << response.DebugString();
+	    this->FinishResponse();
+	});
+    }
+};
+
+
+class FlowersContext final : public Context<InferRequest, InferResponse, InferenceManager>
+{
+    void ExecuteRPC(RequestType &input, ResponseType &output) final override
+    {
+        // Executing on a Executor threads - we don't want to block message handling, so we offload
+        GetResources()->GetCudaThreadPool()->enqueue([this, &input, &output]() {
+            // Executed on a thread from CudaThreadPool
+            auto model = GetResources()->GetModel(input.model_name());
+            auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
+            auto bindings = buffers->CreateAndConfigureBindings(model, input.batch_size());
+            // bindings->SetHostAddress(0, GetResources()->GetSysvOffset(input.sysv_offset()));
+            bindings->CopyToDevice(bindings->InputBindings());
+            auto ctx = GetResources()->GetExecutionContext(model); // <=== Limited Resource; May Block !!!
+            auto t_start = Walltime();
+            ctx->Infer(bindings);
+            bindings->CopyFromDevice(bindings->OutputBindings());
+            // All Async CUDA work has been queued - this thread's work is done.
+            GetResources()->GetResponseThreadPool()->enqueue([this, &input, &output, model, bindings, ctx, t_start]() mutable {
+                // Executed on a thread from ResponseThreadPool
+                ctx->Synchronize(); ctx.reset(); // Finished with the Execution Context - Release it to competing threads
+                auto compute_time = Walltime() - t_start;
+                bindings->Synchronize(); // Blocks on H2D, Compute, D2H Pipeline
+                WriteBatchPredictions(input, output, (float *)bindings->HostAddress(1));
+                bindings.reset(); // Finished with Buffers - Release it to competing threads
+                auto request_time = Walltime();
+                output.set_compute_time(static_cast<float>(compute_time));
+                output.set_request_time(static_cast<float>(request_time));
+                auto request_status = output.mutable_request_status();
+                request_status->set_code(::nvidia::inferenceserver::RequestStatusCode::SUCCESS);
+                auto batch_size = input.batch_size();
+                this->FinishResponse();
+                // The Response is now sending; Record some metrics and be done
+                std::map<std::string, std::string> labels = {{"model", model->Name()},{"gpu_uuid", yais::GetDeviceUUID(0)}};
+                inf_counter.Add(labels).Increment(batch_size);
+                inf_compute_time.Add(labels).Increment(compute_time * 1000);
+                inf_request_time.Add(labels).Increment(request_time * 1000);
+                inf_load_ratio.Add(labels, buckets).Observe(request_time / compute_time);
+            });
+        });
+    }
+
+    void WriteBatchPredictions(RequestType &input, ResponseType &output, float *scores)
+    {
+        int N = input.batch_size();
+        auto nClasses = GetResources()->GetModel(input.model_name())->GetBinding(1).elementsPerBatchItem;
+        size_t cntr = 0;
+        auto meta_data = output.mutable_meta_data();
+        auto meta_data_output = meta_data->add_output();
+        for (int p = 0; p < N; p++)
+        {
+            auto bcls = meta_data_output->add_batch_classes();
+            bcls->add_cls();
+            /* Customize the post-processing of the output tensor *\
+            float max_val = -1.0;
+            int max_idx = -1;
+            for (int i = 0; i < nClasses; i++)
+            {
+                if (max_val < scores[cntr])
+                {
+                    max_val = scores[cntr];
+                    max_idx = i;
+                }
+                cntr++;
+            }
+            auto top1 = element->add_predictions();
+            top1->set_class_id(max_idx);
+            top1->set_score(max_val);
+            \* Customize the post-processing of the output tensor */
+        }
+        output.set_batch_id(input.batch_id());
+    }
+};
+
+
+void Serve(std::shared_ptr<InferenceManager> resources)
+{
+    // Set CPU Affinity to be near the GPU
+    auto cpus = yais::GetDeviceAffinity(0);
+    Affinity::SetAffinity(cpus);
+
+    // Enable metrics on port
+    Metrics::Initialize(50078);
+
+    // registerAllTensorRTPlugins();
+
+    // Create a gRPC server bound to IP:PORT
+    std::ostringstream ip_port;
+    ip_port << "0.0.0.0:" << 50051;
+    Server server(ip_port.str());
+
+    // Modify MaxReceiveMessageSize
+    auto bytes = yais::StringToBytes("10MiB");
+    server.GetBuilder().SetMaxReceiveMessageSize(bytes);
+    LOG(INFO) << "gRPC MaxReceiveMessageSize = " << yais::BytesToString(bytes);
+
+    // A server can host multiple services
+    auto inferenceService = server.RegisterAsyncService<GRPCService>();
+
+    auto rpcCompute = inferenceService->RegisterRPC<FlowersContext>(
+        &GRPCService::AsyncService::RequestInfer);
+
+    auto rpcStatus = inferenceService->RegisterRPC<StatusContext>(
+        &GRPCService::AsyncService::RequestStatus);
+
+    // Create Executors - Executors provide the messaging processing resources for the RPCs
+    LOG(INFO) << "Initializing Executor";
+    auto executor = server.RegisterExecutor(new Executor(1));
+
+    // You can register RPC execution contexts from any registered RPC on any executor.
+    executor->RegisterContexts(rpcCompute, resources, 100);
+    executor->RegisterContexts(rpcStatus, resources, 1);
+
+    LOG(INFO) << "Running Server";
+    server.Run(std::chrono::milliseconds(2000), [] {
+        power_usage_gauge.Add({{"gpu_uuid", yais::GetDeviceUUID(0)}}).Set(yais::GetDevicePowerUsage(0));
+        power_limit_gauge.Add({{"gpu_uuid", yais::GetDeviceUUID(0)}}).Set(yais::GetDevicePowerLimit(0));
+    });
+}
+
+
+
 PYBIND11_MODULE(py_yais, m)
 {
     py::class_<InferenceManager, std::shared_ptr<InferenceManager>>(m, "InferenceManager")
@@ -167,7 +382,8 @@ PYBIND11_MODULE(py_yais, m)
         }))
         .def("register_tensorrt_engine", &InferenceManager::RegisterModelByPath)
         .def("get_model", &InferenceManager::GetHandler)
-        .def("cuda", &InferenceManager::cuda);
+        .def("cuda", &InferenceManager::cuda)
+        .def("serve", &InferenceManager::serve, py::call_guard<py::gil_scoped_release>());
 
     py::class_<Inference, std::shared_ptr<Inference>>(m, "Inference")
         .def("pyinfer", &Inference::PyData, py::call_guard<py::gil_scoped_release>())
