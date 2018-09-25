@@ -26,6 +26,7 @@
 
 add_library(yais
   src/Affinity.cc
+  src/DeviceInfo.cc
   src/Executor.cc
   src/Metrics.cc
   src/Memory.cc
