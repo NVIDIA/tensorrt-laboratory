@@ -34,8 +34,8 @@
 namespace yais
 {
 
-std::string BytesToString(size_t bytes);
-std::uint64_t StringToBytes(const std::string);
+std::string BytesToString(std::size_t bytes);
+std::size_t StringToBytes(const std::string);
 
 std::size_t GetDeviceAlignment();
 

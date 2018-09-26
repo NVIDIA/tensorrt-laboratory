@@ -38,7 +38,6 @@ namespace py = pybind11;
 using yais::Affinity;
 using yais::Context;
 using yais::Executor;
-using yais::InheritableResources;
 using yais::Metrics;
 using yais::Server;
 using yais::ThreadPool;
@@ -132,7 +131,9 @@ class Inference : public std::enable_shared_from_this<Inference>
     {
         auto model = GetResources()->GetModel(m_ModelName);
         auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
-        return buffers->CreateAndConfigureBindings(model, model->GetMaxBatchSize());
+        auto bindings = buffers->CreateAndConfigureBindings(model);
+        bindings->SetBatchSize(model->GetMaxBatchSize());
+        return bindings;
     }
 
     FutureResult GetFuture()
@@ -262,7 +263,8 @@ class FlowersContext final : public Context<InferRequest, InferResponse, Inferen
             // Executed on a thread from CudaThreadPool
             auto model = GetResources()->GetModel(input.model_name());
             auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
-            auto bindings = buffers->CreateAndConfigureBindings(model, input.batch_size());
+            auto bindings = buffers->CreateAndConfigureBindings(model);
+            bindings->SetBatchSize(input.batch_size());
             // bindings->SetHostAddress(0, GetResources()->GetSysvOffset(input.sysv_offset()));
             bindings->CopyToDevice(bindings->InputBindings());
             auto ctx = GetResources()->GetExecutionContext(model); // <=== Limited Resource; May Block !!!
@@ -325,6 +327,8 @@ class FlowersContext final : public Context<InferRequest, InferResponse, Inferen
         output.set_batch_id(input.batch_id());
     }
 };
+
+
 
 
 void Serve(std::shared_ptr<InferenceManager> resources)

@@ -37,6 +37,12 @@ add_library(yais
 
 add_library(yais-tensorrt
   src/TensorRT/TensorRT.cc
+  src/TensorRT/Runtime.cc
+  src/TensorRT/Model.cc
+  src/TensorRT/Buffers.cc
+  src/TensorRT/Bindings.cc
+  src/TensorRT/ExecutionContext.cc
+  src/TensorRT/ResourceManager.cc
 )
 
 target_include_directories(yais PUBLIC

@@ -24,25 +24,56 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _YAIS_TENSORRT_H_
-#define _YAIS_TENSORRT_H_
+#ifndef _YAIS_TENSORRT_BUFFERS_H_
+#define _YAIS_TENSORRT_BUFFERS_H_
 
+#include <cuda.h>
+#include <cuda_runtime.h>
+
+#include "YAIS/Memory.h"
+#include "YAIS/MemoryStack.h"
 #include "YAIS/TensorRT/Common.h"
-#include "YAIS/TensorRT/Runtime.h"
-#include "YAIS/TensorRT/Model.h"
-#include "YAIS/TensorRT/Buffers.h"
-#include "YAIS/TensorRT/Bindings.h"
-#include "YAIS/TensorRT/ExecutionContext.h"
-#include "YAIS/TensorRT/ResourceManager.h"
 
 namespace yais
 {
 namespace TensorRT
 {
 
-std::size_t SizeofDataType(::nvinfer1::DataType dtype);
+/**
+ * @brief Manages input/output buffers and CudaStream
+ * 
+ * Primary TensorRT resource class used to manage both a host and a device memory stacks
+ * and owns the cudaStream_t that should be used for transfers or compute on these
+ * resources.
+ */
+class Buffers : public std::enable_shared_from_this<Buffers>
+{
+    static auto Create(size_t host_size, size_t device_size) -> std::shared_ptr<Buffers>;
+
+  public:
+    virtual ~Buffers();
+
+    void *AllocateHost(size_t size) { return m_HostStack->Allocate(size); }
+    void *AllocateDevice(size_t size) { return m_DeviceStack->Allocate(size); }
+
+    auto CreateBindings(const std::shared_ptr<Model> &model) -> std::shared_ptr<Bindings>; // todo: remove batchsize
+    auto CreateAndConfigureBindings(const std::shared_ptr<Model> &model) -> std::shared_ptr<Bindings>; // todo: remove batchsize
+
+    inline cudaStream_t Stream() { return m_Stream; }
+    void Synchronize();
+
+  private:
+    Buffers(size_t host_size, size_t device_size);
+    void Reset(bool writeZeros = false);
+
+    std::shared_ptr<MemoryStack<CudaHostAllocator>> m_HostStack;
+    std::shared_ptr<MemoryStack<CudaDeviceAllocator>> m_DeviceStack;
+    cudaStream_t m_Stream;
+
+    friend class ResourceManager;
+};
 
 } // namespace TensorRT
 } // namespace yais
 
-#endif // _YAIS_TENSORRT_H_
+#endif // _YAIS_TENSORRT_BUFFERS_H_

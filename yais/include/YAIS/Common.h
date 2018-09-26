@@ -24,25 +24,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _YAIS_TENSORRT_H_
-#define _YAIS_TENSORRT_H_
+#ifndef _YAIS_COMMON_H_
+#define _YAIS_COMMON_H_
 
-#include "YAIS/TensorRT/Common.h"
-#include "YAIS/TensorRT/Runtime.h"
-#include "YAIS/TensorRT/Model.h"
-#include "YAIS/TensorRT/Buffers.h"
-#include "YAIS/TensorRT/Bindings.h"
-#include "YAIS/TensorRT/ExecutionContext.h"
-#include "YAIS/TensorRT/ResourceManager.h"
+#include <memory>
+#include <vector>
 
-namespace yais
-{
-namespace TensorRT
-{
-
-std::size_t SizeofDataType(::nvinfer1::DataType dtype);
-
-} // namespace TensorRT
-} // namespace yais
-
-#endif // _YAIS_TENSORRT_H_
+#endif //_YAIS_COMMON_H_

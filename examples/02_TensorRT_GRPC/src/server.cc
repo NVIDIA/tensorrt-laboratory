@@ -141,7 +141,8 @@ class FlowersContext final : public Context<BatchInput, BatchPredictions, Flower
             // Executed on a thread from CudaThreadPool
             auto model = GetResources()->GetModel("flowers");
             auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
-            auto bindings = buffers->CreateAndConfigureBindings(model, input.batch_size());
+            auto bindings = buffers->CreateAndConfigureBindings(model);
+            bindings->SetBatchSize(input.batch_size());
             bindings->SetHostAddress(0, GetResources()->GetSysvOffset(input.sysv_offset()));
             bindings->CopyToDevice(bindings->InputBindings());
             auto ctx = GetResources()->GetExecutionContext(model); // <=== Limited Resource; May Block !!!

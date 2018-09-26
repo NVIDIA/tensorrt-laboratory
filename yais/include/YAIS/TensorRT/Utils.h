@@ -24,25 +24,67 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _YAIS_TENSORRT_H_
-#define _YAIS_TENSORRT_H_
+#ifndef _YAIS_TENSORRT_UTILS_H_
+#define _YAIS_TENSORRT_UTILS_H_
 
-#include "YAIS/TensorRT/Common.h"
-#include "YAIS/TensorRT/Runtime.h"
-#include "YAIS/TensorRT/Model.h"
-#include "YAIS/TensorRT/Buffers.h"
-#include "YAIS/TensorRT/Bindings.h"
-#include "YAIS/TensorRT/ExecutionContext.h"
-#include "YAIS/TensorRT/ResourceManager.h"
+#include <memory>
 
 namespace yais
 {
 namespace TensorRT
 {
 
-std::size_t SizeofDataType(::nvinfer1::DataType dtype);
+/**
+ * @brief Deleter for nvinfer interface objects.
+ */
+struct NvInferDeleter
+{
+    template <typename T>
+    void operator()(T *obj) const
+    {
+        if (obj)
+        {
+            obj->destroy();
+        }
+    }
+};
+
+/**
+ * @brief Create a std::shared_ptr for an nvinfer interface object
+ * 
+ * @tparam T 
+ * @param obj 
+ * @return std::shared_ptr<T> 
+ */
+template <typename T>
+std::shared_ptr<T> make_shared(T *obj)
+{
+    if (!obj)
+    {
+        throw std::runtime_error("Failed to create object");
+    }
+    return std::shared_ptr<T>(obj, NvInferDeleter());
+};
+
+/**
+ * @brief Create a std::unique_ptr for an nvinfer interface object
+ * 
+ * @tparam T 
+ * @param obj 
+ * @return std::unique_ptr<T, NvInferDeleter> 
+ */
+template <typename T>
+std::unique_ptr<T, NvInferDeleter> make_unique(T *obj)
+{
+    if (!obj)
+    {
+        throw std::runtime_error("Failed to create object");
+    }
+    return std::unique_ptr<T, NvInferDeleter>(obj);
+}
+
 
 } // namespace TensorRT
 } // namespace yais
 
-#endif // _YAIS_TENSORRT_H_
+#endif // _YAIS_TENSORRT_UTILS_H_

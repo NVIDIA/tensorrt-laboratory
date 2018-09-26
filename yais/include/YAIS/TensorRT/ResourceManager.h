@@ -24,25 +24,64 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _YAIS_TENSORRT_H_
-#define _YAIS_TENSORRT_H_
+#ifndef _YAIS_TENSORRT_RESOURCEMANAGER_H_
+#define _YAIS_TENSORRT_RESOURCEMANAGER_H_
 
+#include <map>
+
+#include <NvInfer.h>
+
+#include "YAIS/Pool.h"
+#include "YAIS/Resources.h"
 #include "YAIS/TensorRT/Common.h"
-#include "YAIS/TensorRT/Runtime.h"
 #include "YAIS/TensorRT/Model.h"
 #include "YAIS/TensorRT/Buffers.h"
-#include "YAIS/TensorRT/Bindings.h"
 #include "YAIS/TensorRT/ExecutionContext.h"
-#include "YAIS/TensorRT/ResourceManager.h"
 
 namespace yais
 {
 namespace TensorRT
 {
 
-std::size_t SizeofDataType(::nvinfer1::DataType dtype);
+/**
+ * @brief TensorRT Resource Manager
+ */
+class ResourceManager : public ::yais::Resources
+{
+  public:
+    ResourceManager(int max_executions, int max_buffers);
+    virtual ~ResourceManager();
+
+    void RegisterModel(std::string name, std::shared_ptr<Model> model);
+    void RegisterModel(std::string name, std::shared_ptr<Model> model, uint32_t max_concurrency);
+
+    void AllocateResources();
+
+    auto GetBuffers() -> std::shared_ptr<Buffers>;
+    auto GetModel(std::string model_name) -> std::shared_ptr<Model>;
+    auto GetExecutionContext(const Model *model) -> std::shared_ptr<ExecutionContext>;
+    auto GetExecutionContext(const std::shared_ptr<Model> &model) -> std::shared_ptr<ExecutionContext>;
+
+  private:
+    int m_MaxExecutions;
+    int m_MaxBuffers;
+    size_t m_MinHostStack;
+    size_t m_MinDeviceStack;
+    size_t m_MinActivations;
+    std::shared_ptr<Pool<Buffers>> m_Buffers;
+    std::shared_ptr<Pool<ExecutionContext>> m_ExecutionContexts;
+    std::map<std::string, std::shared_ptr<Model>> m_Models;
+    std::map<const Model *, std::shared_ptr<Pool<::nvinfer1::IExecutionContext>>> m_ModelExecutionContexts;
+
+    std::size_t Align(std::size_t size, std::size_t alignment)
+    {
+        std::size_t remainder = size % alignment;
+        size = (remainder == 0) ? size : size + alignment - remainder;
+        return size;
+    }
+};
 
 } // namespace TensorRT
 } // namespace yais
 
-#endif // _YAIS_TENSORRT_H_
+#endif // _YAIS_TENSORRT_RESOURCEMANAGER_H_

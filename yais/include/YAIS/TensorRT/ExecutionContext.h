@@ -24,25 +24,54 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _YAIS_TENSORRT_H_
-#define _YAIS_TENSORRT_H_
+#ifndef _YAIS_TENSORRT_EXECUTIONCONTEXT_H_
+#define _YAIS_TENSORRT_EXECUTIONCONTEXT_H_
 
-#include "YAIS/TensorRT/Common.h"
-#include "YAIS/TensorRT/Runtime.h"
-#include "YAIS/TensorRT/Model.h"
-#include "YAIS/TensorRT/Buffers.h"
+#include "YAIS/Memory.h"
 #include "YAIS/TensorRT/Bindings.h"
-#include "YAIS/TensorRT/ExecutionContext.h"
-#include "YAIS/TensorRT/ResourceManager.h"
+
+#include "NvInfer.h"
 
 namespace yais
 {
 namespace TensorRT
 {
 
-std::size_t SizeofDataType(::nvinfer1::DataType dtype);
+/**
+ * @brief Manages the execution of an inference calculation
+ * 
+ * The ExecutionContext is a limited quanity resource used to control the number
+ * of simultaneous calculations allowed on the device at any given time.
+ * 
+ * A properly configured Bindings object is required to initiate the TensorRT
+ * inference calculation.
+ */
+class ExecutionContext
+{
+  public:
+    virtual ~ExecutionContext();
+
+    DELETE_COPYABILITY(ExecutionContext);
+    DELETE_MOVEABILITY(ExecutionContext);
+
+    void SetContext(std::shared_ptr<::nvinfer1::IExecutionContext> context);
+    void Infer(const std::shared_ptr<Bindings> &);
+    auto Synchronize() -> double;
+
+  private:
+    ExecutionContext(size_t workspace_size);
+    void Reset();
+
+    std::function<double()> m_ElapsedTimer;
+    cudaEvent_t m_ExecutionContextFinished;
+    std::shared_ptr<::nvinfer1::IExecutionContext> m_Context;
+
+    std::unique_ptr<CudaDeviceAllocator> m_Workspace;
+
+    friend class ResourceManager;
+};
 
 } // namespace TensorRT
 } // namespace yais
 
-#endif // _YAIS_TENSORRT_H_
+#endif // _YAIS_TENSORRT_EXECUTIONCONTEXT_H_
