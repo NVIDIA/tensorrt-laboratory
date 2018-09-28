@@ -35,14 +35,4 @@
 #include "YAIS/TensorRT/ExecutionContext.h"
 #include "YAIS/TensorRT/ResourceManager.h"
 
-namespace yais
-{
-namespace TensorRT
-{
-
-std::size_t SizeofDataType(::nvinfer1::DataType dtype);
-
-} // namespace TensorRT
-} // namespace yais
-
 #endif // _YAIS_TENSORRT_H_

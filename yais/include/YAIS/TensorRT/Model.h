@@ -28,7 +28,6 @@
 #define _YAIS_TENSORRT_MODEL_H_
 
 #include "YAIS/TensorRT/Common.h"
-#include "YAIS/TensorRT/Model.h"
 #include "YAIS/TensorRT/Utils.h"
 
 namespace yais

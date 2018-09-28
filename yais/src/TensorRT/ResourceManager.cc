@@ -54,7 +54,7 @@ namespace TensorRT
  */
 ResourceManager::ResourceManager(int max_executions, int max_buffers)
     : m_MaxExecutions(max_executions), m_MaxBuffers(max_buffers),
-      m_MinHostStack(0), m_MinDeviceStack(0), m_MinActivations(0), m_Buffers{nullptr}
+      m_HostStackSize(0), m_DeviceStackSize(0), m_ActivationsSize(0), m_Buffers{nullptr}
 {
     LOG(INFO) << "-- Initialzing TensorRT Resource Manager --";
     LOG(INFO) << "Maximum Execution Concurrency: " << m_MaxExecutions;
@@ -92,7 +92,7 @@ void ResourceManager::RegisterModel(std::string name, std::shared_ptr<Model> mod
     if (max_concurrency > m_MaxExecutions)
     {
         LOG(WARNING) << "Requested concurrency (" << max_concurrency << ") exceeds max concurrency. "
-                     << "Value will be capped to " << m_MaxExecutions;
+                     << "Concurrency will be capped to " << m_MaxExecutions;
         max_concurrency = m_MaxExecutions;
     }
 
@@ -106,19 +106,19 @@ void ResourceManager::RegisterModel(std::string name, std::shared_ptr<Model> mod
     // TODO: Check to see if m_Buffers has been allocated.  If so, we should thown an exception
     // if the registered model requirements are larger than our allocated buffers.
     if (m_Buffers) {
-        if (host > m_MinHostStack || device > m_MinDeviceStack) {
+        if (host > m_HostStackSize || device > m_DeviceStackSize) {
             throw std::runtime_error("Required binding resources are greater than allocated capacity");
         }
     }
     if (m_ExecutionContexts) {
-        if (activations > m_MinActivations) {
+        if (activations > m_ActivationsSize) {
             throw std::runtime_error("Required activation workspace is greater than allocated capacity");
         }
     }
 
-    m_MinHostStack = std::max(m_MinHostStack, host);
-    m_MinDeviceStack = std::max(m_MinDeviceStack, device);
-    m_MinActivations = std::max(m_MinActivations, activations);
+    m_HostStackSize = std::max(m_HostStackSize, host);
+    m_DeviceStackSize = std::max(m_DeviceStackSize, device);
+    m_ActivationsSize = std::max(m_ActivationsSize, activations);
 
     LOG(INFO) << "-- Registering Model: " << name << " --";
     LOG(INFO) << "Input/Output Tensors require " << BytesToString(model->GetBindingMemorySize());
@@ -147,21 +147,21 @@ void ResourceManager::AllocateResources()
     LOG(INFO) << "-- Allocating TensorRT Resources --";
     LOG(INFO) << "Creating " << m_MaxExecutions << " TensorRT execution tokens.";
     LOG(INFO) << "Creating a Pool of " << m_MaxBuffers << " Host/Device Memory Stacks";
-    LOG(INFO) << "Each Host Stack contains " << BytesToString(m_MinHostStack);
-    LOG(INFO) << "Each Device Stack contains " << BytesToString(m_MinDeviceStack);
-    LOG(INFO) << "Total GPU Memory: " << BytesToString(m_MaxBuffers * m_MinDeviceStack + m_MaxExecutions * m_MinActivations);
+    LOG(INFO) << "Each Host Stack contains " << BytesToString(m_HostStackSize);
+    LOG(INFO) << "Each Device Stack contains " << BytesToString(m_DeviceStackSize);
+    LOG(INFO) << "Total GPU Memory: " << BytesToString(m_MaxBuffers * m_DeviceStackSize + m_MaxExecutions * m_ActivationsSize);
 
     m_Buffers = Pool<Buffers>::Create();
     for (int i = 0; i < m_MaxBuffers; i++)
     {
         DLOG(INFO) << "Allocating Host/Device Buffers #" << i;
-        m_Buffers->Push(Buffers::Create(m_MinHostStack, m_MinDeviceStack));
+        m_Buffers->Push(Buffers::Create(m_HostStackSize, m_DeviceStackSize));
     }
 
     m_ExecutionContexts = Pool<ExecutionContext>::Create();
     for (int i = 0; i < m_MaxExecutions; i++)
     {
-        m_ExecutionContexts->EmplacePush(new ExecutionContext(m_MinActivations));
+        m_ExecutionContexts->EmplacePush(new ExecutionContext(m_ActivationsSize));
     }
 }
 
@@ -216,10 +216,13 @@ auto ResourceManager::GetExecutionContext(const Model *model) -> std::shared_ptr
     CHECK(m_ExecutionContexts) << "Call AllocateResources() before trying to acquire an ExeuctionContext.";
     auto item = m_ModelExecutionContexts.find(model);
     CHECK(item != m_ModelExecutionContexts.end()) << "No ExectionContext for model " << model->Name();
+    // This is the global concurrency limiter - it owns the activation scratch memory
     auto ctx = m_ExecutionContexts->Pop([](ExecutionContext *ptr) {
         ptr->Reset();
         DLOG(INFO) << "Releasing Concurrency Limiter";
     });
+    // This is the model concurrency limiter - it owns the TensorRT IExecutionContext
+    // for which the pointer to the global limiter's memory buffer will be set
     ctx->SetContext(item->second->Pop([](::nvinfer1::IExecutionContext *ptr) {
         DLOG(INFO) << "Releasing IExecutionContext";
     }));
@@ -238,6 +241,31 @@ auto ResourceManager::GetExecutionContext(const Model *model) -> std::shared_ptr
 auto ResourceManager::GetExecutionContext(const std::shared_ptr<Model> &model) -> std::shared_ptr<ExecutionContext>
 {
     return GetExecutionContext(model.get());
+}
+
+auto ResourceManager::GetThreadPool(std::string name) -> ThreadPool &
+{
+    // std::shared_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
+    auto search = m_ThreadPools.find(name);
+    CHECK(search != m_ThreadPools.end());
+    return *(search->second);
+}
+
+void ResourceManager::SetThreadPool(std::string name, std::unique_ptr<ThreadPool> threads)
+{
+    // std::unique_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
+    DLOG(INFO) << "Swapping ThreadPool: " << name;
+    // Old threadpools will continute to live until all threads are joined.
+    // this may need a mutex
+    m_ThreadPools[name].swap(threads);
+}
+
+void ResourceManager::JoinAllThreads()
+{
+    // std::unique_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
+    DLOG(INFO) << "Joining All Threads";
+    m_ThreadPools.clear();
+    DLOG(INFO) << "All Threads Checked-In and Joined";
 }
 
 } // namespace TensorRT

@@ -29,6 +29,8 @@
 
 #include <memory>
 
+#include <NvInfer.h>
+
 namespace yais
 {
 namespace TensorRT
@@ -83,6 +85,10 @@ std::unique_ptr<T, NvInferDeleter> make_unique(T *obj)
     return std::unique_ptr<T, NvInferDeleter>(obj);
 }
 
+/**
+ * @brief Number of bytes for a given TensorRT DataType
+ */
+std::size_t SizeofDataType(::nvinfer1::DataType dtype);
 
 } // namespace TensorRT
 } // namespace yais

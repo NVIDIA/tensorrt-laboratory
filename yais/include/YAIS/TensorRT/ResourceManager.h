@@ -28,10 +28,13 @@
 #define _YAIS_TENSORRT_RESOURCEMANAGER_H_
 
 #include <map>
+#include <mutex>
+// #include <shared_mutex> /* C++17 - not found in g++ 5.4 */
 
 #include <NvInfer.h>
 
 #include "YAIS/Pool.h"
+#include "YAIS/ThreadPool.h"
 #include "YAIS/Resources.h"
 #include "YAIS/TensorRT/Common.h"
 #include "YAIS/TensorRT/Model.h"
@@ -62,16 +65,22 @@ class ResourceManager : public ::yais::Resources
     auto GetExecutionContext(const Model *model) -> std::shared_ptr<ExecutionContext>;
     auto GetExecutionContext(const std::shared_ptr<Model> &model) -> std::shared_ptr<ExecutionContext>;
 
+    auto GetThreadPool(std::string name) -> ThreadPool&;
+    void SetThreadPool(std::string name, std::unique_ptr<ThreadPool> threads);
+    void JoinAllThreads();
+
   private:
     int m_MaxExecutions;
     int m_MaxBuffers;
-    size_t m_MinHostStack;
-    size_t m_MinDeviceStack;
-    size_t m_MinActivations;
+    size_t m_HostStackSize;
+    size_t m_DeviceStackSize;
+    size_t m_ActivationsSize;
     std::shared_ptr<Pool<Buffers>> m_Buffers;
     std::shared_ptr<Pool<ExecutionContext>> m_ExecutionContexts;
     std::map<std::string, std::shared_ptr<Model>> m_Models;
+    std::map<std::string, std::unique_ptr<ThreadPool>> m_ThreadPools;
     std::map<const Model *, std::shared_ptr<Pool<::nvinfer1::IExecutionContext>>> m_ModelExecutionContexts;
+    // mutable std::shared_mutex m_ThreadPoolMutex;
 
     std::size_t Align(std::size_t size, std::size_t alignment)
     {

@@ -130,7 +130,7 @@ void Bindings::CopyFromDevice(uint32_t device_binding_id, void *dst, size_t byte
 
 void Bindings::SetBatchSize(uint32_t batch_size)
 {
-    CHECK_LT(batch_size, m_Model->GetMaxBatchSize());
+    CHECK_LE(batch_size, m_Model->GetMaxBatchSize());
     m_BatchSize = batch_size;
 }
 
