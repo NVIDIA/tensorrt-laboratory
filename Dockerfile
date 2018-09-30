@@ -79,14 +79,14 @@ RUN git clone -b v1.11.0 https://github.com/grpc/grpc \
  && cd ../../../.. \ 
  && rm -rf third_party/zlib \
  && cd third_party/protobuf && mkdir -p cmake/build && cd cmake/build \
- && cmake -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX:PATH=/usr -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE .. \
+ && cmake -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX:PATH=/usr -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE -DBUILD_SHARED_LIBRARIES=ON .. \
  && make -j20 install \
  && cd ../../../.. \ 
  && rm -rf third_party/protobuf \
  && cd /source/grpc \
  && mkdir -p cmake/build \
  && cd cmake/build \
- && cmake -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package -DgRPC_ZLIB_PROVIDER=package \
+ && cmake -DBUILD_SHARED_LIBRARIES=ON -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package -DgRPC_ZLIB_PROVIDER=package \
           -DgRPC_CARES_PROVIDER=package -DCMAKE_BUILD_TYPE=Release -DgRPC_SSL_PROVIDER=package -DgRPC_GFLAGS_PROVIDER=package ../.. \
  && make -j20 install \
  && cd /source && rm -rf grpc

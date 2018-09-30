@@ -32,10 +32,12 @@ def main(data):
     print("Finished {} batches in {}; {} inf/sec".format(
         len(data), end-start, len(data)*data[0].shape[0] / (end-start)))
 
+    flowers50(data=np.random.random_sample(size=(2,2)))
+
     #engines.serve()
 
 if __name__ == "__main__":
     print("Generating Random Data")
-    data = [np.random.random_sample(size=(8,3,224,224)) for _ in range(1000)]
+    data = [np.random.random_sample(size=(8,3,224,224)) for _ in range(10)]
     print("Starting Inference Loop")
     main(data)

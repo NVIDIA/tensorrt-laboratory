@@ -32,6 +32,7 @@
 #include <glog/logging.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 
 namespace py = pybind11;
 
@@ -126,7 +127,23 @@ class Inference : public std::enable_shared_from_this<Inference>
         return context->GetFuture();
     }
 
+    std::string Test(py::kwargs kwargs)
+    {
+        for (auto item : kwargs) 
+        {
+            LOG(INFO) << "key: " << item.first;
+            LOG(INFO) << "batch_size: "  << item.second;
+            // auto data = static_cast<py::array_t<float>>(item.second);
+            LOG(INFO) << item.second.get_type();
+            auto data = py::cast<py::array_t<float>>(kwargs[item.first]);
+            LOG(INFO) << data.shape(0);
+            LOG(INFO) << data.nbytes();
+        }
+        return "wow";
+    }
+
   protected:
+
     std::shared_ptr<Bindings> GetBindings()
     {
         auto model = GetResources()->GetModel(m_ModelName);
@@ -391,7 +408,8 @@ PYBIND11_MODULE(py_yais, m)
 
     py::class_<Inference, std::shared_ptr<Inference>>(m, "Inference")
         .def("pyinfer", &Inference::PyData, py::call_guard<py::gil_scoped_release>())
-        .def("compute", &Inference::Compute, py::call_guard<py::gil_scoped_release>());
+        .def("compute", &Inference::Compute, py::call_guard<py::gil_scoped_release>())
+        .def("__call__", &Inference::Test);
 
     py::class_<Inference::FutureResult>(m, "InferenceFutureResult")
         .def("wait", &Inference::FutureResult::wait, py::call_guard<py::gil_scoped_release>())
