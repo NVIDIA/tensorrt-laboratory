@@ -24,6 +24,17 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# Logging
+find_package(glog 0.3.5 REQUIRED)
+
+# Find CUDA
+find_package(CUDA REQUIRED)
+message(STATUS "CUDA IncludeDir ${CUDA_INCLUDE_DIRS}")
+
+find_package(TensorRT REQUIRED 4.0.1)
+message(STATUS "TensorRT IncludeDir ${TensorRT_INCLUDE_DIRS}")
+message(STATUS "TensorRT Version ${TensorRT_VERSION_STRING}")
+
 add_library(yais
   src/Affinity.cc
   src/DeviceInfo.cc

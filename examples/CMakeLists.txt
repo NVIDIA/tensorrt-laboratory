@@ -24,6 +24,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+find_package(gflags 2.2.1 REQUIRED)
+
 add_subdirectory(00_TensorRT)
 add_subdirectory(01_Basic_GRPC)
 add_subdirectory(02_TensorRT_GRPC)
