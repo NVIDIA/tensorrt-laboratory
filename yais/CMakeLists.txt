@@ -94,7 +94,7 @@ target_link_libraries(yais-tensorrt
 )
 
 # 'make install' to the correct locations (provided by GNUInstallDirs).
-install(TARGETS yais EXPORT yaisConfig
+install(TARGETS yais yais-tensorrt EXPORT yaisConfig
     ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR})  # This is for Windows

@@ -30,4 +30,5 @@ mkdir -p build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake -DCMAKE_BUILD_TYPE=Release ..
-make -j yais yais-tensorrt
+make -j
+make install
