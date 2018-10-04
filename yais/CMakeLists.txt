@@ -38,12 +38,12 @@ message(STATUS "TensorRT Version ${TensorRT_VERSION_STRING}")
 add_library(yais
   src/Affinity.cc
   src/DeviceInfo.cc
-  src/Executor.cc
-  src/Metrics.cc
   src/Memory.cc
   src/MemoryStack.cc
-  src/Server.cc
   src/ThreadPool.cc
+  src/Service/Executor.cc
+  src/Service/Metrics.cc
+  src/Service/Server.cc
 )
 
 add_library(yais-tensorrt

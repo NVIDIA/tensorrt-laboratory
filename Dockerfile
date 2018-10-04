@@ -63,7 +63,7 @@ RUN git clone -b v0.3.5 https://github.com/google/glog.git \
 # cmake build per: https://github.com/grpc/grpc/blob/master/test/distrib/cpp/run_distrib_test_cmake.sh
 # -DCMAKE_INSTALL_PREFIX:PATH=/usr to overwrite the version of protobuf installed in the TensorRT base image
 WORKDIR /source
-RUN git clone -b v1.11.0 https://github.com/grpc/grpc \
+RUN git clone -b v1.13.0 https://github.com/grpc/grpc \
  && cd grpc \
  && git submodule update --init \
  && cd third_party/cares/cares \ 
@@ -146,7 +146,7 @@ RUN git clone https://github.com/bloomen/transwarp.git \
 
 # NVIDIA/YAIS
 
-#WORKDIR /work
-#COPY . .
-#RUN ./build.sh
+WORKDIR /work
+COPY . .
+RUN ./build.sh && rm -rf build
 

@@ -42,8 +42,8 @@ Executor::Executor(int numThreads)
 }
 
 Executor::Executor(std::unique_ptr<ThreadPool> threadpool)
-    : IExecutor(), m_ThreadPool(std::move(threadpool)),
-      m_TimeoutDeadline(::grpc::Timespec2Timepoint(gpr_inf_future(GPR_CLOCK_REALTIME)))
+    : IExecutor(), m_ThreadPool(std::move(threadpool))
+      // m_TimeoutDeadline(::grpc::Timespec2Timepoint(gpr_inf_future(GPR_CLOCK_REALTIME)))
 {
     m_TimeoutCallback = []{};
 }
@@ -57,6 +57,7 @@ void Executor::ProgressEngine(int thread_id)
 
     while (true)
     {
+        /*
         auto status = myCQ->AsyncNext(&tag, &ok, m_TimeoutDeadline);
         if (status == NextStatus::SHUTDOWN)
             return;
@@ -72,6 +73,14 @@ void Executor::ProgressEngine(int thread_id)
             {
                 ResetContext(ctx);
             }
+        }
+        */
+        auto status = myCQ->Next(&tag, &ok);
+        if (!status) return; // Shutdown
+        auto ctx = IContext::Detag(tag);
+        if (!RunContext(ctx, ok))
+        {
+            ResetContext(ctx);
         }
     }
 }

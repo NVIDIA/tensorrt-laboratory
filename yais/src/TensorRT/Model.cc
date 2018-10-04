@@ -50,7 +50,6 @@ Model::Model(std::shared_ptr<ICudaEngine> engine)
 {
     CHECK(m_Engine) << "Model required an initialzed ICudaEngine*";
     DLOG(INFO) << "Initializing Bindings from Engine";
-    m_Bindings.resize(m_Engine->getNbBindings());
     for (uint32_t i = 0; i < m_Engine->getNbBindings(); i++)
     {
         m_Bindings.push_back(ConfigureBinding(i));
@@ -59,6 +58,7 @@ Model::Model(std::shared_ptr<ICudaEngine> engine)
         else
             m_OutputBindings.push_back(i);
     }
+    CHECK_EQ(m_Bindings.size(), m_Engine->getNbBindings());
 }
 
 Model::TensorBindingInfo Model::ConfigureBinding(uint32_t i)
@@ -78,7 +78,7 @@ Model::TensorBindingInfo Model::ConfigureBinding(uint32_t i)
     binding.elementsPerBatchItem = elements;
     binding.bytesPerBatchItem = elements * binding.dtypeSize;
     binding.isInput = m_Engine->bindingIsInput(i);
-    DLOG(INFO) << "Binding: " << binding.name << "; isInput: " << (binding.isInput ? "true" : "false")
+    LOG(INFO) << "Binding: " << binding.name << "; isInput: " << (binding.isInput ? "true" : "false")
                << "; dtype size: " << binding.dtypeSize
                << "; bytes per batch item: " << binding.bytesPerBatchItem;
     return binding;
