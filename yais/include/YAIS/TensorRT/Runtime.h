@@ -49,6 +49,7 @@ class Runtime
 {
   public:
     static std::shared_ptr<Model> DeserializeEngine(std::string plan_file);
+    static std::shared_ptr<Model> DeserializeEngine(void *data, size_t size);
     virtual ~Runtime() {}
 
   protected:
@@ -85,6 +86,7 @@ class ManagedRuntime : public Runtime
 {
   public:
     static std::shared_ptr<Model> DeserializeEngine(std::string plan_file);
+    static std::shared_ptr<Model> DeserializeEngine(void *data, size_t size);
     virtual ~ManagedRuntime() override {}
 
   protected:

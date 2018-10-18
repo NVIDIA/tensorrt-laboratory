@@ -26,6 +26,9 @@
  */
 #include "YAIS/TensorRT/Runtime.h"
 
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include <memory>
 #include <vector>
 
@@ -61,8 +64,14 @@ std::shared_ptr<Model> Runtime::DeserializeEngine(std::string plan_file)
     auto buffer = singleton->ReadEngineFile(plan_file);
     // Create Engine / Deserialize Plan - need this step to be broken up plz!!
     DLOG(INFO) << "Deserializing TensorRT ICudaEngine";
+    return singleton->DeserializeEngine(buffer.data(), buffer.size());
+}
+
+std::shared_ptr<Model> Runtime::DeserializeEngine(void *data, size_t size)
+{
+    auto singleton = Runtime::GetSingleton();
     auto engine = make_shared(
-        singleton->GetRuntime()->deserializeCudaEngine(buffer.data(), buffer.size(), nullptr));
+        singleton->GetRuntime()->deserializeCudaEngine(data, size, nullptr));
     CHECK(engine) << "Unable to create ICudaEngine";
     return std::make_shared<Model>(engine);
 }
@@ -75,6 +84,8 @@ Runtime *Runtime::GetSingleton()
 
 std::vector<char> Runtime::ReadEngineFile(std::string plan_file)
 {
+    struct stat stat_buffer;
+    CHECK_EQ(stat(plan_file.c_str(), &stat_buffer), 0) << "File not found: " << plan_file;
     DLOG(INFO) << "Reading Engine: " << plan_file;
     std::ifstream file(plan_file, std::ios::binary | std::ios::ate);
     std::streamsize size = file.tellg();
@@ -134,11 +145,16 @@ std::shared_ptr<Model> ManagedRuntime::DeserializeEngine(std::string plan_file)
 {
     auto singleton = ManagedRuntime::GetSingleton();
     auto buffer = singleton->ReadEngineFile(plan_file);
+    return singleton->DeserializeEngine(buffer.data(), buffer.size());
+}
 
-    return singleton->UseManagedMemory([singleton, &buffer]() -> std::shared_ptr<Model> {
+std::shared_ptr<Model> ManagedRuntime::DeserializeEngine(void *data, size_t size)
+{
+    auto singleton = ManagedRuntime::GetSingleton();
+    return singleton->UseManagedMemory([singleton, data, size]() -> std::shared_ptr<Model> {
         DLOG(INFO) << "Deserializing TensorRT ICudaEngine";
         auto engine = make_shared(
-            singleton->GetRuntime()->deserializeCudaEngine(buffer.data(), buffer.size(), nullptr));
+            singleton->GetRuntime()->deserializeCudaEngine(data, size, nullptr));
 
         auto model = std::make_shared<Model>(engine);
 
