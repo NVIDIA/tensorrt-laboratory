@@ -27,8 +27,11 @@
 #ifndef _YAIS_TENSORRT_MODEL_H_
 #define _YAIS_TENSORRT_MODEL_H_
 
+#include <map>
+
 #include "YAIS/TensorRT/Common.h"
 #include "YAIS/TensorRT/Utils.h"
+
 
 namespace yais
 {
@@ -68,6 +71,7 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
     struct TensorBindingInfo;
 
     auto GetBinding(uint32_t) const -> const TensorBindingInfo &;
+    auto GetBinding(const std::string&) const -> const TensorBindingInfo &;
     auto GetBindingsCount() const { return m_Bindings.size(); }
     auto GetInputBindingCount() const { return m_InputBindings.size(); }
     auto GetOutputBindingCount() const { return m_OutputBindings.size(); }
@@ -86,7 +90,7 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
     };
 
   protected:
-    TensorBindingInfo ConfigureBinding(uint32_t);
+    TensorBindingInfo InitBinding(uint32_t);
 
   private:
     struct Weights
@@ -101,6 +105,7 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
     std::vector<uint32_t> m_OutputBindings;
     std::vector<Weights> m_Weights;
     std::string m_Name;
+    std::map<std::string, uint32_t> m_BindingIDByName;
 
     friend class Runtime;
     friend class ManagedRuntime;

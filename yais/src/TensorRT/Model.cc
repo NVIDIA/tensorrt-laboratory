@@ -52,7 +52,8 @@ Model::Model(std::shared_ptr<ICudaEngine> engine)
     DLOG(INFO) << "Initializing Bindings from Engine";
     for (uint32_t i = 0; i < m_Engine->getNbBindings(); i++)
     {
-        m_Bindings.push_back(ConfigureBinding(i));
+        m_Bindings.push_back(InitBinding(i));
+        m_BindingIDByName[m_Bindings[i].name] = i;
         if (m_Bindings[i].isInput)
             m_InputBindings.push_back(i);
         else
@@ -61,7 +62,7 @@ Model::Model(std::shared_ptr<ICudaEngine> engine)
     CHECK_EQ(m_Bindings.size(), m_Engine->getNbBindings());
 }
 
-Model::TensorBindingInfo Model::ConfigureBinding(uint32_t i)
+Model::TensorBindingInfo Model::InitBinding(uint32_t i)
 {
     TensorBindingInfo binding;
     auto dims = m_Engine->getBindingDimensions(i);
@@ -88,6 +89,16 @@ auto Model::GetBinding(uint32_t id) const -> const TensorBindingInfo &
 {
     CHECK_LT(id, m_Bindings.size()) << "Invalid BindingId; given: " << id << "; max: " << m_Bindings.size();
     return m_Bindings[id];
+}
+
+auto Model::GetBinding(const std::string& binding_name) const -> const TensorBindingInfo &
+{
+    auto search = m_BindingIDByName.find(binding_name);
+    if(search == m_BindingIDByName.end())
+    {
+        LOG(FATAL) << "Unable to find a binding with name " << binding_name;
+    }
+    return GetBinding(search->second);
 }
 
 auto Model::CreateExecutionContext() const -> std::shared_ptr<IExecutionContext>
