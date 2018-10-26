@@ -144,6 +144,11 @@ void ResourceManager::RegisterModel(std::string name, std::shared_ptr<Model> mod
  */
 void ResourceManager::AllocateResources()
 {
+    // Allocate at least some memory
+    m_HostStackSize = m_HostStackSize ? m_HostStackSize : StringToBytes("10MiB");
+    m_DeviceStackSize = m_DeviceStackSize ? m_DeviceStackSize : StringToBytes("10MiB");
+    m_ActivationsSize = m_ActivationsSize ? m_ActivationsSize : StringToBytes("10MiB");
+
     LOG(INFO) << "-- Allocating TensorRT Resources --";
     LOG(INFO) << "Creating " << m_MaxExecutions << " TensorRT execution tokens.";
     LOG(INFO) << "Creating a Pool of " << m_MaxBuffers << " Host/Device Memory Stacks";
