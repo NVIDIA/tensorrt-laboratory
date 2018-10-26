@@ -6,6 +6,8 @@ C++ library for developing compute intensive asynchronous services built on gRPC
 
 This project is superceded by the new [TensorRT Inference Server](https://devblogs.nvidia.com/nvidia-serves-deep-learning-inference/) which will be open sourced later this year.  The async gRPC and TensorRT logic from YAIS has been incorporated into the TensorRT Inference Server.
 
+[GTC Europe Slides](https://docs.google.com/presentation/d/1qxbdU_57pYtGU0jxigc3f0HI-qLSABvebWDmZxLjSWg/edit?usp=sharing)
+
 YAIS provides a bootstrap for CUDA, TensorRT and gRPC functionality so developers
 can focus on the implementation of the server-side RPC without the need for a lot of
 boilerplate code.
