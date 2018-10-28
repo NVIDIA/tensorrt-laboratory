@@ -29,6 +29,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 add_executable(yais_test
   TestMemory.cc
   TestMemoryStack.cc
+  TestCyclicStacks.cc
   TestPool.cc
   TestThreadPool.cc
   TestTaskGraph.cc

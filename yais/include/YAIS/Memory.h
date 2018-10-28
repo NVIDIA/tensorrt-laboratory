@@ -88,7 +88,7 @@ public:
   /**
      * @brief Destroy the Memory object
      */
-  virtual ~IMemory() = default;
+  virtual ~IMemory() {}
 
 protected:
   /**
@@ -121,16 +121,20 @@ class HostMemory : public IMemory
 {
 public:
   using IMemory::IMemory;
+  using BaseMemoryType = HostMemory;
   void WriteZeros() override;
   size_t DefaultAlignment() override;
+  static std::shared_ptr<HostMemory> UnsafeWrapRawPointer(void *, size_t, std::function<void(HostMemory *)>);
 };
 
 class DeviceMemory : public IMemory
 {
 public:
   using IMemory::IMemory;
+  using BaseMemoryType = DeviceMemory;
   void WriteZeros() override;
   size_t DefaultAlignment() override;
+  static std::shared_ptr<DeviceMemory> UnsafeWrapRawPointer(void *, size_t, std::function<void(DeviceMemory *)>);
 };
 
 /**
