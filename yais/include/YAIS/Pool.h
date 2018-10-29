@@ -63,7 +63,7 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
 
     Queue(Queue &&other)
     {
-        std::unique_lock<std::mutex> lock(other.mutex_);
+        std::lock_guard<std::mutex> lock(other.mutex_);
         queue_ = std::move(other.queue_);
     }
 
@@ -74,9 +74,10 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
      */
     void Push(T value)
     {
-        std::unique_lock<std::mutex> lock(mutex_);
-        queue_.push(std::move(value));
-        lock.unlock();
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            queue_.push(std::move(value));
+        }
         cond_.notify_one();
     }
 
@@ -101,7 +102,7 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
      */
     std::size_t Size()
     {
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(mutex_);
         return queue_.size();
     }
 
