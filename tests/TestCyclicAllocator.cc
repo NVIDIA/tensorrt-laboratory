@@ -25,7 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "YAIS/Memory.h"
-#include "YAIS/CyclicStacks.h"
+#include "YAIS/CyclicAllocator.h"
 #include "gtest/gtest.h"
 
 using namespace yais;
@@ -40,7 +40,7 @@ class TestCyclicStacks : public ::testing::Test
   protected:
     virtual void SetUp()
     {
-        stack = std::make_shared<CyclicStacks<CudaHostAllocator>>(5, one_mb);
+        stack = std::make_shared<CyclicAllocator<CudaHostAllocator>>(5, one_mb);
     }
 
     virtual void TearDown()
@@ -48,7 +48,7 @@ class TestCyclicStacks : public ::testing::Test
         stack.reset();
     }
 
-    std::shared_ptr<CyclicStacks<CudaHostAllocator>> stack;
+    std::shared_ptr<CyclicAllocator<CudaHostAllocator>> stack;
 };
 
 TEST_F(TestCyclicStacks, EmptyOnCreate)
@@ -57,10 +57,22 @@ TEST_F(TestCyclicStacks, EmptyOnCreate)
     EXPECT_EQ(5*one_mb,stack->AvailableBytes());
 }
 
-TEST_F(TestCyclicStacks, AllocateBuffer)
+TEST_F(TestCyclicStacks, AddSegment)
+{
+    stack->AddSegment();
+    EXPECT_EQ(6,stack->AvailableSegments());
+}
+
+TEST_F(TestCyclicStacks, DropSegment)
+{
+    stack->DropSegment();
+    EXPECT_EQ(4,stack->AvailableSegments());
+}
+
+TEST_F(TestCyclicStacks, Allocate)
 {
     {
-        auto seg_0_0 = stack->AllocateBuffer(1);
+        auto seg_0_0 = stack->Allocate(1);
         EXPECT_EQ(5*one_mb - stack->Alignment(),stack->AvailableBytes());
     }
     // even though seg_0_0 is released, the current segment does not get reset/recycled
@@ -69,11 +81,11 @@ TEST_F(TestCyclicStacks, AllocateBuffer)
     EXPECT_EQ(5*one_mb - stack->Alignment(), stack->AvailableBytes());
     
     {
-        auto seg_0_1 = stack->AllocateBuffer(1024);
+        auto seg_0_1 = stack->Allocate(1024);
         EXPECT_EQ(5,stack->AvailableSegments()); // seg_0 is still active
-        auto seg_1_0 = stack->AllocateBuffer(one_mb);
-        EXPECT_EQ(4,stack->AvailableSegments()); // seg_0 is detached; seg_1 active, but 0 free space
-        auto seg_2_0 = stack->AllocateBuffer(1024);
+        auto seg_1_0 = stack->Allocate(one_mb);
+        EXPECT_EQ(3,stack->AvailableSegments()); // seg_0 is detached; seg_1 detaches if capacity is 0
+        auto seg_2_0 = stack->Allocate(1024);
         EXPECT_EQ(3,stack->AvailableSegments()); // seg_2 is now active; 0 and 1 are detached
         seg_1_0.reset(); // we can release seg_0/1 in any order
         EXPECT_EQ(4,stack->AvailableSegments());
@@ -88,15 +100,18 @@ TEST_F(TestCyclicStacks, AllocateBuffer)
     {
         // everything has been released, so we can grab 5 x one_mb buffers
         // but we will OOM on our 6th
-        auto b0 = stack->AllocateBuffer(one_mb);
-        auto b1 = stack->AllocateBuffer(one_mb);
-        auto b2 = stack->AllocateBuffer(one_mb);
-        auto b3 = stack->AllocateBuffer(one_mb);
-        auto b4 = stack->AllocateBuffer(one_mb);
-        EXPECT_DEATH(stack->AllocateBuffer(one_mb), "");
+        auto b0 = stack->Allocate(one_mb);
+        auto b1 = stack->Allocate(one_mb);
+        auto b2 = stack->Allocate(one_mb);
+        auto b3 = stack->Allocate(one_mb);
+        auto b4 = stack->Allocate(one_mb);
+        EXPECT_EQ(0, stack->AvailableSegments());
+
+        // The following will hang and deadlock the test
+        // stack->Allocate(one_mb);
     }
 
-    EXPECT_DEATH(stack->AllocateBuffer(one_mb+1), "");
+    EXPECT_DEATH(stack->Allocate(one_mb+1), "");
 }
 
 } // namespace
