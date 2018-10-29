@@ -226,51 +226,6 @@ class Pool : public Queue<std::shared_ptr<ResourceType>>
     }
 };
 
-
-#if 0
-// A pool of available resources is simply implemented as a thread-safe queue
-template <typename T>
-using UniquePool = Queue<std::unique_ptr<T>>;
-
-
-// A RAII class for acquiring a scoped resource from a pool. 
-template <typename T>
-class ScopedPointer
-{
-  public:
-    explicit ScopedPointer(std::shared_ptr<UniquePool<T>> pool)
-        : m_Pool(pool), m_Pointer(m_Pool->Pop()) {}
-
-    ScopedPointer(ScopedPointer &&other)
-        : m_Pool(other.m_Pool)
-    {
-        m_Pool = other.m_Pool;
-        m_Pointer = std::move(other.m_Pointer);
-    }
-
-    ~ScopedPointer()
-    {
-        Clear();
-    }
-
-    void Clear()
-    {
-        if (m_Pointer) {
-            m_Pool->Push(std::move(m_Pointer));
-        }
-    }
-
-    T *operator->() const
-    {
-        return m_Pointer.get();
-    }
-
-  private:
-    std::shared_ptr<UniquePool<T>> m_Pool;
-    std::unique_ptr<T> m_Pointer;
-};
-#endif
-
 }
 
 #endif // NVIS_RESOURCEPOOL_H_
