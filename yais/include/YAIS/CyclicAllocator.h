@@ -137,8 +137,8 @@ class CyclicAllocator
     }
 
     auto AvailableBytes() {
-        std::lock_guard<std::mutex> lock(m_Mutex);
-        return m_Segments->Size() * m_MaximumAllocationSize + m_CurrentSegment->Available();
+        return m_Segments->Size() * m_MaximumAllocationSize + 
+               (m_CurrentSegment ? m_CurrentSegment->Available() : 0);
     }
 
     auto Alignment() {
