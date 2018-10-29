@@ -72,6 +72,7 @@ class MemoryStack : public IMemoryStack
     virtual ~MemoryStack() override {}
 
     using shared_ptr = std::shared_ptr<MemoryStack<AllocatorType>>;
+    using unique_ptr = std::unique_ptr<MemoryStack<AllocatorType>>;
 
     /**
      * @brief Factory function to create a std::shared_ptr<MemoryStack<AllocatorType>>
@@ -82,6 +83,11 @@ class MemoryStack : public IMemoryStack
     static shared_ptr make_shared(size_t size)
     {
         return shared_ptr(new MemoryStack<AllocatorType>(size));
+    }
+
+    static unique_ptr make_unique(size_t size)
+    {
+        return unique_ptr(new MemoryStack<AllocatorType>(size));
     }
 
     /**

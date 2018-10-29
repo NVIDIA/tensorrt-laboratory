@@ -169,8 +169,8 @@ class CyclicAllocator
     }
 
     void InternalPushSegment() {
-        auto stack = MemoryStack<AllocatorType>::make_shared(m_MaximumAllocationSize);
-        auto segment = std::make_shared<RotatingSegment>(stack);
+        auto stack = MemoryStack<AllocatorType>::make_unique(m_MaximumAllocationSize);
+        auto segment = RotatingSegment::make_shared(std::move(stack));
         m_Segments->Push(segment);
         DLOG(INFO) << "Pushed New Rotating Segment " << segment.get() << " to Pool";
     }
@@ -189,9 +189,14 @@ class CyclicAllocator
 
     class RotatingSegment : public std::enable_shared_from_this<RotatingSegment>
     {
+      private:
+        RotatingSegment(std::unique_ptr<MemoryStack<AllocatorType>> stack)
+            : m_Stack(std::move(stack)) {}
+
       public:
-        RotatingSegment(std::shared_ptr<MemoryStack<AllocatorType>> stack)
-            : m_Stack(stack) {}
+        static std::shared_ptr<RotatingSegment> make_shared(std::unique_ptr<MemoryStack<AllocatorType>> stack) {
+            return std::shared_ptr<RotatingSegment>(new RotatingSegment(std::move(stack)));
+        }
 
         virtual ~RotatingSegment() {}
 
@@ -228,7 +233,7 @@ class CyclicAllocator
         }
 
       private:
-        std::shared_ptr<MemoryStack<AllocatorType>> m_Stack;
+        std::unique_ptr<MemoryStack<AllocatorType>> m_Stack;
     };
 
     std::shared_ptr<Pool<RotatingSegment>> m_Segments;
