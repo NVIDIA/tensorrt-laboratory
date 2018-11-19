@@ -60,7 +60,7 @@
 #define NVIS_THREADPOOL_H_
 #pragma once
 
-#include "YAIS/Affinity.h"
+#include "nvcxx/core/affinity.h"
 
 #include <future>
 #include <queue>

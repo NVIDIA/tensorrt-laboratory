@@ -36,7 +36,7 @@
 
 #include "YAIS/YAIS.h"
 #include "YAIS/TensorRT.h"
-#include "YAIS/Affinity.h"
+#include "nvcxx/core/affinity.h"
 #include "YAIS/Metrics.h"
 
 using yais::Affinity;

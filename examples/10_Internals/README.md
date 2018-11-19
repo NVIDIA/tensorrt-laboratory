@@ -59,7 +59,7 @@ change the following lines to a range that works with your CPU.
 
 ### Affinity
 
-  * [Definition: YAIS/Affinity.h](../../yais/include/YAIS/Affinity.h)
+  * [Definition: nvcxx/core/affinity.h](../../yais/include/nvcxx/core/affinity.h)
   * [Implementation: YAIS/Affinity.cc](../../yais/src/Affinity.cc)
 
 In this, we request the all logical CPUs from Socket 0 that are not hyperthreads, then we get either all 
