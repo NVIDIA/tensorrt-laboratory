@@ -38,6 +38,7 @@ option(BUILD_TESTS "Build tests and benchmark suite" ON)
 set(CMAKE_CXX_STANDARD 17)
 set(default_build_type "Release")
 set(CMAKE_DEBUG_POSTFIX "-d")
+set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
 # CMake path
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
@@ -46,17 +47,6 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 # locations on all platforms.
 include(GNUInstallDirs)
 
-find_package(gflags 2.2.1 REQUIRED)
-find_package(glog 0.3.5 REQUIRED)
-
-# Find CUDA
-find_package(CUDA REQUIRED)
-message(STATUS "CUDA IncludeDir ${CUDA_INCLUDE_DIRS}")
-
-# Find TensorRT
-find_package(TensorRT REQUIRED 4.0.1)
-message(STATUS "TensorRT IncludeDir ${TensorRT_INCLUDE_DIRS}")
-message(STATUS "TensorRT Version ${TensorRT_VERSION_STRING}")
 
 # Find Protobuf installation
 # Looks for protobuf-config.cmake file installed by Protobuf's cmake installation.
@@ -81,6 +71,7 @@ if(prometheus-cpp_FOUND)
 endif(prometheus-cpp_FOUND)
 
 # Targets
+add_subdirectory(third_party/pybind11)
 add_subdirectory(yais)
 add_subdirectory(examples)
 

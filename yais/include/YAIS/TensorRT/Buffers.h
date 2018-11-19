@@ -24,35 +24,56 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NVIS_RESOURCES_H_
-#define NVIS_RESOURCES_H_
-#pragma once
+#ifndef _YAIS_TENSORRT_BUFFERS_H_
+#define _YAIS_TENSORRT_BUFFERS_H_
 
-#include <memory>
+#include <cuda.h>
+#include <cuda_runtime.h>
+
+#include "YAIS/Memory.h"
+#include "YAIS/MemoryStack.h"
+#include "YAIS/TensorRT/Common.h"
 
 namespace yais
 {
-
-struct Resources : public std::enable_shared_from_this<Resources>
+namespace TensorRT
 {
-    virtual ~Resources() {}
 
-    template <class Target>
-    std::shared_ptr<Target> casted_shared_from_this() {
-        return std::dynamic_pointer_cast<Target>(Resources::shared_from_this());
-    }
-};
-
-// credit: https://stackoverflow.com/questions/16082785/use-of-enable-shared-from-this-with-multiple-inheritance
-template <class T>
-class InheritableResources : virtual public Resources
+/**
+ * @brief Manages input/output buffers and CudaStream
+ * 
+ * Primary TensorRT resource class used to manage both a host and a device memory stacks
+ * and owns the cudaStream_t that should be used for transfers or compute on these
+ * resources.
+ */
+class Buffers : public std::enable_shared_from_this<Buffers>
 {
+    static auto Create(size_t host_size, size_t device_size) -> std::shared_ptr<Buffers>;
+
   public:
-    std::shared_ptr<T> shared_from_this() {
-        return std::dynamic_pointer_cast<T>(Resources::shared_from_this());
-    }
+    virtual ~Buffers();
+
+    void *AllocateHost(size_t size) { return m_HostStack->Allocate(size); }
+    void *AllocateDevice(size_t size) { return m_DeviceStack->Allocate(size); }
+
+    auto CreateBindings(const std::shared_ptr<Model> &model) -> std::shared_ptr<Bindings>; // todo: remove batchsize
+    auto CreateAndConfigureBindings(const std::shared_ptr<Model> &model) -> std::shared_ptr<Bindings>; // todo: remove batchsize
+
+    inline cudaStream_t Stream() { return m_Stream; }
+    void Synchronize();
+
+  private:
+    Buffers(size_t host_size, size_t device_size);
+    void Reset(bool writeZeros = false);
+
+    std::shared_ptr<MemoryStack<CudaHostAllocator>> m_HostStack;
+    std::shared_ptr<MemoryStack<CudaDeviceAllocator>> m_DeviceStack;
+    cudaStream_t m_Stream;
+
+    friend class ResourceManager;
 };
 
-}
+} // namespace TensorRT
+} // namespace yais
 
-#endif // NVIS_RESOURCES_H_
+#endif // _YAIS_TENSORRT_BUFFERS_H_

@@ -59,6 +59,14 @@ void HostMemory::WriteZeros()
     std::memset(Data(), 0, Size());
 }
 
+std::shared_ptr<HostMemory> 
+HostMemory::UnsafeWrapRawPointer(void *ptr, size_t size, std::function<void(HostMemory *)> deleter)
+{
+    auto p = std::shared_ptr<HostMemory>(new HostMemory(size), deleter);
+    p->m_BasePointer = ptr;
+    return p;
+}
+
 // DeviceMemory
 
 size_t DeviceMemory::DefaultAlignment()
@@ -69,6 +77,14 @@ size_t DeviceMemory::DefaultAlignment()
 void DeviceMemory::WriteZeros()
 {
     CHECK_EQ(cudaMemset(Data(), 0, Size()), CUDA_SUCCESS) << "WriteZeros failed on Device Allocation";
+}
+
+std::shared_ptr<DeviceMemory> 
+DeviceMemory::UnsafeWrapRawPointer(void *ptr, size_t size, std::function<void(DeviceMemory *)> deleter)
+{
+    auto p = std::shared_ptr<DeviceMemory>(new DeviceMemory(size), deleter);
+    p->m_BasePointer = ptr;
+    return p;
 }
 
 // CudaManagedMemory

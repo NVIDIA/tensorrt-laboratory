@@ -24,62 +24,38 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "YAIS/Executor.h"
+#include "YAIS/ThreadPool.h"
+#include "gtest/gtest.h"
+#include "glog/logging.h"
 
-#include <glog/logging.h>
+using namespace yais;
 
-namespace yais
+class TestThreadPool : public ::testing::Test
 {
-
-Executor::Executor()
-    : Executor(1)
-{
-}
-
-Executor::Executor(int numThreads)
-    : Executor(std::make_unique<ThreadPool>(numThreads))
-{
-}
-
-Executor::Executor(std::unique_ptr<ThreadPool> threadpool)
-    : IExecutor(), m_ThreadPool(std::move(threadpool)),
-      m_TimeoutDeadline(::grpc::Timespec2Timepoint(gpr_inf_future(GPR_CLOCK_REALTIME)))
-{
-    m_TimeoutCallback = []{};
-}
-
-void Executor::ProgressEngine(int thread_id)
-{
-    bool ok;
-    void *tag;
-    auto myCQ = m_ServerCompletionQueues[thread_id].get();
-    using NextStatus = ::grpc::ServerCompletionQueue::NextStatus;
-
-    while (true)
+  protected:
+    virtual void SetUp()
     {
-        auto status = myCQ->AsyncNext(&tag, &ok, m_TimeoutDeadline);
-        if (status == NextStatus::SHUTDOWN)
-            return;
-        else if (status == NextStatus::TIMEOUT)
-        {
-            m_TimeoutDeadline = ::grpc::Timespec2Timepoint(gpr_inf_future(GPR_CLOCK_REALTIME));
-            m_TimeoutCallback(); // the callback function is allowed to set the dealine
-        }
-        else if (status == NextStatus::GOT_EVENT)
-        {
-            auto ctx = IContext::Detag(tag);
-            if (!RunContext(ctx, ok))
-            {
-                ResetContext(ctx);
-            }
-        }
+        thread_pool = std::make_shared<ThreadPool>(3);
     }
-}
 
-void Executor::SetTimeout(time_point deadline, std::function<void()> callback)
+    virtual void TearDown()
+    {
+    }
+
+    std::shared_ptr<ThreadPool> thread_pool;
+};
+
+TEST_F(TestThreadPool, ReturnInt)
 {
-    m_TimeoutDeadline = deadline;
-    m_TimeoutCallback = callback;
+    auto should_be_1 = thread_pool->enqueue([]{ return 1; });
+    ASSERT_EQ(1, should_be_1.get());
 }
 
-} // namespace yais
+TEST_F(TestThreadPool, ReturnChainedInt)
+{
+    auto should_be_1 = thread_pool->enqueue([this]{ 
+       return thread_pool->enqueue([] { return 1; });
+    });
+    ASSERT_EQ(1, should_be_1.get().get());
+}
+

@@ -31,7 +31,7 @@
 #include <glog/logging.h>
 
 #include "YAIS/YAIS.h"
-#include "YAIS/TensorRT.h"
+#include "YAIS/TensorRT/TensorRT.h"
 
 #ifdef YAIS_USE_MPI
 #include "mpi.h"
@@ -105,7 +105,8 @@ class Inference final
             // This thread only async copies buffers H2D
             auto model = GetResources()->GetModel(ModelName(replica++));
             auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
-            auto bindings = buffers->CreateAndConfigureBindings(model, batch_size);
+            auto bindings = buffers->CreateAndConfigureBindings(model);
+            bindings->SetBatchSize(batch_size);
             bindings->CopyToDevice(bindings->InputBindings());
 
             GetResources()->GetCudaThreadPool()->enqueue([this, bindings]() mutable {

@@ -24,35 +24,32 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NVIS_RESOURCES_H_
-#define NVIS_RESOURCES_H_
-#pragma once
+#include "YAIS/TensorRT/Utils.h"
 
-#include <memory>
+#include <NvInfer.h>
+
+#include <glog/logging.h>
 
 namespace yais
 {
-
-struct Resources : public std::enable_shared_from_this<Resources>
+namespace TensorRT
 {
-    virtual ~Resources() {}
 
-    template <class Target>
-    std::shared_ptr<Target> casted_shared_from_this() {
-        return std::dynamic_pointer_cast<Target>(Resources::shared_from_this());
-    }
-};
-
-// credit: https://stackoverflow.com/questions/16082785/use-of-enable-shared-from-this-with-multiple-inheritance
-template <class T>
-class InheritableResources : virtual public Resources
+std::size_t SizeofDataType(::nvinfer1::DataType dtype)
 {
-  public:
-    std::shared_ptr<T> shared_from_this() {
-        return std::dynamic_pointer_cast<T>(Resources::shared_from_this());
-    }
-};
-
+    switch (dtype)
+    {
+    case nvinfer1::DataType::kFLOAT:
+    case nvinfer1::DataType::kINT32:
+        return 4;
+    case nvinfer1::DataType::kHALF:
+        return 2;
+    case nvinfer1::DataType::kINT8: 
+        return 1;
+    default:
+        LOG(FATAL) << "Unknown TensorRT DataType";
+    }    
 }
 
-#endif // NVIS_RESOURCES_H_
+} // end namespace TensorRT
+} // end namespace yais

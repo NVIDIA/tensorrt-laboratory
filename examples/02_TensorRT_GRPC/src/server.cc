@@ -35,8 +35,8 @@
 #include "nvml.h"
 
 #include "YAIS/YAIS.h"
-#include "YAIS/TensorRT.h"
 #include "nvcxx/core/affinity.h"
+#include "YAIS/TensorRT/TensorRT.h"
 #include "YAIS/Metrics.h"
 
 using yais::Affinity;
@@ -141,18 +141,18 @@ class FlowersContext final : public Context<BatchInput, BatchPredictions, Flower
             // Executed on a thread from CudaThreadPool
             auto model = GetResources()->GetModel("flowers");
             auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
-            auto bindings = buffers->CreateAndConfigureBindings(model, input.batch_size());
+            auto bindings = buffers->CreateAndConfigureBindings(model);
+            bindings->SetBatchSize(input.batch_size());
             bindings->SetHostAddress(0, GetResources()->GetSysvOffset(input.sysv_offset()));
             bindings->CopyToDevice(bindings->InputBindings());
             auto ctx = GetResources()->GetExecutionContext(model); // <=== Limited Resource; May Block !!!
-            auto t_start = Walltime();
             ctx->Infer(bindings);
             bindings->CopyFromDevice(bindings->OutputBindings());
             // All Async CUDA work has been queued - this thread's work is done.
-            GetResources()->GetResponseThreadPool().enqueue([this, &input, &output, model, bindings, ctx, t_start]() mutable {
+            GetResources()->GetResponseThreadPool().enqueue([this, &input, &output, model, bindings, ctx]() mutable {
                 // Executed on a thread from ResponseThreadPool
-                ctx->Synchronize(); ctx.reset(); // Finished with the Execution Context - Release it to competing threads
-                auto compute_time = Walltime() - t_start;
+                auto compute_time = ctx->Synchronize(); 
+                ctx.reset(); // Finished with the Execution Context - Release it to competing threads
                 bindings->Synchronize(); // Blocks on H2D, Compute, D2H Pipeline
                 WriteBatchPredictions(input, output, (float *)bindings->HostAddress(1));
                 bindings.reset(); // Finished with Buffers - Release it to competing threads

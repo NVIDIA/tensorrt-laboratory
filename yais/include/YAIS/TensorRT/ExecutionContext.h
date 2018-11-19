@@ -24,35 +24,54 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NVIS_RESOURCES_H_
-#define NVIS_RESOURCES_H_
-#pragma once
+#ifndef _YAIS_TENSORRT_EXECUTIONCONTEXT_H_
+#define _YAIS_TENSORRT_EXECUTIONCONTEXT_H_
 
-#include <memory>
+#include "YAIS/Memory.h"
+#include "YAIS/TensorRT/Bindings.h"
+
+#include "NvInfer.h"
 
 namespace yais
 {
-
-struct Resources : public std::enable_shared_from_this<Resources>
+namespace TensorRT
 {
-    virtual ~Resources() {}
 
-    template <class Target>
-    std::shared_ptr<Target> casted_shared_from_this() {
-        return std::dynamic_pointer_cast<Target>(Resources::shared_from_this());
-    }
-};
-
-// credit: https://stackoverflow.com/questions/16082785/use-of-enable-shared-from-this-with-multiple-inheritance
-template <class T>
-class InheritableResources : virtual public Resources
+/**
+ * @brief Manages the execution of an inference calculation
+ * 
+ * The ExecutionContext is a limited quanity resource used to control the number
+ * of simultaneous calculations allowed on the device at any given time.
+ * 
+ * A properly configured Bindings object is required to initiate the TensorRT
+ * inference calculation.
+ */
+class ExecutionContext
 {
   public:
-    std::shared_ptr<T> shared_from_this() {
-        return std::dynamic_pointer_cast<T>(Resources::shared_from_this());
-    }
+    virtual ~ExecutionContext();
+
+    DELETE_COPYABILITY(ExecutionContext);
+    DELETE_MOVEABILITY(ExecutionContext);
+
+    void SetContext(std::shared_ptr<::nvinfer1::IExecutionContext> context);
+    void Infer(const std::shared_ptr<Bindings> &);
+    auto Synchronize() -> double;
+
+  private:
+    ExecutionContext(size_t workspace_size);
+    void Reset();
+
+    std::function<double()> m_ElapsedTimer;
+    cudaEvent_t m_ExecutionContextFinished;
+    std::shared_ptr<::nvinfer1::IExecutionContext> m_Context;
+
+    std::unique_ptr<CudaDeviceAllocator> m_Workspace;
+
+    friend class ResourceManager;
 };
 
-}
+} // namespace TensorRT
+} // namespace yais
 
-#endif // NVIS_RESOURCES_H_
+#endif // _YAIS_TENSORRT_EXECUTIONCONTEXT_H_

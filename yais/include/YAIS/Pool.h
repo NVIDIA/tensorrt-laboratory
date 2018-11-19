@@ -63,7 +63,7 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
 
     Queue(Queue &&other)
     {
-        std::unique_lock<std::mutex> lock(other.mutex_);
+        std::lock_guard<std::mutex> lock(other.mutex_);
         queue_ = std::move(other.queue_);
     }
 
@@ -74,9 +74,10 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
      */
     void Push(T value)
     {
-        std::unique_lock<std::mutex> lock(mutex_);
-        queue_.push(std::move(value));
-        lock.unlock();
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            queue_.push(std::move(value));
+        }
         cond_.notify_one();
     }
 
@@ -101,7 +102,7 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
      */
     std::size_t Size()
     {
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(mutex_);
         return queue_.size();
     }
 
@@ -224,51 +225,6 @@ class Pool : public Queue<std::shared_ptr<ResourceType>>
         EmplacePush(new ResourceType(std::forward<Args>(args)...));
     }
 };
-
-
-#if 0
-// A pool of available resources is simply implemented as a thread-safe queue
-template <typename T>
-using UniquePool = Queue<std::unique_ptr<T>>;
-
-
-// A RAII class for acquiring a scoped resource from a pool. 
-template <typename T>
-class ScopedPointer
-{
-  public:
-    explicit ScopedPointer(std::shared_ptr<UniquePool<T>> pool)
-        : m_Pool(pool), m_Pointer(m_Pool->Pop()) {}
-
-    ScopedPointer(ScopedPointer &&other)
-        : m_Pool(other.m_Pool)
-    {
-        m_Pool = other.m_Pool;
-        m_Pointer = std::move(other.m_Pointer);
-    }
-
-    ~ScopedPointer()
-    {
-        Clear();
-    }
-
-    void Clear()
-    {
-        if (m_Pointer) {
-            m_Pool->Push(std::move(m_Pointer));
-        }
-    }
-
-    T *operator->() const
-    {
-        return m_Pointer.get();
-    }
-
-  private:
-    std::shared_ptr<UniquePool<T>> m_Pool;
-    std::unique_ptr<T> m_Pointer;
-};
-#endif
 
 }
 

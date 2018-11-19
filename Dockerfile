@@ -63,7 +63,7 @@ RUN git clone -b v0.3.5 https://github.com/google/glog.git \
 # cmake build per: https://github.com/grpc/grpc/blob/master/test/distrib/cpp/run_distrib_test_cmake.sh
 # -DCMAKE_INSTALL_PREFIX:PATH=/usr to overwrite the version of protobuf installed in the TensorRT base image
 WORKDIR /source
-RUN git clone -b v1.11.0 https://github.com/grpc/grpc \
+RUN git clone -b v1.13.0 https://github.com/grpc/grpc \
  && cd grpc \
  && git submodule update --init \
  && cd third_party/cares/cares \ 
@@ -79,14 +79,14 @@ RUN git clone -b v1.11.0 https://github.com/grpc/grpc \
  && cd ../../../.. \ 
  && rm -rf third_party/zlib \
  && cd third_party/protobuf && mkdir -p cmake/build && cd cmake/build \
- && cmake -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX:PATH=/usr -DCMAKE_BUILD_TYPE=Release .. \
+ && cmake -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX:PATH=/usr -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE -DBUILD_SHARED_LIBRARIES=ON .. \
  && make -j20 install \
  && cd ../../../.. \ 
  && rm -rf third_party/protobuf \
  && cd /source/grpc \
  && mkdir -p cmake/build \
  && cd cmake/build \
- && cmake -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package -DgRPC_ZLIB_PROVIDER=package \
+ && cmake -DBUILD_SHARED_LIBRARIES=ON -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package -DgRPC_ZLIB_PROVIDER=package \
           -DgRPC_CARES_PROVIDER=package -DCMAKE_BUILD_TYPE=Release -DgRPC_SSL_PROVIDER=package -DgRPC_GFLAGS_PROVIDER=package ../.. \
  && make -j20 install \
  && cd /source && rm -rf grpc
@@ -121,7 +121,7 @@ RUN git clone https://github.com/jupp0r/prometheus-cpp.git \
  && git checkout -b yais e7709f7e3b71bc5b1ac147971c87f2f0ae9ea358 \
  && git submodule update --init --recursive \
  && mkdir build && cd build \
- && cmake .. \
+ && cmake -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE .. \
  && make -j \
  && make install
 
@@ -136,9 +136,17 @@ RUN git clone https://github.com/cameron314/concurrentqueue.git \
  && mkdir -p /usr/local/include/moodycamel \
  && cp *.h /usr/local/include/moodycamel/
 
+RUN git clone https://github.com/bloomen/transwarp.git \
+ && cd transwarp \
+ && git checkout 1.8.0 \
+ && mkdir -p /usr/local/include/transwarp \
+ && cp src/transwarp.h /usr/local/include/transwarp/transwarp.h \
+ && cd .. && rm -rf transwarp
+
+
 # NVIDIA/YAIS
 
 WORKDIR /work
 COPY . .
-RUN ./build.sh
+RUN ./build.sh && rm -rf build
 

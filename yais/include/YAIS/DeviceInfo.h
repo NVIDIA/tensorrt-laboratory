@@ -24,35 +24,23 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NVIS_RESOURCES_H_
-#define NVIS_RESOURCES_H_
+#ifndef NVIS_DEVICE_INFO_H_
+#define NVIS_DEVICE_INFO_H_
 #pragma once
 
-#include <memory>
+#include "YAIS/Affinity.h"
 
 namespace yais
 {
 
-struct Resources : public std::enable_shared_from_this<Resources>
-{
-    virtual ~Resources() {}
+std::string GetDeviceUUID(int device_id);
 
-    template <class Target>
-    std::shared_ptr<Target> casted_shared_from_this() {
-        return std::dynamic_pointer_cast<Target>(Resources::shared_from_this());
-    }
-};
+double GetDevicePowerUsage(int device_id);
+double GetDevicePowerLimit(int device_id);
 
-// credit: https://stackoverflow.com/questions/16082785/use-of-enable-shared-from-this-with-multiple-inheritance
-template <class T>
-class InheritableResources : virtual public Resources
-{
-  public:
-    std::shared_ptr<T> shared_from_this() {
-        return std::dynamic_pointer_cast<T>(Resources::shared_from_this());
-    }
-};
+yais::CpuSet GetDeviceAffinity(int device_id);
 
-}
+} // end namespace yais
 
-#endif // NVIS_RESOURCES_H_
+#endif // NVIS_DEVICE_INFO_H_
+

@@ -24,35 +24,27 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NVIS_RESOURCES_H_
-#define NVIS_RESOURCES_H_
-#pragma once
+#ifndef _YAIS_TENSORRT_COMMON_H_
+#define _YAIS_TENSORRT_COMMON_H_
 
-#include <memory>
+#include "YAIS/Common.h"
+
+#include <NvInfer.h>
 
 namespace yais
 {
-
-struct Resources : public std::enable_shared_from_this<Resources>
+namespace TensorRT
 {
-    virtual ~Resources() {}
 
-    template <class Target>
-    std::shared_ptr<Target> casted_shared_from_this() {
-        return std::dynamic_pointer_cast<Target>(Resources::shared_from_this());
-    }
-};
+class Runtime;
+class ManagedRuntime;
+class Model;
+class Buffers;
+class Bindings;
+class ExecutionContext;
+class ResourceManager;
 
-// credit: https://stackoverflow.com/questions/16082785/use-of-enable-shared-from-this-with-multiple-inheritance
-template <class T>
-class InheritableResources : virtual public Resources
-{
-  public:
-    std::shared_ptr<T> shared_from_this() {
-        return std::dynamic_pointer_cast<T>(Resources::shared_from_this());
-    }
-};
+} // namespace TensorRT
+} // namespace yais
 
-}
-
-#endif // NVIS_RESOURCES_H_
+#endif //_YAIS_TENSORRT_COMMON_H_

@@ -40,7 +40,7 @@ class CpuSet : public cpuaff::cpu_set
     CpuSet Union(const CpuSet& other) const;
     CpuSet Difference(const CpuSet& other) const;
 
-    auto GetAllocator() const
+    auto GetAllocator() const -> cpuaff::round_robin_allocator
     {
         return cpuaff::round_robin_allocator(*this);
     }

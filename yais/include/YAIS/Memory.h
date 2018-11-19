@@ -29,11 +29,13 @@
 
 #include <memory>
 
+#include "YAIS/Utils.h"
+
 namespace yais
 {
 
-std::string BytesToString(size_t bytes);
-std::uint64_t StringToBytes(const std::string);
+std::string BytesToString(std::size_t bytes);
+std::size_t StringToBytes(const std::string);
 
 std::size_t GetDeviceAlignment();
 
@@ -119,16 +121,20 @@ class HostMemory : public IMemory
 {
 public:
   using IMemory::IMemory;
+  using BaseMemoryType = HostMemory;
   void WriteZeros() override;
   size_t DefaultAlignment() override;
+  static std::shared_ptr<HostMemory> UnsafeWrapRawPointer(void *, size_t, std::function<void(HostMemory *)>);
 };
 
 class DeviceMemory : public IMemory
 {
 public:
   using IMemory::IMemory;
+  using BaseMemoryType = DeviceMemory;
   void WriteZeros() override;
   size_t DefaultAlignment() override;
+  static std::shared_ptr<DeviceMemory> UnsafeWrapRawPointer(void *, size_t, std::function<void(DeviceMemory *)>);
 };
 
 /**
@@ -141,6 +147,9 @@ class CudaManagedMemory : public DeviceMemory
 protected:
   CudaManagedMemory(size_t size);
   virtual ~CudaManagedMemory() override;
+
+  DELETE_COPYABILITY(CudaManagedMemory);
+  DELETE_MOVEABILITY(CudaManagedMemory);
 };
 
 /**
@@ -153,6 +162,8 @@ class CudaDeviceMemory : public DeviceMemory
 protected:
   CudaDeviceMemory(size_t size);
   virtual ~CudaDeviceMemory() override;
+  DELETE_COPYABILITY(CudaDeviceMemory);
+  DELETE_MOVEABILITY(CudaDeviceMemory);
 };
 
 /**
@@ -166,6 +177,8 @@ class CudaHostMemory : public HostMemory
 protected:
   CudaHostMemory(size_t size);
   virtual ~CudaHostMemory() override;
+  DELETE_COPYABILITY(CudaHostMemory);
+  DELETE_MOVEABILITY(CudaHostMemory);
 };
 
 /**
@@ -176,6 +189,8 @@ class SystemMallocMemory : public HostMemory
 protected:
   SystemMallocMemory(size_t size);
   virtual ~SystemMallocMemory() override;
+  DELETE_COPYABILITY(SystemMallocMemory);
+  DELETE_MOVEABILITY(SystemMallocMemory);
 };
 
 /**
@@ -192,6 +207,9 @@ class Allocator final : public MemoryType
 protected:
   // Inherit Constructors from Base Class
   using MemoryType::MemoryType;
+
+  DELETE_COPYABILITY(Allocator);
+  DELETE_MOVEABILITY(Allocator);
 
 public:
   /**

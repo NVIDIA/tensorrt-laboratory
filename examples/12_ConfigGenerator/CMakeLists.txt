@@ -24,25 +24,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-include_directories(${CUDA_INCLUDE_DIRS})
-include_directories(${TensorRT_INCLUDE_DIRS})
+pybind11_add_module(config_generator generator.cc)
 
-add_executable(inference.x
-    inference.cc
-    ${PROTO_SRCS}
-    ${PROTO_GRPC_SRCS})
-
-target_link_libraries(inference.x
-    yais
-    yais-tensorrt
+target_link_libraries(config_generator 
+  PUBLIC
+     yais
+     nv-inference-protos
 )
-
-if(YAIS_ENABLE_MPI)
-find_package(MPI)
-include_directories(SYSTEM ${MPI_INCLUDE_PATH})
-target_link_libraries(inference.x
-    ${MPI_C_LIBRARIES}
-    ${MPI_CXX_LIBRARIES}
-)
-target_compile_definitions(inference.x PUBLIC YAIS_USE_MPI)
-endif()

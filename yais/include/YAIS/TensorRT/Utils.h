@@ -24,35 +24,73 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NVIS_RESOURCES_H_
-#define NVIS_RESOURCES_H_
-#pragma once
+#ifndef _YAIS_TENSORRT_UTILS_H_
+#define _YAIS_TENSORRT_UTILS_H_
 
 #include <memory>
 
+#include <NvInfer.h>
+
 namespace yais
 {
-
-struct Resources : public std::enable_shared_from_this<Resources>
+namespace TensorRT
 {
-    virtual ~Resources() {}
 
-    template <class Target>
-    std::shared_ptr<Target> casted_shared_from_this() {
-        return std::dynamic_pointer_cast<Target>(Resources::shared_from_this());
+/**
+ * @brief Deleter for nvinfer interface objects.
+ */
+struct NvInferDeleter
+{
+    template <typename T>
+    void operator()(T *obj) const
+    {
+        if (obj)
+        {
+            obj->destroy();
+        }
     }
 };
 
-// credit: https://stackoverflow.com/questions/16082785/use-of-enable-shared-from-this-with-multiple-inheritance
-template <class T>
-class InheritableResources : virtual public Resources
+/**
+ * @brief Create a std::shared_ptr for an nvinfer interface object
+ * 
+ * @tparam T 
+ * @param obj 
+ * @return std::shared_ptr<T> 
+ */
+template <typename T>
+std::shared_ptr<T> make_shared(T *obj)
 {
-  public:
-    std::shared_ptr<T> shared_from_this() {
-        return std::dynamic_pointer_cast<T>(Resources::shared_from_this());
+    if (!obj)
+    {
+        throw std::runtime_error("Failed to create object");
     }
+    return std::shared_ptr<T>(obj, NvInferDeleter());
 };
 
+/**
+ * @brief Create a std::unique_ptr for an nvinfer interface object
+ * 
+ * @tparam T 
+ * @param obj 
+ * @return std::unique_ptr<T, NvInferDeleter> 
+ */
+template <typename T>
+std::unique_ptr<T, NvInferDeleter> make_unique(T *obj)
+{
+    if (!obj)
+    {
+        throw std::runtime_error("Failed to create object");
+    }
+    return std::unique_ptr<T, NvInferDeleter>(obj);
 }
 
-#endif // NVIS_RESOURCES_H_
+/**
+ * @brief Number of bytes for a given TensorRT DataType
+ */
+std::size_t SizeofDataType(::nvinfer1::DataType dtype);
+
+} // namespace TensorRT
+} // namespace yais
+
+#endif // _YAIS_TENSORRT_UTILS_H_

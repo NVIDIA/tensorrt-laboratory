@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+import os
+import pathlib
+import shutil
+
+from contextlib import contextmanager
+
+import click
+import config_generator as cg
+
+FileType = click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True)
+PathType = click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True)
+
+@contextmanager
+def cd(newdir):
+    prevdir = os.getcwd()
+    os.chdir(os.path.expanduser(newdir))
+    try:
+        yield
+    finally:
+        os.chdir(prevdir)
+
+# Path(exists=False, file_okay=True, dir_okay=True, writable=False, readable=True, resolve_path=False)
+
+class ModelStore:
+
+    def __init__(self, *, path, create=False, validate=False):
+        if not os.path.isdir(path):
+            pathlib.Path(path).mkdir(parents=create, exist_ok=create)
+        self.path = os.path.abspath(path)
+        self.name = os.path.basename(self.path)
+
+    def model_name(self, *, engine, name=None):
+        base = os.path.basename(engine)
+        model = name or base.replace(".engine", "")
+        return model
+
+    def model_path(self, *, name):
+        return os.path.join(self.path, name)
+
+    def engine_path(self, *, name, version=0):
+        return os.path.join(self.model_path(name=name), str(version))
+
+    def create_engine_path(self, *, name, version):
+        engine_path = self.engine_path(name=name, version=version)
+        if os.path.exists(engine_path):
+            raise RuntimeError("{} already exists in the model store".format(model))
+        pathlib.Path(engine_path).mkdir(parents=True, exist_ok=True)
+        return engine_path
+
+    def copy_and_link_engine(self, *, name, version, engine):
+        engine_path = self.create_engine_path(name=name, version=version)
+        shutil.copy(engine, engine_path)
+        with cd(engine_path):
+            os.symlink(os.path.basename(engine), "model.plan")
+
+    def add_tensorrt_engine(self, *, engine, name=None, concurrency=1, version=0):
+        engine = os.path.abspath(engine)
+        if not os.path.isfile(engine):
+            raise RuntimeError("{} engine does not exist".format(engine))
+        name = self.model_name(engine=engine, name=name)
+        model_path = self.model_path(name=name)
+        self.copy_and_link_engine(name=name, version=version, engine=engine)
+        config = cg.tensorrt_engine(name, engine, concurrency)
+        with cd(model_path), open("config.pbtxt", "w") as file:
+            file.write(config)
+
+@click.command()
+@click.option("--engine", type=FileType, required=True, help="TensorRT serialized engine")
+@click.option("--concurrency", type=int, default=1, help="max number of concurrency executions allowed")
+@click.option("--name", default=None, help="model name; default to basename(engine) with the ext dropped")
+@click.option("--version", type=int, default=0, help="model version")
+@click.option("--store-path", default=None, help="model store path; default to ./model-store")
+def main(engine, concurrency, name, store_path, version):
+    store_path = store_path or "model-store"
+    store = ModelStore(path=store_path, create=True)
+    base = os.path.basename(engine)
+    name = name or base.replace(".engine", "")
+    store.add_tensorrt_engine(engine=engine, name=name, concurrency=concurrency, version=version)
+
+if __name__ == "__main__":
+    main()
