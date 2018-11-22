@@ -25,6 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "tensorrt/playground/cuda/memory.h"
+#include "tensorrt/playground/allocator.h"
 #include "gtest/gtest.h"
 
 #include <list>
@@ -39,18 +40,16 @@ static size_t one_mb = 1024*1024;
 template <typename T>
 class TestMemory : public ::testing::Test
 {
-  public:
-    typedef std::list<T> List;
 };
 
-using AllocatorTypes = ::testing::Types<
-    CudaDeviceAllocator, CudaManagedAllocator, CudaHostAllocator, SystemMallocAllocator>;
+using MemoryTypes = ::testing::Types<CudaDeviceMemory, CudaManagedMemory, CudaHostMemory>;
 
-TYPED_TEST_CASE(TestMemory, AllocatorTypes);
+
+TYPED_TEST_CASE(TestMemory, MemoryTypes);
 
 TYPED_TEST(TestMemory, make_shared)
 {
-    auto shared = TypeParam::make_shared(one_mb);
+    auto shared = Allocator<TypeParam>::make_shared(one_mb);
     EXPECT_TRUE(shared->Data());
     EXPECT_EQ(one_mb, shared->Size());
     shared.reset();
@@ -59,7 +58,7 @@ TYPED_TEST(TestMemory, make_shared)
 
 TYPED_TEST(TestMemory, make_unique)
 {
-    auto unique = TypeParam::make_unique(one_mb);
+    auto unique = Allocator<TypeParam>::make_unique(one_mb);
     EXPECT_TRUE(unique->Data());
     EXPECT_EQ(one_mb, unique->Size());
     unique.reset();
@@ -84,24 +83,6 @@ TEST_F(TestBytesToString, BytesToString)
     EXPECT_EQ(string("432.0 MiB"), BytesToString(452984832));
     EXPECT_EQ( string("27.0 GiB"), BytesToString(28991029248));
     EXPECT_EQ(  string("1.7 TiB"), BytesToString(1855425871872));
-}
-
-TEST_F(TestBytesToString, StringToBytes)
-{
-    EXPECT_EQ(          0, StringToBytes("0B"));
-    EXPECT_EQ(          0, StringToBytes("0GB"));
-    EXPECT_EQ(       1000, StringToBytes("1000B"));
-    EXPECT_EQ(       1000, StringToBytes("1000b"));
-    EXPECT_EQ(       1000, StringToBytes("1kb"));
-    EXPECT_EQ(       1023, StringToBytes("1023b"));
-//  EXPECT_EQ(       1023, StringToBytes("1.023kb")); // no effort to control rounding - this fails with 1022
-    EXPECT_EQ(       1024, StringToBytes("1kib"));
-    EXPECT_EQ(       1024, StringToBytes("1.0KiB"));
-    EXPECT_EQ(    8000000, StringToBytes("8.0MB"));
-    EXPECT_EQ(    8388608, StringToBytes("8.0MiB"));
-    EXPECT_EQ(18253611008, StringToBytes("17GiB"));
-    EXPECT_DEATH(StringToBytes("17G"), "");
-    EXPECT_DEATH(StringToBytes("yais"), "");
 }
 
 } // namespace

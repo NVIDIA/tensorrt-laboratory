@@ -41,13 +41,11 @@ static size_t one_mb = 1024*1024;
 template <typename T>
 class TestMemory : public ::testing::Test
 {
-  public:
-    typedef std::list<T> List;
 };
 
-using AllocatorTypes = ::testing::Types<SystemMallocMemory>;
+using MemoryTypes = ::testing::Types<SystemMallocMemory>;
 
-TYPED_TEST_CASE(TestMemory, AllocatorTypes);
+TYPED_TEST_CASE(TestMemory, MemoryTypes);
 
 TYPED_TEST(TestMemory, make_shared)
 {

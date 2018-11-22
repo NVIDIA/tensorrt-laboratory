@@ -7,6 +7,7 @@ include(GNUInstallDirs)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+option(BUILD_CUDA "Build with CUDA Support" ON)
 option(ENABLE_TESTING "Build tests" ON)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -33,6 +34,10 @@ add_compile_options(
 )
 
 add_subdirectory(core)
+if(BUILD_CUDA)
+  message(STATUS "nvcxx-cuda enabled")
+  add_subdirectory(cuda)
+endif()
 
 # install
 

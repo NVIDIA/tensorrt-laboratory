@@ -74,8 +74,7 @@ void SystemMallocMemory::Free()
 
 const std::string& SystemMallocMemory::Type() const
 {
-    static std::string type = "SystemMallocMemory";
-    return type;
+    return "SystemMallocMemory";
 }
 
 } // namespace yais

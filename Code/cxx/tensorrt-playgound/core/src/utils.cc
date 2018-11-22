@@ -73,4 +73,5 @@ std::uint64_t StringToBytes(const std::string str)
     auto scalar = std::stod(m[1]);
     return (std::uint64_t)(scalar * pow(base, exponent));
 }
-}
+
+} // namespace yais

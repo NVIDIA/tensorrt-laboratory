@@ -24,70 +24,60 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "YAIS/DeviceInfo.h"
+#include "tensorrt/playground/cuda/device_info.h"
 
 #include <algorithm>
+
 #include <glog/logging.h>
-#include "nvml.h"
 
-#define   test_bit(_n,_p)     ( _n & ( 1UL << _p))
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <nvml.h>
 
-namespace yais
+#define test_bit(_n, _p) (_n & (1UL << _p))
+
+namespace
 {
-
 struct nvmlState
 {
-    nvmlState() { CHECK_EQ(nvmlInit(), NVML_SUCCESS) << "Failed to initialize NVML"; }
-    ~nvmlState() { CHECK_EQ(nvmlShutdown(), NVML_SUCCESS) << "Failed to Shutdown NVML"; }
+    nvmlState()
+    {
+        CHECK_EQ(nvmlInit(), NVML_SUCCESS) << "Failed to initialize NVML";
+    }
+
+    ~nvmlState()
+    {
+        CHECK_EQ(nvmlShutdown(), NVML_SUCCESS) << "Failed to Shutdown NVML";
+    }
 };
 
 static auto nvmlInstatnce = std::make_unique<nvmlState>();
 
-std::string GetDeviceUUID(int device_id)
+nvmlDevice_t GetHandleById(int device_id)
 {
-    char buffer[256];
-    nvmlDevice_t gpu;
-
-    CHECK_EQ(nvmlDeviceGetHandleByIndex(device_id, &gpu), NVML_SUCCESS);
-    CHECK_EQ(nvmlDeviceGetUUID(gpu, buffer, 256), NVML_SUCCESS);
-    return buffer;
+    nvmlDevice_t handle;
+    CHECK_EQ(nvmlDeviceGetHandleByIndex(device_id, &handle), NVML_SUCCESS);
+    return handle;
 }
 
-double GetDevicePowerUsage(int device_id)
-{
-    nvmlDevice_t gpu;
-    unsigned int power;
-    CHECK_EQ(nvmlDeviceGetHandleByIndex(0, &gpu), NVML_SUCCESS);
-    CHECK_EQ(nvmlDeviceGetPowerUsage(gpu, &power), NVML_SUCCESS);
-    return static_cast<double>(power) * 0.001;
-}
+} // namespace
 
-double GetDevicePowerLimit(int device_id)
+namespace yais
 {
-    nvmlDevice_t gpu;
-    unsigned int limit;
-    CHECK_EQ(nvmlDeviceGetHandleByIndex(device_id, &gpu), NVML_SUCCESS);
-    CHECK_EQ(nvmlDeviceGetPowerManagementLimit(gpu, &limit), NVML_SUCCESS);
-    return static_cast<double>(limit) * 0.001;
-}
-
-CpuSet GetDeviceAffinity(int device_id)
+CpuSet DeviceInfo::Affinity(int device_id)
 {
     CpuSet cpus;
-    nvmlDevice_t gpu;
     unsigned long cpu_mask = 0;
-
-    CHECK_EQ(nvmlDeviceGetHandleByIndex(device_id, &gpu), NVML_SUCCESS)
-        << "Failed to get Device for index=" << device_id;
+    nvmlDevice_t gpu = GetHandleById(device_id);
 
     CHECK_EQ(nvmlDeviceGetCpuAffinity(gpu, sizeof(cpu_mask), &cpu_mask), NVML_SUCCESS)
         << "Failed to retrieve CpusSet for GPU=" << device_id;
 
-    for (int i=0; i<8*sizeof(cpu_mask); i++)
+    for(int i = 0; i < 8 * sizeof(cpu_mask); i++)
     {
-        if (test_bit(cpu_mask, i)) {
+        if(test_bit(cpu_mask, i))
+        {
             cpus.insert(Affinity::GetCpuFromId(i));
-            //cpus = cpus.Union(Affinity::GetCpuFromId(i));
         }
     }
 
@@ -95,5 +85,32 @@ CpuSet GetDeviceAffinity(int device_id)
     return cpus;
 }
 
-} // namespace yais
+std::size_t DeviceInfo::Alignment()
+{
+    struct cudaDeviceProp properties;
+    CHECK_EQ(CUDA_SUCCESS, cudaGetDeviceProperties(&properties, 0));
+    return properties.textureAlignment;
+}
 
+double DeviceInfo::PowerUsage(int device_id)
+{
+    unsigned int power;
+    CHECK_EQ(nvmlDeviceGetPowerUsage(GetHandleById(device_id), &power), NVML_SUCCESS);
+    return static_cast<double>(power) * 0.001;
+}
+
+double DeviceInfo::PowerLimit(int device_id)
+{
+    unsigned int limit;
+    CHECK_EQ(nvmlDeviceGetPowerManagementLimit(GetHandleById(device_id), &limit), NVML_SUCCESS);
+    return static_cast<double>(limit) * 0.001;
+}
+
+std::string DeviceInfo::UUID(int device_id)
+{
+    char buffer[256];
+    CHECK_EQ(nvmlDeviceGetUUID(GetHandleById(device_id), buffer, 256), NVML_SUCCESS);
+    return buffer;
+}
+
+} // namespace yais

@@ -24,8 +24,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NVIS_DEVICE_INFO_H_
-#define NVIS_DEVICE_INFO_H_
 #pragma once
 
 #include "tensorrt/playground/affinity.h"
@@ -33,14 +31,14 @@
 namespace yais
 {
 
-std::string GetDeviceUUID(int device_id);
-
-double GetDevicePowerUsage(int device_id);
-double GetDevicePowerLimit(int device_id);
-
-yais::CpuSet GetDeviceAffinity(int device_id);
+struct DeviceInfo
+{
+    static auto Affinity(int device_id) -> CpuSet;
+    static auto Alignment() -> std::size_t;
+    static auto EnergyConsumption(int device_id) -> double;
+    static auto PowerUsage(int device_id) -> double;
+    static auto PowerLimit(int device_id) -> double;
+    static auto UUID(int device_id) -> std::string;
+};
 
 } // end namespace yais
-
-#endif // NVIS_DEVICE_INFO_H_
-
