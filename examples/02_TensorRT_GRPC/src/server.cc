@@ -35,7 +35,7 @@
 #include "nvml.h"
 
 #include "YAIS/YAIS.h"
-#include "nvcxx/core/affinity.h"
+#include "tensorrt/playground/affinity.h"
 #include "YAIS/TensorRT/TensorRT.h"
 #include "YAIS/Metrics.h"
 

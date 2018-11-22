@@ -28,7 +28,7 @@
 #define NVIS_DEVICE_INFO_H_
 #pragma once
 
-#include "YAIS/Affinity.h"
+#include "tensorrt/playground/affinity.h"
 
 namespace yais
 {

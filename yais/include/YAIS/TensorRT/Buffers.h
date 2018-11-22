@@ -30,8 +30,8 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "YAIS/Memory.h"
-#include "YAIS/MemoryStack.h"
+#include "tensorrt/playground/memory.h"
+#include "tensorrt/playground/memory_stack.h"
 #include "YAIS/TensorRT/Common.h"
 
 namespace yais

@@ -34,6 +34,6 @@
 #include "YAIS/RPC.h"
 #include "YAIS/Service.h"
 #include "YAIS/Server.h"
-#include "YAIS/ThreadPool.h"
+#include "tensorrt/playground/thread_pool.h"
 
 #endif // NVIS_H_

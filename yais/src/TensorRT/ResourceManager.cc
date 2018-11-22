@@ -26,7 +26,7 @@
  */
 #include "YAIS/TensorRT/ResourceManager.h"
 
-#include "YAIS/Memory.h"
+#include "tensorrt/playground/memory.h"
 
 #include <glog/logging.h>
 

@@ -36,11 +36,8 @@ message(STATUS "TensorRT IncludeDir ${TensorRT_INCLUDE_DIRS}")
 message(STATUS "TensorRT Version ${TensorRT_VERSION_STRING}")
 
 add_library(yais
-  src/Affinity.cc
   src/DeviceInfo.cc
-  src/Memory.cc
   src/MemoryStack.cc
-  src/ThreadPool.cc
   src/Service/Executor.cc
   src/Service/Metrics.cc
   src/Service/Server.cc
@@ -78,7 +75,7 @@ target_include_directories(yais-tensorrt PUBLIC
 #     PRIVATE cxx_variadic_templates)
 
 # Depend on a library that we defined in the top-level file
-target_link_libraries(yais 
+target_link_libraries(yais
     ${CUDA_LIBRARIES}
     nvidia-ml
     ${_GRPC_GRPCPP_UNSECURE}
@@ -86,6 +83,7 @@ target_link_libraries(yais
     gflags
     glog
     prometheus-cpp::prometheus-cpp
+    nvcxx::core
 )
 
 target_link_libraries(yais-tensorrt
@@ -94,19 +92,19 @@ target_link_libraries(yais-tensorrt
 )
 
 # 'make install' to the correct locations (provided by GNUInstallDirs).
-install(TARGETS yais yais-tensorrt EXPORT yaisConfig
-    ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR})  # This is for Windows
-install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+#install(TARGETS yais yais-tensorrt EXPORT yaisConfig
+#    ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#    LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#    RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR})  # This is for Windows
+#install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 # This makes the project importable from the install directory
 # Put config file in per-project dir (name MUST match), can also
 # just go into 'cmake'.
-install(EXPORT yaisConfig DESTINATION share/yais/cmake)
+#install(EXPORT yaisConfig DESTINATION share/yais/cmake)
 
 # This makes the project importable from the build directory
-export(TARGETS yais FILE yaisConfig.cmake)
+#export(TARGETS yais FILE yaisConfig.cmake)
 
 # Every library has unit tests, of course
 # add_executable(testlib

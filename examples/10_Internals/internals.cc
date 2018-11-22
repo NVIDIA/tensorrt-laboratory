@@ -24,11 +24,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "nvcxx/core/affinity.h"
-#include "YAIS/ThreadPool.h"
-#include "YAIS/Memory.h"
-#include "YAIS/MemoryStack.h"
-#include "YAIS/Pool.h"
+#include "tensorrt/playground/affinity.h"
+#include "tensorrt/playground/thread_pool.h"
+#include "tensorrt/playground/memory.h"
+#include "tensorrt/playground/memory_stack.h"
+#include "tensorrt/playground/pool.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>

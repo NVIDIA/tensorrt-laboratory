@@ -27,11 +27,7 @@
 include_directories(${GTEST_INCLUDE_DIRS})
 
 add_executable(yais_test
-  TestMemory.cc
-  TestMemoryStack.cc
   TestCyclicAllocator.cc
-  TestPool.cc
-  TestThreadPool.cc
   TestTaskGraph.cc
 )
 
@@ -39,7 +35,3 @@ target_link_libraries(yais_test PRIVATE yais ${GTEST_BOTH_LIBRARIES})
 
 add_test(NAME yais_test COMMAND $<TARGET_FILE:yais_test>)
 
-find_package(benchmark)
-if(benchmark_FOUND)
-  add_subdirectory(benchmarks)
-endif(benchmark_FOUND)

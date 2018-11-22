@@ -31,7 +31,7 @@
 #include "YAIS/Interfaces.h"
 #include "YAIS/Metrics.h"
 #include "YAIS/Resources.h"
-#include "YAIS/ThreadPool.h"
+#include "tensorrt/playground/thread_pool.h"
 
 #include <thread>
 

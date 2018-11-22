@@ -30,7 +30,7 @@
 #include <thread>
 
 #include "YAIS/YAIS.h"
-#include "YAIS/Memory.h"
+#include "tensorrt/playground/memory.h"
 #include "moodycamel/blockingconcurrentqueue.h"
 
 using yais::Context;

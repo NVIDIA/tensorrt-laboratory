@@ -24,66 +24,64 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _YAIS_CYCLIC_STACK_H_
-#define _YAIS_CYCLIC_STACK_H_
+#pragma once
 
 #include <vector>
 
-#include "YAIS/Memory.h"
-#include "YAIS/MemoryStack.h"
-#include "YAIS/Pool.h"
+#include "tensorrt/playground/memory.h"
+#include "tensorrt/playground/memory_stack.h"
+#include "tensorrt/playground/pool.h"
 
 #include <glog/logging.h>
 
 namespace yais
 {
-
 /**
  * @brief CyclicAllocator
  *
- * Ring of RotatingSegments which are specialized MemoryStack objects of AllocatorType.
+ * Ring of RotatingSegments which are specialized MemoryStack objects of MemoryType.
  * This type of allocator is best used in situations where the memory allocated is temporary
  * and the lifespan of the allocation is reasonably consistent with its peers. One usecase
  * for this allocator is to provide the scratch space for input/output bindings and activation
  * storage needed by TensorRT for a given inference transaction.
- * 
+ *
  * The set of RotatingSegments that form the ring is managed by the Pool resource manager.
- * RotatingSegments that are Pop()'ed from the pool will automatically be returned to the 
+ * RotatingSegments that are Pop()'ed from the pool will automatically be returned to the
  * Pool and have their stack pointers Reset when the reference count of the RotatingSegment
  * goes to zero.
- * 
+ *
  * RotatingSegment does not conform to the IMemoryStack inteface as the Allocate function
  * returns a different and unique object.
- * 
+ *
  * MemoryStack::Allocate returns a void* to the start of a continuous segment of a given
  * size reserved on the stack.
- * 
- * RotatingSegment::Allocate returns a specialized std::shared_ptr<IMemory> which is
+ *
+ * RotatingSegment::Allocate returns a specialized std::shared_ptr<GenericMemoryType> which is
  * instantiated from the same void* from the RotatingSegment's internal MemoryStack.
- * The returned shared_ptr is created with a custom deleter which holds a reference to 
+ * The returned shared_ptr is created with a custom deleter which holds a reference to
  * the RotatingSegment that created it. This capture of shared_from_this ensures that
  * the RotatingSegment is only returned to the Pool after all allocations from the
  * segment have been released.
- * 
+ *
  * Allocations are performed on one segment until that segment is no longer capable of
  * meeting the allocation requested.  In that situation, a new/fresh segment is pulled
  * from the Pool and allocation continutes.
- * 
+ *
  * The ineffiency or memory lost to fragmentation is whatever is left on the stack when
  * the segment is rotated.  Say there is 1000mb stack with 50mb remaining and the next
  * request is 100mb. 50mb of memory for that segment goes unused.
- * 
- * To this end, segments should be large.  However, there is a competing force that 
+ *
+ * To this end, segments should be large.  However, there is a competing force that
  * advocates for smaller segments.  A segment can only be reused when all the allocations
  * that have been reserved on it have been released.
- * 
+ *
  * Specialized CyclicAllocator could monitor the utilization of the Pool of RotatingSegments
  * and can grow or shrink the ring based on some defined critria.  Similarly, one could
  * manually grow or shrink the ring.
- * 
+ *
  * RotatingSegments do not need to be a fixed size; however, the default implementation used
  * constant sized segments.
- * 
+ *
  *  Common Guidelines:
  *  - Segments should be sized larger than the largest allowed allocation.
  *  - Depending on the mean and variance in your allocations, you want to size your segments
@@ -92,22 +90,21 @@ namespace yais
  *    should be
  *  - The number of segments should be large enough so that the queue consuming the prior
  *    allocations can finish one segment before the last segment is fully consumed.
- *  
- * @tparam AllocatorType 
+ *
+ * @tparam MemoryType
  */
-template <class AllocatorType>
+template<class MemoryType>
 class CyclicAllocator
 {
   public:
-    CyclicAllocator(size_t segments, size_t bytes_per_segment) 
-      : m_Segments(Pool<RotatingSegment>::Create()),
-        m_MaximumAllocationSize(bytes_per_segment)
+    CyclicAllocator(size_t segments, size_t bytes_per_segment)
+        : m_Segments(Pool<RotatingSegment>::Create()), m_MaximumAllocationSize(bytes_per_segment)
     {
-        DLOG(INFO) 
-            << "Allocating " << segments << " rotating segments "
-            << "with " << BytesToString(bytes_per_segment) << "/segment";
+        DLOG(INFO) << "Allocating " << segments << " rotating segments "
+                   << "with " << BytesToString(bytes_per_segment) << "/segment";
 
-        for(int i=0; i<segments; i++) {
+        for(int i = 0; i < segments; i++)
+        {
             InternalPushSegment();
         }
 
@@ -117,72 +114,89 @@ class CyclicAllocator
 
     virtual ~CyclicAllocator() {}
 
-    std::shared_ptr<IMemory> Allocate(size_t size) {
+    using GenericMemoryType = typename MemoryType::GenericMemoryType;
+
+    std::shared_ptr<GenericMemoryType> Allocate(size_t size)
+    {
         return InternalAllocate(size);
     }
-    std::shared_ptr<MemoryStack<IMemory>> AllocateStack(size_t size) {
-        return std::make_shared<MemoryStack<IMemory>>(InternalAllocate(size));
+
+    std::shared_ptr<MemoryStack<GenericMemoryType>> AllocateStack(size_t size)
+    {
+        return std::make_shared<MemoryStack<GenericMemoryType>>(InternalAllocate(size));
     }
 
-    void AddSegment() {
+    void AddSegment()
+    {
         InternalPushSegment();
     }
 
-    void DropSegment() {
+    void DropSegment()
+    {
         InternalDropSegment();
     }
 
-    auto AvailableSegments() {
+    auto AvailableSegments()
+    {
         return m_Segments->Size() + (m_CurrentSegment ? 1 : 0);
     }
 
-    auto AvailableBytes() {
-        return m_Segments->Size() * m_MaximumAllocationSize + 
+    auto AvailableBytes()
+    {
+        return m_Segments->Size() * m_MaximumAllocationSize +
                (m_CurrentSegment ? m_CurrentSegment->Available() : 0);
     }
 
-    auto Alignment() {
+    auto Alignment()
+    {
         return m_Alignment;
     }
 
   private:
-    // The returned shared_ptr<IMemory> holds a reference to the RotatingSegment object
+    // The returned shared_ptr<MemoryType> holds a reference to the RotatingSegment object
     // which ensures the RotatingSegment cannot be returned to the Pool until all its
     // reference count goes to zero
-    std::shared_ptr<IMemory> InternalAllocate(size_t size) {
+    std::shared_ptr<GenericMemoryType> InternalAllocate(size_t size)
+    {
         DLOG(INFO) << "Requested Allocation: " << size << " bytes";
         CHECK_LE(size, m_MaximumAllocationSize)
             << "Requested allocation of " << size << " bytes exceeds the maximum allocations "
             << "size " << m_MaximumAllocationSize << " for this CyclicAllocator memory allocator.";
         std::lock_guard<std::mutex> lock(m_Mutex);
-        if(!m_CurrentSegment || size > m_CurrentSegment->Available()) {
+        if(!m_CurrentSegment || size > m_CurrentSegment->Available())
+        {
             DLOG(INFO) << "Current Segment cannot fulfill the request; rotate segment";
-            m_CurrentSegment.reset(); // drop the current segment
-            m_CurrentSegment = InternalPopSegment(); // get the next segment
+            m_CurrentSegment.reset(); // explicitily drop the current segment -> returns to pool
+            m_CurrentSegment = InternalPopSegment(); // get the next segment from pool
         }
         auto retval = m_CurrentSegment->Allocate(size);
-        if (!m_CurrentSegment->Available()) {
+        // TODO: proactive release should be dependent the recent allocations statistics
+        if(!m_CurrentSegment->Available())
+        {
             DLOG(INFO) << "Proactively releasing the current segment as it is maxed";
             m_CurrentSegment.reset();
         }
         return retval;
     }
 
-    void InternalPushSegment() {
-        auto stack = MemoryStack<AllocatorType>::make_unique(m_MaximumAllocationSize);
+    void InternalPushSegment()
+    {
+        auto stack = std::make_unique<MemoryStack<MemoryType>>(m_MaximumAllocationSize);
         auto segment = RotatingSegment::make_shared(std::move(stack));
         m_Segments->Push(segment);
         DLOG(INFO) << "Pushed New Rotating Segment " << segment.get() << " to Pool";
     }
 
-    auto InternalPopSegment() {
-        return m_Segments->Pop([](RotatingSegment *segment) {
+    auto InternalPopSegment()
+    {
+        return m_Segments->Pop([](RotatingSegment* segment) {
             DLOG(INFO) << "Returning RotatingSegment to Pool";
             segment->Reset();
         });
     }
 
-    void InternalDropSegment() {
+    void InternalDropSegment()
+    {
         // Remote a Segment from the Ring
         m_Segments->PopWithoutReturn();
     }
@@ -190,50 +204,57 @@ class CyclicAllocator
     class RotatingSegment : public std::enable_shared_from_this<RotatingSegment>
     {
       private:
-        RotatingSegment(std::unique_ptr<MemoryStack<AllocatorType>> stack)
-            : m_Stack(std::move(stack)) {}
+        RotatingSegment(std::unique_ptr<MemoryStack<MemoryType>> stack)
+            : m_Stack(std::move(stack))
+        {
+        }
 
       public:
-        static std::shared_ptr<RotatingSegment> make_shared(std::unique_ptr<MemoryStack<AllocatorType>> stack) {
+        static std::shared_ptr<RotatingSegment>
+            make_shared(std::unique_ptr<MemoryStack<MemoryType>> stack)
+        {
             return std::shared_ptr<RotatingSegment>(new RotatingSegment(std::move(stack)));
         }
 
         virtual ~RotatingSegment() {}
 
-        std::shared_ptr<IMemory> Allocate(size_t size) {
+        std::shared_ptr<GenericMemoryType> Allocate(size_t size)
+        {
             DLOG(INFO) << "RotatingSegment::Allocate pushes MemoryStack Pointer by : " << size;
             CHECK_LE(size, m_Stack->Available());
 
             auto ptr = m_Stack->Allocate(size);
             auto segment = this->shared_from_this();
 
-            // Special smart pointer that hold a reference to the Segment 
-            // and who's destructor does not try to free any memory, 
+            // Special smart pointer that hold a reference to the Segment
+            // and who's destructor does not try to free any memory,
             // instead, it frees only the wrapper object
-            auto ret = AllocatorType::UnsafeWrapRawPointer(
-                ptr, size, [segment](IMemory *p){ delete p; });
+            auto ret =
+                GenericMemoryType::UnsafeWrapRawPointer(ptr, size, [segment](GenericMemoryType* p) { delete p; });
 
-            DLOG(INFO) 
-                << "Allocated " << ret->Size() << " starting at " << ret->Data() 
-                << " on segment " << segment.get();
+            DLOG(INFO) << "Allocated " << ret->Size() << " starting at " << ret->Data()
+                       << " on segment " << segment.get();
 
             return ret;
         }
 
-        void Reset() {
+        void Reset()
+        {
             m_Stack->Reset();
         }
 
-        size_t Available() {
+        size_t Available()
+        {
             return m_Stack->Available();
         }
 
-        size_t Alignment() {
+        size_t Alignment()
+        {
             return m_Stack->Alignment();
         }
 
       private:
-        std::unique_ptr<MemoryStack<AllocatorType>> m_Stack;
+        std::unique_ptr<MemoryStack<MemoryType>> m_Stack;
     };
 
     std::shared_ptr<Pool<RotatingSegment>> m_Segments;
@@ -244,5 +265,3 @@ class CyclicAllocator
 };
 
 } // end namespace yais
-
-#endif // _YAIS_CYCLIC_STACK_H_

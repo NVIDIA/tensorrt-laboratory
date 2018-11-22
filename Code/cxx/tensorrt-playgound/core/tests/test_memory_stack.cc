@@ -24,15 +24,67 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _YAIS_UTILS_H_
-#define _YAIS_UTILS_H_
+#include "tensorrt/playground/memory.h"
+#include "tensorrt/playground/memory_stack.h"
+#include "gtest/gtest.h"
 
-#define DELETE_COPYABILITY(foo) \
-    foo(const foo &) = delete;  \
-    foo &operator=(const foo &other) = delete;
+using namespace yais;
 
-#define DELETE_MOVEABILITY(foo) \
-    foo(foo &&) = delete;       \
-    foo &operator=(foo &&other) = delete;
+namespace
+{
 
-#endif
+static size_t one_mb = 1024 * 1024;
+
+//template <typename T>
+class TestMemoryStack : public ::testing::Test
+{
+  protected:
+    virtual void SetUp()
+    {
+        stack = std::make_shared<MemoryStack<SystemMallocMemory>>(one_mb);
+    }
+
+    virtual void TearDown()
+    {
+        stack->Reset();
+    }
+
+    std::shared_ptr<MemoryStack<SystemMallocMemory>> stack;
+};
+
+//using MemoryTypes = ::testing::Types<SystemMallocMemory>;
+//TYPED_TEST_CASE(TestMemoryStack, MemoryTypes);
+
+TEST_F(TestMemoryStack, EmptyOnCreate)
+{
+    ASSERT_EQ(one_mb, stack->Size());
+    ASSERT_EQ(one_mb, stack->Available());
+    ASSERT_EQ(0, stack->Allocated());
+}
+
+TEST_F(TestMemoryStack, AllocateAndReset)
+{
+    auto p0 = stack->Allocate(128 * 1024);
+    ASSERT_TRUE(p0);
+    EXPECT_EQ(128 * 1024, stack->Allocated());
+    stack->Reset();
+    EXPECT_EQ(0, stack->Allocated());
+    auto p1 = stack->Allocate(1);
+    EXPECT_EQ(p0, p1);
+}
+
+TEST_F(TestMemoryStack, Unaligned)
+{
+    auto p0 = stack->Allocate(1);
+    ASSERT_TRUE(p0);
+    EXPECT_EQ(stack->Alignment(), stack->Allocated());
+
+    auto p1 = stack->Allocate(1);
+    ASSERT_TRUE(p1);
+    EXPECT_EQ(2 * stack->Alignment(), stack->Allocated());
+
+    auto len = (char *)p1 - (char *)p0;
+    EXPECT_EQ(len, stack->Alignment());
+}
+
+} // namespace

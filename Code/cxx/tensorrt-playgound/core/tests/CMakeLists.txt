@@ -27,7 +27,9 @@
 #include_directories(${GTEST_INCLUDE_DIRS})
 
 add_executable(test_nvcxx
+  test_cyclic_allocator.cc
   test_memory.cc
+  test_memory_stack.cc
   test_pool.cc
   test_thread_pool.cc
 )

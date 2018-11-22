@@ -86,7 +86,8 @@ CpuSet GetDeviceAffinity(int device_id)
     for (int i=0; i<8*sizeof(cpu_mask); i++)
     {
         if (test_bit(cpu_mask, i)) {
-            cpus = cpus.Union(Affinity::GetCpuFromId(i));
+            cpus.insert(Affinity::GetCpuFromId(i));
+            //cpus = cpus.Union(Affinity::GetCpuFromId(i));
         }
     }
 

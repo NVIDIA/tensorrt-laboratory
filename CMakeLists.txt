@@ -72,6 +72,7 @@ endif(prometheus-cpp_FOUND)
 
 # Targets
 add_subdirectory(third_party/pybind11)
+add_subdirectory(Code/cxx/nvcxx)
 add_subdirectory(yais)
 add_subdirectory(examples)
 

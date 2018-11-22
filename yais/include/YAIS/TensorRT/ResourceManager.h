@@ -33,8 +33,8 @@
 
 #include <NvInfer.h>
 
-#include "YAIS/Pool.h"
-#include "YAIS/ThreadPool.h"
+#include "tensorrt/playground/pool.h"
+#include "tensorrt/playground/thread_pool.h"
 #include "YAIS/Resources.h"
 #include "YAIS/TensorRT/Common.h"
 #include "YAIS/TensorRT/Model.h"

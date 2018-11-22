@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "YAIS/Memory.h"
-#include "YAIS/CyclicAllocator.h"
+#include "tensorrt/playground/memory.h"
+#include "tensorrt/playground/cyclic_allocator.h"
 #include "gtest/gtest.h"
 
 using namespace yais;
@@ -40,7 +40,7 @@ class TestCyclicStacks : public ::testing::Test
   protected:
     virtual void SetUp()
     {
-        stack = std::make_shared<CyclicAllocator<CudaHostAllocator>>(5, one_mb);
+        stack = std::make_shared<CyclicAllocator<SystemMallocMemory>>(5, one_mb);
     }
 
     virtual void TearDown()
@@ -48,7 +48,7 @@ class TestCyclicStacks : public ::testing::Test
         stack.reset();
     }
 
-    std::shared_ptr<CyclicAllocator<CudaHostAllocator>> stack;
+    std::shared_ptr<CyclicAllocator<SystemMallocMemory>> stack;
 };
 
 TEST_F(TestCyclicStacks, EmptyOnCreate)

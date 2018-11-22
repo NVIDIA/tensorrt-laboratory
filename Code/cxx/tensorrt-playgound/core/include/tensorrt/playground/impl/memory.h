@@ -59,11 +59,5 @@ Memory& Memory<MemoryType>::operator=(Memory&& other)
     other.m_BytesAllocated = 0;
 }
 */
-template<class MemoryType>
-std::shared_ptr<MemoryType> Memory<MemoryType>::UnsafeWrapRawPointer(
-    void* ptr, size_t size, std::function<void(MemoryType*)> deleter)
-{
-    return std::shared_ptr<MemoryType>(new MemoryType(ptr, size), deleter);
-}
 
 } // namespace yais

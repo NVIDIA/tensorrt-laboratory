@@ -27,7 +27,7 @@
 #ifndef _YAIS_TENSORRT_EXECUTIONCONTEXT_H_
 #define _YAIS_TENSORRT_EXECUTIONCONTEXT_H_
 
-#include "YAIS/Memory.h"
+#include "tensorrt/playground/memory.h"
 #include "YAIS/TensorRT/Bindings.h"
 
 #include "NvInfer.h"

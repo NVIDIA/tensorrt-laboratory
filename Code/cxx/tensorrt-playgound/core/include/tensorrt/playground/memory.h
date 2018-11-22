@@ -32,7 +32,6 @@
 
 namespace yais
 {
-
 /**
  * @brief Abstract base Memory class
  *
@@ -63,15 +62,13 @@ template<class MemoryType>
 class Memory : public IMemory<MemoryType>
 {
   public:
-    //Memory(Memory&&);
-    //Memory& operator=(Memory&& other);
+    // Memory(Memory&&);
+    // Memory& operator=(Memory&& other);
 
     DELETE_COPYABILITY(Memory);
 
     virtual ~Memory() {}
 
-    static std::shared_ptr<MemoryType> UnsafeWrapRawPointer(void*, size_t,
-                                                            std::function<void(MemoryType*)>);
     inline void* Data() const final override;
     inline size_t Size() const final override;
 
@@ -93,52 +90,22 @@ class HostMemory : public Memory<HostMemory>
 {
   public:
     using Memory<HostMemory>::Memory;
+    using GenericMemoryType = HostMemory;
     void Fill(char) override;
     size_t DefaultAlignment() const override;
     const std::string& Type() const override;
+    static std::shared_ptr<HostMemory> UnsafeWrapRawPointer(void*, size_t,
+                                                            std::function<void(HostMemory*)>);
 };
 
 class SystemMallocMemory : public HostMemory, public AllocatableMemory
 {
   protected:
     using HostMemory::HostMemory;
-    void *Allocate(size_t) final override;
+    void* Allocate(size_t) final override;
     void Free() final override;
     const std::string& Type() const final override;
 };
-
-/**
- * @brief Allocator Factory
- *
- * This factory class provides the factory functions to create shared_ptr and unique_ptr to an
- * Allocator of a given MemoryType.
- *
- * @tparam MemoryType MemoryType should be derived from the base Memory class.
- */
-
-/**
- * @brief CudaHostAllocator
- * Allocator using CudaHostMemory
- */
-// using CudaHostAllocator = Allocator<CudaHostMemory>;
-
-/**
- * @brief CudaDeviceAllocator
- * Allocator using CudaDeviceMemory
- */
-// using CudaDeviceAllocator = Allocator<CudaDeviceMemory>;
-
-/**
- * @brief CudaManagedAllocator
- * Allocator using CudaManagedMemory
- */
-// using CudaManagedAllocator = Allocator<CudaManagedMemory>;
-
-/**
- * @brief MallocAllocator
- * Allocator using malloc
- */
-// using SystemMallocAllocator = Allocator<SystemMallocMemory>;
 
 } // end namespace yais
 

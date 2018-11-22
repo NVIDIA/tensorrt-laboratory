@@ -52,6 +52,12 @@ const std::string& HostMemory::Type() const
     return type;
 }
 
+std::shared_ptr<HostMemory> HostMemory::UnsafeWrapRawPointer(
+    void* ptr, size_t size, std::function<void(HostMemory*)> deleter)
+{
+    return std::shared_ptr<HostMemory>(new HostMemory(ptr, size), deleter);
+}
+
 // SystemMallocMemory
 
 void* SystemMallocMemory::Allocate(size_t size)
