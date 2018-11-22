@@ -52,76 +52,8 @@
 //
 // Modifications: see header file
 //
-#include "YAIS/ThreadPool.h"
-#include <glog/logging.h>
+#include "tensorrt/playground/thread_pool.h"
 
 namespace yais
 {
-
-ThreadPool::ThreadPool(size_t nThreads) : ThreadPool(nThreads, Affinity::GetAffinity()) {}
-
-ThreadPool::ThreadPool(size_t nThreads, const CpuSet &affinity_mask)
-    : stop(false)
-{
-    for (size_t i = 0; i < nThreads; ++i)
-    {
-        InitThread(affinity_mask);
-    }
-}
-
-ThreadPool::ThreadPool(const CpuSet &cpus) : stop(false)
-{
-    auto exclusive = cpus.GetAllocator();
-    for (size_t i = 0; i < exclusive.size(); i++)
-    {
-        CpuSet affinity_mask;
-        CHECK(exclusive.allocate(affinity_mask, 1)) << "Affinity Allocator failed on pass: " << i;
-        InitThread(affinity_mask);
-    }
-}
-
-void ThreadPool::InitThread(const CpuSet &affinity_mask)
-{
-    workers.emplace_back([this, affinity_mask]() {
-        Affinity::SetAffinity(affinity_mask);
-        DLOG(INFO) << "Initializing Thread " << std::this_thread::get_id() << " with CPU affinity "
-                   << affinity_mask.GetCpuString();
-        for (;;)
-        {
-            std::function<void()> task;
-
-            {
-                std::unique_lock<std::mutex> lock(this->queue_mutex);
-                this->condition.wait(lock, [this]() {
-                    return this->stop || !this->tasks.empty();
-                });
-                if (this->stop && this->tasks.empty())
-                    return;
-                task = move(this->tasks.front());
-                this->tasks.pop();
-            }
-
-            task();
-        }
-    });
-}
-
-int ThreadPool::Size()
-{
-    return workers.size();
-}
-
-// the destructor joins all threads
-ThreadPool::~ThreadPool()
-{
-    {
-        std::unique_lock<std::mutex> lock(queue_mutex);
-        stop = true;
-    }
-    condition.notify_all();
-
-    for (std::thread &worker : workers)
-        worker.join();
-}
-
 } // end namespace yais

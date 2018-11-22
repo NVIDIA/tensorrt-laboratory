@@ -24,19 +24,20 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <benchmark/benchmark.h>
-#include "YAIS/Pool.h"
+#pragma once
 
-static void BM_Pool_Pop(benchmark::State &state)
+#include <string>
+
+#define DELETE_COPYABILITY(foo) \
+    foo(const foo&) = delete;   \
+    foo& operator=(const foo& other) = delete;
+
+#define DELETE_MOVEABILITY(foo) \
+    foo(foo&&) = delete;        \
+    foo& operator=(foo&& other) = delete;
+
+namespace yais
 {
-    using yais::Pool;
-    struct Object {};
-    auto pool = Pool<Object>::Create();
-    pool->EmplacePush(new Object);
-
-    for (auto _ : state)
-    {
-        auto obj = pool->Pop();
-    }
-}
-BENCHMARK(BM_Pool_Pop);
+std::string BytesToString(std::size_t bytes);
+std::size_t StringToBytes(const std::string);
+} // namespace yais

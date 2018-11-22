@@ -24,28 +24,25 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NVIS_RESOURCEPOOL_H_
-#define NVIS_RESOURCEPOOL_H_
 #pragma once
 
-#include <memory>
 #include <condition_variable>
+#include <memory>
 #include <mutex>
 #include <queue>
 
-namespace yais 
+namespace yais
 {
-
 /**
  * @brief Templated Thread-safe Queue
- * 
+ *
  * A simple thread-safe queue using a mutex and a condition variable.  This
- * class is derived from `std::enabled_shared_from_this` which requires it 
+ * class is derived from `std::enabled_shared_from_this` which requires it
  * to be create using `std::make_shared`.
- * 
- * @tparam T 
+ *
+ * @tparam T
  */
-template <typename T>
+template<typename T>
 class Queue : public std::enable_shared_from_this<Queue<T>>
 {
   protected:
@@ -54,14 +51,15 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
   public:
     /**
      * @brief Factory function to properly create a Queue.
-     * 
-     * @return std::shared_ptr<Queue<T>> 
+     *
+     * @return std::shared_ptr<Queue<T>>
      */
-    static std::shared_ptr<Queue<T>> Create() {
+    static std::shared_ptr<Queue<T>> Create()
+    {
         return std::shared_ptr<Queue<T>>(new Queue<T>());
     }
 
-    Queue(Queue &&other)
+    Queue(Queue&& other)
     {
         std::lock_guard<std::mutex> lock(other.mutex_);
         queue_ = std::move(other.queue_);
@@ -69,8 +67,8 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
 
     /**
      * @brief Push a new value of T to the Queue
-     * 
-     * @param value 
+     *
+     * @param value
      */
     void Push(T value)
     {
@@ -83,8 +81,8 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
 
     /**
      * @brief Pop the Front object from the Queue and return.
-     * 
-     * @return T 
+     *
+     * @return T
      */
     T Pop()
     {
@@ -97,8 +95,8 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
 
     /**
      * @brief Numbe of items in the Queue
-     * 
-     * @return std::size_t 
+     *
+     * @return std::size_t
      */
     std::size_t Size()
     {
@@ -112,69 +110,69 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
     std::condition_variable cond_;
 };
 
-
 /**
  * @brief Pool of ResourceType
- * 
+ *
  * Pool of ResourceTypes implemented as a Queue.
- * 
+ *
  * A unique aspect of this Pool object is the return type of the Pop method.  While the
  * Pool consists of shared_ptr's to objects of ResourceType typically created with the
- * the std::default_deleter.  The Pop method of this Pool clsss returned a different 
+ * the std::default_deleter.  The Pop method of this Pool clsss returned a different
  * type of shared_ptr<ResourceType> than the object pushed to the Pool.  The difference
  * is that the returned shared_ptr uses a custom deleter thereby creating a new logic
- * block for tracking this shared_ptr.  Rather than freeing the object in question, 
+ * block for tracking this shared_ptr.  Rather than freeing the object in question,
  * the custom deleter captures both the original shared_ptr from the pool and the
  * shared_ptr of the Pool (shared_from_this), and uses those captured values to return
  * the original shared_ptr (with the default_deleter) to the Pool.
- * 
+ *
  * By holding a reference to the pool in the custom deleter of the returned shared_ptr,
  * we ensure that the pool can not be deallocated while resources have been checked out.
- * 
+ *
  * The custom shared_ptr also helps ensure resources are returned to the pool even if the
  * thread using the resources throws an exception.
- * 
- * @tparam T 
+ *
+ * @tparam T
  */
-template <typename ResourceType>
+template<typename ResourceType>
 class Pool : public Queue<std::shared_ptr<ResourceType>>
 {
   public:
     /**
      * @brief Factory function for creating a Pool.
-     * 
-     * @return std::shared_ptr<Pool<ResourceType>> 
+     *
+     * @return std::shared_ptr<Pool<ResourceType>>
      */
-    static std::shared_ptr<Pool<ResourceType>> Create() {
+    static std::shared_ptr<Pool<ResourceType>> Create()
+    {
         return std::shared_ptr<Pool<ResourceType>>(new Pool<ResourceType>());
     }
 
     /**
      * @brief Acquire a shared pointer to a ResourceType held by the Pool.
      *
-     * Returns a shared_ptr<ResourceType> with a custom deleter that return the 
+     * Returns a shared_ptr<ResourceType> with a custom deleter that return the
      * Resource object by to the pool when the reference count of the shared_ptr
      * goes to zero.
-     *  
-     * @return std::shared_ptr<ResourceType> 
+     *
+     * @return std::shared_ptr<ResourceType>
      */
     std::shared_ptr<ResourceType> Pop()
     {
-        return Pop([](ResourceType *ptr){});
+        return Pop([](ResourceType* ptr) {});
     }
 
     /**
      * @brief Acquire a shared pointer to a ResourceType held by the Pool.
      *
-     * Returns a shared_ptr<ResourceType> with a custom deleter that return the 
+     * Returns a shared_ptr<ResourceType> with a custom deleter that return the
      * Resource object by to the pool when the reference count of the shared_ptr
-     * goes to zero. 
-     * 
+     * goes to zero.
+     *
      * onReturn will be executed prior to the object being returned to the pool.
      * onReturn is passed the raw pointer to the ResourceType.
-     * 
+     *
      * @param onReturn
-     * @return std::shared_ptr<ResourceType> 
+     * @return std::shared_ptr<ResourceType>
      */
     std::shared_ptr<ResourceType> Pop(std::function<void(ResourceType*)> onReturn)
     {
@@ -189,11 +187,11 @@ class Pool : public Queue<std::shared_ptr<ResourceType>>
 
     /**
      * @brief Pop/Dequeue a shared pointer to a ResourceType object.
-     * 
+     *
      * Unlike the Pop() that provides a shared_ptr whose Deleter returns the object
      * to the Pool; this method permanently removes the object from the Pool.
-     * 
-     * @return std::shared_ptr<ResourceType> 
+     *
+     * @return std::shared_ptr<ResourceType>
      * @see Pop()
      */
     std::shared_ptr<ResourceType> PopWithoutReturn()
@@ -203,7 +201,7 @@ class Pool : public Queue<std::shared_ptr<ResourceType>>
 
     /**
      * @brief Instantiates and Pushes a new Resource object.
-     * 
+     *
      * @param newObj Raw pointer to an object of ResourceType
      */
     void EmplacePush(ResourceType* newObj)
@@ -213,19 +211,17 @@ class Pool : public Queue<std::shared_ptr<ResourceType>>
 
     /**
      * @brief Instantiates and Pushes a new Resource object.
-     * 
+     *
      * Forwards the arguments passed to this method to the ResourceType constructor.
-     * 
-     * @tparam Args 
+     *
+     * @tparam Args
      * @param args
      */
-    template <typename ... Args>
-    void EmplacePush(Args&& ... args)
+    template<typename... Args>
+    void EmplacePush(Args&&... args)
     {
         EmplacePush(new ResourceType(std::forward<Args>(args)...));
     }
 };
 
-}
-
-#endif // NVIS_RESOURCEPOOL_H_
+} // namespace yais

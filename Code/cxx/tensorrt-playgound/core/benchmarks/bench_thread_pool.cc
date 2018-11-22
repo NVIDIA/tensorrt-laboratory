@@ -24,38 +24,33 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "YAIS/ThreadPool.h"
-#include "gtest/gtest.h"
-#include "glog/logging.h"
+#include <benchmark/benchmark.h>
+#include "tensorrt/playground/thread_pool.h"
+#include "tensorrt/playground/hybrid_mutex.h"
+#include "tensorrt/playground/hybrid_condition.h"
 
-using namespace yais;
-
-class TestThreadPool : public ::testing::Test
+static void BM_ThreadPool_Enqueue(benchmark::State &state)
 {
-  protected:
-    virtual void SetUp()
+    using yais::ThreadPool;
+    auto pool = std::make_unique<ThreadPool>(1);
+
+    for (auto _ : state)
     {
-        thread_pool = std::make_shared<ThreadPool>(3);
+        auto future = pool->enqueue([]{});
+        future.get();
     }
+}
+BENCHMARK(BM_ThreadPool_Enqueue);
 
-    virtual void TearDown()
+static void BM_HybridThreadPool_Enqueue(benchmark::State &state)
+{
+    using yais::BaseThreadPool;
+    auto pool = std::make_unique<BaseThreadPool<hybrid_mutex, hybrid_condition>>(1);
+
+    for (auto _ : state)
     {
+        auto future = pool->enqueue([]{});
+        future.get();
     }
-
-    std::shared_ptr<ThreadPool> thread_pool;
-};
-
-TEST_F(TestThreadPool, ReturnInt)
-{
-    auto should_be_1 = thread_pool->enqueue([]{ return 1; });
-    ASSERT_EQ(1, should_be_1.get());
 }
-
-TEST_F(TestThreadPool, ReturnChainedInt)
-{
-    auto should_be_1 = thread_pool->enqueue([this]{ 
-       return thread_pool->enqueue([] { return 1; });
-    });
-    ASSERT_EQ(1, should_be_1.get().get());
-}
-
+BENCHMARK(BM_HybridThreadPool_Enqueue);

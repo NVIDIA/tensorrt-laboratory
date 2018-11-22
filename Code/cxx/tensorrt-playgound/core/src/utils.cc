@@ -24,18 +24,53 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <benchmark/benchmark.h>
-#include "YAIS/ThreadPool.h"
+#include "tensorrt/playground/utils.h"
 
-static void BM_ThreadPool_Enqueue(benchmark::State &state)
+#include <regex>
+#include <stdio.h>
+
+#include <glog/logging.h>
+
+namespace yais
 {
-    using yais::ThreadPool;
-    auto pool = std::make_unique<ThreadPool>(1);
-
-    for (auto _ : state)
+/**
+ * @brief Converts bytes into a more friend human readable format
+ *
+ * @param bytes
+ * @return std::string
+ */
+std::string BytesToString(size_t bytes)
+{
+    // Credits: https://stackoverflow.com/questions/3758606
+    char buffer[50];
+    int unit = 1024;
+    const char prefixes[] = "KMGTPE";
+    if(bytes < unit)
     {
-        auto future = pool->enqueue([]{});
-        future.get();
+        sprintf(buffer, "%ld B", bytes);
+        return std::string(buffer);
     }
+    int exp = (int)(log(bytes) / log(unit));
+    sprintf(buffer, "%.1f %ciB", bytes / pow(unit, exp), prefixes[exp - 1]);
+    return std::string(buffer);
 }
-BENCHMARK(BM_ThreadPool_Enqueue);
+
+std::uint64_t StringToBytes(const std::string str)
+{
+    // https://regex101.com/r/UVm5wT/1
+    std::smatch m;
+    std::regex r("(\\d+[.\\d+]*)([KMGTkmgt]*)([i]*)[bB]");
+    std::map<char, int> prefix = {
+        {'k', 1}, {'m', 2}, {'g', 3}, {'t', 4}, {'K', 1}, {'M', 2}, {'G', 3}, {'T', 4},
+    };
+
+    if(!std::regex_search(str, m, r))
+        LOG(FATAL) << "Unable to convert \"" << str << "\" to bytes. "
+                   << "Expected format: 10b, 1024B, 1KiB, 10MB, 2.4gb, etc.";
+
+    const std::uint64_t base = m.empty() || (m.size() > 3 && m[3] == "") ? 1000 : 1024;
+    auto exponent = prefix[m[2].str()[0]];
+    auto scalar = std::stod(m[1]);
+    return (std::uint64_t)(scalar * pow(base, exponent));
+}
+}

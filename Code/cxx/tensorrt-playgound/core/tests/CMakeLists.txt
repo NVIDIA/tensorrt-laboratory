@@ -24,13 +24,21 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-add_executable(yais-benchmarks
-  main.cc
-  BenchPool.cc
-  BenchThreadPool.cc
+#include_directories(${GTEST_INCLUDE_DIRS})
+
+add_executable(test_nvcxx
+  test_memory.cc
+  test_pool.cc
+  test_thread_pool.cc
 )
 
-target_link_libraries(yais-benchmarks PRIVATE yais)
-target_link_libraries(yais-benchmarks PRIVATE benchmark)
+target_link_libraries(test_nvcxx
+  PRIVATE 
+    ${PROJECT_NAME}::nvcxx 
+    ${GTEST_BOTH_LIBRARIES}
+)
 
-add_test(NAME yais-benchmarks COMMAND $<TARGET_FILE:yais-benchmarks>)
+add_test(
+  NAME nvcxx
+  COMMAND $<TARGET_FILE:test_nvcxx
+)

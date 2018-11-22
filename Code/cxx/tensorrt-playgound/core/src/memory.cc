@@ -24,50 +24,52 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NVIS_AFFINITY_H_
-#define NVIS_AFFINITY_H_
-#pragma once
+#include "tensorrt/playground/memory.h"
 
-#include "cpuaff/cpuaff.hpp"
+#include <algorithm>
+#include <cstring>
+
+#include <glog/logging.h>
 
 namespace yais
 {
 
-class CpuSet : public cpuaff::cpu_set
+// HostMemory
+
+size_t HostMemory::DefaultAlignment() const
 {
-  public:
-    CpuSet Intersection(const CpuSet& other) const;
-    CpuSet Union(const CpuSet& other) const;
-    CpuSet Difference(const CpuSet& other) const;
+    return 64;
+}
 
-    auto GetAllocator() const -> cpuaff::round_robin_allocator
-    {
-        return cpuaff::round_robin_allocator(*this);
-    }
-
-    std::string GetCpuString() const;
-};
-
-
-
-class Affinity
+void HostMemory::Fill(char fill_value)
 {
-  public:
-    Affinity() = default;
+    std::memset(Data(), 0, Size());
+}
+ 
+const std::string& HostMemory::Type() const
+{
+    static std::string type = "HostMemory";
+    return type;
+}
 
-    static CpuSet GetAffinity();
-    static CpuSet GetDeviceAffinity(int device_id);
-    static void SetAffinity(const CpuSet cpus);
+// SystemMallocMemory
 
-    static CpuSet GetCpusByNuma(int numa_id);
-    static CpuSet GetCpusBySocket(int socket_id);
-    static CpuSet GetCpusByCore(int core_id);
-    static CpuSet GetCpusByProcessingUnit(int thread_id);
+void* SystemMallocMemory::Allocate(size_t size)
+{
+    void *ptr = malloc(size);
+    CHECK(ptr) << "malloc(" << size << ") failed";
+    return ptr;
+}
 
-    static CpuSet GetCpuFromId(int id);
-    static CpuSet GetCpusFromString(std::string ids);
-};
+void SystemMallocMemory::Free()
+{
+    free(Data());
+}
 
-} // end namespace yais
+const std::string& SystemMallocMemory::Type() const
+{
+    static std::string type = "SystemMallocMemory";
+    return type;
+}
 
-#endif // NVIS_AFFINITY_H_
+} // namespace yais
