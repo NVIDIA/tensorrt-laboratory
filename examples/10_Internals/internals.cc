@@ -24,11 +24,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/playground/affinity.h"
-#include "tensorrt/playground/thread_pool.h"
-#include "tensorrt/playground/memory.h"
-#include "tensorrt/playground/memory_stack.h"
-#include "tensorrt/playground/pool.h"
+#include "tensorrt/playground/core/affinity.h"
+#include "tensorrt/playground/core/thread_pool.h"
+#include "tensorrt/playground/core/memory.h"
+#include "tensorrt/playground/core/memory_stack.h"
+#include "tensorrt/playground/core/pool.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -43,8 +43,8 @@
 using yais::Affinity;
 using yais::CpuSet;
 using yais::ThreadPool;
-using yais::CudaHostAllocator;
-using yais::CudaDeviceAllocator;
+using yais::CudaHostMemory;
+using yais::CudaDeviceMemory;
 using yais::MemoryStack;
 using yais::Pool;
 
@@ -71,15 +71,15 @@ int main(int argc, char *argv[])
     auto workers_0 = std::make_shared<ThreadPool>(socket_0);
     auto workers_1 = std::make_shared<ThreadPool>(socket_1);
 
-    std::shared_ptr<CudaHostAllocator> pinned_0, pinned_1;
+    std::shared_ptr<CudaHostMemory> pinned_0, pinned_1;
 
     auto future_0 = workers_0->enqueue([=, &pinned_0]{
-        pinned_0 = CudaHostAllocator::make_shared(one_gib);
+        pinned_0 = Allocator<CudaHostMemory>::make_shared(one_gib);
         pinned_0->WriteZeros();
     });
 
     auto future_1 = workers_1->enqueue([=, &pinned_1]{
-        pinned_1 = CudaHostAllocator::make_shared(one_gib);
+        pinned_1 = Allocator<CudaHostMemory>::make_shared(one_gib);
         pinned_1->WriteZeros();
     });
 
@@ -92,14 +92,14 @@ int main(int argc, char *argv[])
               << pinned_0->Size() << ")";
     future_1.get();
 
-    std::shared_ptr<MemoryStack<CudaDeviceAllocator>> gpu_stack_on_socket0;
-    std::shared_ptr<MemoryStack<CudaDeviceAllocator>> gpu_stack_on_socket1;
+    std::shared_ptr<MemoryStack<CudaDeviceMemory>> gpu_stack_on_socket0;
+    std::shared_ptr<MemoryStack<CudaDeviceMemory>> gpu_stack_on_socket1;
 
     // It's not strictly necessary to alloaction GPU memory from threads near the GPU
     // this just drives home the point that we want to align CPU worker thread to GPU affinity.
     future_0 = workers_0->enqueue([=, &gpu_stack_on_socket0]{
         CHECK_EQ(cudaSetDevice(0), CUDA_SUCCESS) << "Set Device 0 failed";
-        gpu_stack_on_socket0 = MemoryStack<CudaDeviceAllocator>::make_shared(one_gib);
+        gpu_stack_on_socket0 = MemoryStack<CudaDeviceMemory>::make_shared(one_gib);
         gpu_stack_on_socket0->Reset(zeroMemory);
     });
 
@@ -124,13 +124,13 @@ int main(int argc, char *argv[])
     struct Buffer
     {
         Buffer(
-            std::shared_ptr<CudaHostAllocator> pinned_,
-            std::shared_ptr<MemoryStack<CudaDeviceAllocator>> gpu_stack_,
+            std::shared_ptr<CudaHostMemory> pinned_,
+            std::shared_ptr<MemoryStack<CudaDeviceMemory>> gpu_stack_,
             std::shared_ptr<ThreadPool> workers_
         ) : pinned(pinned_), gpu_stack(gpu_stack_), workers(workers_) {}
 
-        std::shared_ptr<CudaHostAllocator> pinned;
-        std::shared_ptr<MemoryStack<CudaDeviceAllocator>> gpu_stack;
+        std::shared_ptr<CudaHostMemory> pinned;
+        std::shared_ptr<MemoryStack<CudaDeviceMemory>> gpu_stack;
         std::shared_ptr<ThreadPool> workers;
 
         // Normally, we'd associate some GPU index value to the buffer.

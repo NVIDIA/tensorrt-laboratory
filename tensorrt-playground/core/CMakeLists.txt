@@ -1,30 +1,30 @@
 find_package(glog 0.3.5 REQUIRED)
 
-add_library(nvcxx
+add_library(core
   src/affinity.cc
   src/memory.cc
   src/thread_pool.cc
   src/utils.cc
 )
 
-add_library(${PROJECT_NAME}::nvcxx ALIAS nvcxx)
+add_library(${PROJECT_NAME}::core ALIAS core)
 
-target_link_libraries(nvcxx
+target_link_libraries(core
   PRIVATE
     Threads::Threads
     $<$<AND:$<BOOL:UNIX>,$<NOT:$<BOOL:APPLE>>>:rt>
     glog    
 )
 
-target_include_directories(nvcxx
+target_include_directories(core
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
-set_target_properties(nvcxx PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
+set_target_properties(core PROPERTIES OUTPUT_NAME ${PROJECT_NAME}-core)
 
 install(
-  TARGETS nvcxx
+  TARGETS core
   EXPORT ${PROJECT_NAME}-targets
   RUNTIME DESTINATION  ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION  ${CMAKE_INSTALL_LIBDIR}

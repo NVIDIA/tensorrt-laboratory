@@ -26,9 +26,7 @@
  */
 #pragma once
 
-#include "tensorrt/playground/memory.h"
-
-#include <glog/logging.h>
+#include "tensorrt/playground/core/memory.h"
 
 namespace yais
 {
@@ -47,4 +45,4 @@ class Allocator final : public MemoryType
 
 } // namespace yais
 
-#include "tensorrt/playground/impl/allocator.h"
+#include "tensorrt/playground/core/impl/allocator.h"

@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "YAIS/TensorRT/Buffers.h"
-#include "YAIS/TensorRT/Bindings.h"
+#include "tensorrt/playground/buffers.h"
+#include "tensorrt/playground/bindings.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -52,8 +52,8 @@ auto Buffers::Create(size_t host_size, size_t device_size) -> std::shared_ptr<Bu
 }
 
 Buffers::Buffers(size_t host_size, size_t device_size)
-    : m_HostStack(MemoryStack<CudaHostAllocator>::make_shared(host_size)),
-      m_DeviceStack(MemoryStack<CudaDeviceAllocator>::make_shared(device_size))
+    : m_HostStack(std::make_shared<MemoryStack<CudaHostMemory>>(host_size)),
+      m_DeviceStack(std::make_shared<MemoryStack<CudaDeviceMemory>>(device_size))
 {
     //CHECK(cudaStreamCreateWithFlags(&m_Stream, cudaStreamNonBlocking) == cudaSuccess); <-- breaks
     CHECK_EQ(cudaStreamCreate(&m_Stream), cudaSuccess) << "Failed to create cudaStream";

@@ -41,7 +41,7 @@
 
 #include <x86intrin.h>
 
-#include "tensorrt/playground/hybrid_mutex.h"
+#include "tensorrt/playground/core/hybrid_mutex.h"
 
 /**
  *

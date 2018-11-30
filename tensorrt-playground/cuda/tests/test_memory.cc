@@ -25,7 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "tensorrt/playground/cuda/memory.h"
-#include "tensorrt/playground/allocator.h"
+#include "tensorrt/playground/core/allocator.h"
 #include "gtest/gtest.h"
 
 #include <list>

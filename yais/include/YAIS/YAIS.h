@@ -27,13 +27,13 @@
 #ifndef NVIS_H_
 #define NVIS_H_
 
-#include "YAIS/Interfaces.h"
-#include "YAIS/Context.h"
-#include "YAIS/Executor.h"
-#include "YAIS/Resources.h"
-#include "YAIS/RPC.h"
-#include "YAIS/Service.h"
-#include "YAIS/Server.h"
-#include "tensorrt/playground/thread_pool.h"
+#include "nvrpc/interfaces.h"
+#include "nvrpc/context.h"
+#include "nvrpc/executor.h"
+#include "tensorrt/playground/core/resources.h"
+#include "nvrpc/rpc.h"
+#include "nvrpc/service.h"
+#include "nvrpc/server.h"
+#include "tensorrt/playground/core/thread_pool.h"
 
 #endif // NVIS_H_

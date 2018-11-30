@@ -24,14 +24,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NVIS_EXECUTOR_H_
-#define NVIS_EXECUTOR_H_
 #pragma once
 
-#include "YAIS/Interfaces.h"
+#include "nvrpc/interfaces.h"
+#include "tensorrt/playground/core/resources.h"
+#include "tensorrt/playground/core/thread_pool.h"
+
+#ifdef NVRPC_METRICS_ENABLED
 #include "YAIS/Metrics.h"
-#include "YAIS/Resources.h"
-#include "tensorrt/playground/thread_pool.h"
+#endif
 
 #include <thread>
 
@@ -86,7 +87,9 @@ class Executor : public IExecutor
         for (int i = 0; i < m_Contexts.size(); i++)
         {
             // Reseting the context decrements the gauge
+#ifdef NVRPC_METRICS_ENABLED
             Metrics::ExecutionQueueDepthIncrement();
+#endif
             ResetContext(m_Contexts[i].get());
         }
     }
@@ -107,5 +110,3 @@ class Executor : public IExecutor
 };
 
 } // end namespace yais
-
-#endif // NVIS_EXECUTOR_H_

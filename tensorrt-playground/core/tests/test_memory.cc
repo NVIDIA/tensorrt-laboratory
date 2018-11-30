@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/playground/memory.h"
-#include "tensorrt/playground/allocator.h"
+#include "tensorrt/playground/core/memory.h"
+#include "tensorrt/playground/core/allocator.h"
 
 #include <list>
 

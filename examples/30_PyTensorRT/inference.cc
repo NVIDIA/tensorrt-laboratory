@@ -25,7 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "YAIS/YAIS.h"
-#include "YAIS/DeviceInfo.h"
+#include "tensorrt/playground/cuda/device_info.h"
 #include "YAIS/Metrics.h"
 #include "YAIS/TensorRT/TensorRT.h"
 

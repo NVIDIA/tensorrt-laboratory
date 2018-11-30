@@ -26,18 +26,18 @@
 
 #include_directories(${GTEST_INCLUDE_DIRS})
 
-add_executable(test_nvcxx_cuda
+add_executable(test_cuda
   test_memory.cc
 )
 
-target_link_libraries(test_nvcxx_cuda
+target_link_libraries(test_cuda
   PRIVATE 
-    ${PROJECT_NAME}::nvcxx
-    ${PROJECT_NAME}::nvcxx-cuda
+    ${PROJECT_NAME}::core
+    ${PROJECT_NAME}::cuda
     ${GTEST_BOTH_LIBRARIES}
 )
 
 add_test(
-  NAME nvcxx_cuda
-  COMMAND $<TARGET_FILE:test_nvcxx_cuda
+  NAME cuda
+  COMMAND $<TARGET_FILE:test_cuda
 )

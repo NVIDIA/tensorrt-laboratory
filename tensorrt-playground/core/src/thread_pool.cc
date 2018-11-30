@@ -52,7 +52,7 @@
 //
 // Modifications: see header file
 //
-#include "tensorrt/playground/thread_pool.h"
+#include "tensorrt/playground/core/thread_pool.h"
 
 namespace yais
 {

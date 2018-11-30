@@ -27,12 +27,12 @@
 #ifndef _YAIS_TENSORRT_H_
 #define _YAIS_TENSORRT_H_
 
-#include "YAIS/TensorRT/Common.h"
-#include "YAIS/TensorRT/Runtime.h"
-#include "YAIS/TensorRT/Model.h"
-#include "YAIS/TensorRT/Buffers.h"
-#include "YAIS/TensorRT/Bindings.h"
-#include "YAIS/TensorRT/ExecutionContext.h"
-#include "YAIS/TensorRT/ResourceManager.h"
+#include "tensorrt/playground/common.h"
+#include "tensorrt/playground/runtime.h"
+#include "tensorrt/playground/model.h"
+#include "tensorrt/playground/buffers.h"
+#include "tensorrt/playground/bindings.h"
+#include "tensorrt/playground/execution_context.h"
+#include "tensorrt/playground/inference_manager.h"
 
 #endif // _YAIS_TENSORRT_H_

@@ -24,8 +24,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NVIS_RESOURCES_H_
-#define NVIS_RESOURCES_H_
 #pragma once
 
 #include <memory>
@@ -54,5 +52,3 @@ class InheritableResources : virtual public Resources
 };
 
 }
-
-#endif // NVIS_RESOURCES_H_

@@ -24,27 +24,28 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _YAIS_CONTEXT_H_
-#define _YAIS_CONTEXT_H_
+#pragma once
 
-#include "YAIS/Interfaces.h"
+#include "nvrpc/interfaces.h"
+#include "nvrpc/life_cycle_batching.h"
+#include "nvrpc/life_cycle_unary.h"
+
+#ifdef NVRPC_METRICS_ENABLED
 #include "YAIS/Metrics.h"
-#include "YAIS/LifeCycleUnary.h"
-#include "YAIS/LifeCycleBatching.h"
+#endif
 
 namespace yais
 {
-
-template <class LifeCycle, class Resources>
+template<class LifeCycle, class Resources>
 class BaseContext;
 
-template <class Request, class Response, class Resources>
+template<class Request, class Response, class Resources>
 using Context = BaseContext<LifeCycleUnary<Request, Response>, Resources>;
 
-template <class Request, class Response, class Resources>
+template<class Request, class Response, class Resources>
 using BatchingContext = BaseContext<LifeCycleBatching<Request, Response>, Resources>;
 
-template <class LifeCycle, class Resources>
+template<class LifeCycle, class Resources>
 class BaseContext : public LifeCycle
 {
   public:
@@ -57,7 +58,10 @@ class BaseContext : public LifeCycle
     virtual ~BaseContext() override {}
 
   protected:
-    const ResourcesType &GetResources() const { return m_Resources; }
+    const ResourcesType& GetResources() const
+    {
+        return m_Resources;
+    }
     double Walltime() const;
 
     virtual void OnContextStart();
@@ -73,18 +77,17 @@ class BaseContext : public LifeCycle
     void FactoryInitializer(QueueFuncType, ResourcesType);
 
     // Factory function allowed to create unique pointers to context objects
-    template <class ContextType>
-    friend std::unique_ptr<ContextType> ContextFactory(
-        typename ContextType::QueueFuncType q_fn,
-        typename ContextType::ResourcesType resources);
+    template<class ContextType>
+    friend std::unique_ptr<ContextType>
+        ContextFactory(typename ContextType::QueueFuncType q_fn,
+                       typename ContextType::ResourcesType resources);
 
   public:
     // Convenience method to acquire the Context base pointer from a derived class
-    BaseContext<LifeCycle, Resources> *GetBase()
+    BaseContext<LifeCycle, Resources>* GetBase()
     {
-        return dynamic_cast<BaseContext<LifeCycle, Resources> *>(this);
+        return dynamic_cast<BaseContext<LifeCycle, Resources>*>(this);
     }
-
 };
 
 // Implementations
@@ -92,15 +95,17 @@ class BaseContext : public LifeCycle
 /**
  * @brief Method invoked when a request is received and the per-call context lifecycle begins.
  */
-template <class LifeCycle, class Resources>
+template<class LifeCycle, class Resources>
 void BaseContext<LifeCycle, Resources>::OnLifeCycleStart()
 {
     m_StartTime = std::chrono::high_resolution_clock::now();
+#ifdef NVRPC_METRICS_ENABLED
     Metrics::ExecutionQueueDepthIncrement();
+#endif
     OnContextStart();
 }
 
-template <class LifeCycle, class Resources>
+template<class LifeCycle, class Resources>
 void BaseContext<LifeCycle, Resources>::OnContextStart()
 {
 }
@@ -108,14 +113,16 @@ void BaseContext<LifeCycle, Resources>::OnContextStart()
 /**
  * @brief Method invoked at the end of the per-call lifecycle just before the context is reset.
  */
-template <class LifeCycle, class Resources>
+template<class LifeCycle, class Resources>
 void BaseContext<LifeCycle, Resources>::OnLifeCycleReset()
 {
+#ifdef NVRPC_METRICS_ENABLED
     Metrics::ExecutionQueueDepthDecrement();
+#endif
     OnContextReset();
 }
 
-template <class LifeCycle, class Resources>
+template<class LifeCycle, class Resources>
 void BaseContext<LifeCycle, Resources>::OnContextReset()
 {
 }
@@ -123,18 +130,19 @@ void BaseContext<LifeCycle, Resources>::OnContextReset()
 /**
  * @brief Number of seconds since the start of the RPC
  */
-template <class LifeCycle, class Resources>
+template<class LifeCycle, class Resources>
 double BaseContext<LifeCycle, Resources>::Walltime() const
 {
-    return std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - m_StartTime).count();
+    return std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - m_StartTime)
+        .count();
 }
 
 /**
  * @brief Used by ContextFactory to initialize the Context
  */
-template <class LifeCycle, class Resources>
-void BaseContext<LifeCycle, Resources>::FactoryInitializer(
-    QueueFuncType queue_fn, ResourcesType resources)
+template<class LifeCycle, class Resources>
+void BaseContext<LifeCycle, Resources>::FactoryInitializer(QueueFuncType queue_fn,
+                                                           ResourcesType resources)
 {
     this->SetQueueFunc(queue_fn);
     m_Resources = resources;
@@ -143,10 +151,9 @@ void BaseContext<LifeCycle, Resources>::FactoryInitializer(
 /**
  * @brief ContextFactory is the only function in the library allowed to create an IContext object.
  */
-template <class ContextType>
-std::unique_ptr<ContextType> ContextFactory(
-    typename ContextType::QueueFuncType queue_fn,
-    typename ContextType::ResourcesType resources)
+template<class ContextType>
+std::unique_ptr<ContextType> ContextFactory(typename ContextType::QueueFuncType queue_fn,
+                                            typename ContextType::ResourcesType resources)
 {
     auto ctx = std::make_unique<ContextType>();
     auto base = ctx->GetBase();
@@ -155,5 +162,3 @@ std::unique_ptr<ContextType> ContextFactory(
 }
 
 } // end namespace yais
-
-#endif // _YAIS_CONTEXT_H_

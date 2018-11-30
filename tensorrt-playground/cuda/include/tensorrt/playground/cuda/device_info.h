@@ -26,7 +26,7 @@
  */
 #pragma once
 
-#include "tensorrt/playground/affinity.h"
+#include "tensorrt/playground/core/affinity.h"
 
 namespace yais
 {

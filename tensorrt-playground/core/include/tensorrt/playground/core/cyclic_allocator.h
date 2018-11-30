@@ -28,9 +28,9 @@
 
 #include <vector>
 
-#include "tensorrt/playground/memory.h"
-#include "tensorrt/playground/memory_stack.h"
-#include "tensorrt/playground/pool.h"
+#include "tensorrt/playground/core/memory.h"
+#include "tensorrt/playground/core/memory_stack.h"
+#include "tensorrt/playground/core/pool.h"
 
 #include <glog/logging.h>
 

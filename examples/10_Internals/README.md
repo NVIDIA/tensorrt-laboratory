@@ -43,7 +43,7 @@ change the following lines to a range that works with your CPU.
   * `Model` 
     * Wrapper around `nvinfer1::ICudaEngine`
   * `Buffers` 
-    * `MemoryStackWithTracking<CudaHostAllocator>` and `MemoryStackWithTracking<CudaDeviceAllocator>` used
+    * `MemoryStackWithTracking<CudaHostMemory>` and `MemoryStackWithTracking<CudaDeviceMemory>` used
       to manage Input/Output Tensor Bindings.
     * Owns a `cudaStream_t` to be used with Async Copies and Kernel Executions on the data held by the Buffers.
     * Convenience H2D and D2H copy functions
@@ -59,7 +59,7 @@ change the following lines to a range that works with your CPU.
 
 ### Affinity
 
-  * [Definition: tensorrt/playground/affinity.h](../../yais/include/tensorrt/playground/affinity.h)
+  * [Definition: tensorrt/playground/core/affinity.h](../../yais/include/tensorrt/playground/core/affinity.h)
   * [Implementation: YAIS/Affinity.cc](../../yais/src/Affinity.cc)
 
 In this, we request the all logical CPUs from Socket 0 that are not hyperthreads, then we get either all 
@@ -95,7 +95,7 @@ Single line output reformatted to per-line-indented output for readability.
 
 ### ThreadPool
 
-  * [Definition: tensorrt/playground/thread_pool.h](../../yais/include/tensorrt/playground/thread_pool.h)
+  * [Definition: tensorrt/playground/core/thread_pool.h](../../yais/include/tensorrt/playground/core/thread_pool.h)
   * [Implementation: YAIS/ThreadPool.cc](../../yais/src/ThreadPool.cc)
 
 The ThreadPool class creates a pool of worker threads that pull work from a queue.  The work queue can
@@ -136,7 +136,7 @@ has a nice [write-up on memory affinity and first touch policies](http://www.ner
 In this section, we'll show how to properly use the `Memory` and `Allocator` classes in a NUMA friendly
 way using `ThreadPool`s.
 
-  * [Definition: tensorrt/playground/memory.h](../../yais/include/tensorrt/playground/memory.h)
+  * [Definition: tensorrt/playground/core/memory.h](../../yais/include/tensorrt/playground/core/memory.h)
 
 The `Memory` class and its derived classes, see below, are the core memory classes in YAIS; however,
 these classes are not direclty used.  Instead, they provide the implmentation details on how memory of
@@ -151,7 +151,7 @@ Derived `Memory` Classes:
 
 ### Allocator<MemoryType>
 
-  * [Definition: tensorrt/playground/memory.h](../../yais/include/tensorrt/playground/memory.h)
+  * [Definition: tensorrt/playground/core/memory.h](../../yais/include/tensorrt/playground/core/memory.h)
 
 The templated `Allocator<MemoryType>` class performs memory allocations and freeing operations.  This
 class does not have a public constructor, instead, you are required to use either the `make_shared`
@@ -162,15 +162,15 @@ An allocated memory segments is of type `Allocator<MemoryType>` which inherits f
 The base `Memory` class provides three functions, `GetPointer()`, `GetSize()`, and `WriteZeros()`.
 
 ```
-    std::shared_ptr<CudaHostAllocator> pinned_0, pinned_1;
+    std::shared_ptr<CudaHostMemory> pinned_0, pinned_1;
 
     auto future_0 = workers_0->enqueue([&pinned_0]{
-        pinned_0 = CudaHostAllocator::make_shared(1024*1024*1024);
+        pinned_0 = Allocator<CudaHostMemory>::make_shared(1024*1024*1024);
         pinned_0->WriteZeros();
     });
 
     auto future_1 = workers_1->enqueue([&pinned_1]{
-        pinned_1 = CudaHostAllocator::make_shared(1024*1024*1024);
+        pinned_1 = Allocator<CudaHostMemory>::make_shared(1024*1024*1024);
         pinned_1->WriteZeros();
     });
 
@@ -187,7 +187,7 @@ I0515 08:36:56.619297 13260 test_affinity.cc:59] pinned_0 (ptr, size): (0x1005e0
 
 ### MemoryStack<AllocatorType>
 
-  * [Definition: tensorrt/playground/memory_stack.h](../../yais/include/tensorrt/playground/memory_stack.h)
+  * [Definition: tensorrt/playground/core/memory_stack.h](../../yais/include/tensorrt/playground/core/memory_stack.h)
 
 Generic `MemoryStack` that takes an `AllocatorType`.  The memory stack advances the stack pointer
 via `Allocate` and resets the stack pointer via `ResetAllocations`.  `MemoryStackWithTracking`
@@ -196,12 +196,12 @@ is a specialized derivation that records the pointer and size of each call to `A
 input/output tensor bindings onto the stack.
 
 ```
-    std::shared_ptr<MemoryStackWithTracking<CudaDeviceAllocator>> gpu_stack_on_socket0;
+    std::shared_ptr<MemoryStackWithTracking<CudaDeviceMemory>> gpu_stack_on_socket0;
 
     future_0 = workers_0->enqueue([&gpu_stack_on_socket0]{
         CHECK_EQ(cudaSetDevice(0), CUDA_SUCCESS) << "Set Device 0 failed";
         gpu_stack_on_socket0 = std::make_shared<
-            MemoryStackWithTracking<CudaDeviceAllocator>>(1024*1024*1024);
+            MemoryStackWithTracking<CudaDeviceMemory>>(1024*1024*1024);
     });
 
     future_0.get(); // thread allocating gpu_stack_on_socket0 finished with task
@@ -220,7 +220,7 @@ I0515 09:46:55.159710 14176 test_affinity.cc:80] Push Binding 1 - 128MB - stack_
 
 ### Pool<ResourceType>
 
-  * [Definition: tensorrt/playground/pool.h](../../yais/include/tensorrt/playground/pool.h)
+  * [Definition: tensorrt/playground/core/pool.h](../../yais/include/tensorrt/playground/core/pool.h)
 
 A `Pool<ResourceType>` is a generic of `Queue<std::shared_ptr<ResourceType>>` with a special `Pop`
 method.  The class inherits from `std::enabled_shared_from_this` meaning it must be constructed using
@@ -248,15 +248,15 @@ chance to clear the state and prepare it for the next use.
     struct Buffer
     {
         Buffer(
-            std::shared_ptr<CudaHostAllocator> pinned_,
-            std::shared_ptr<MemoryStackWithTracking<CudaDeviceAllocator>> gpu_stack_,
+            std::shared_ptr<CudaHostMemory> pinned_,
+            std::shared_ptr<MemoryStackWithTracking<CudaDeviceMemory>> gpu_stack_,
             std::shared_ptr<ThreadPool> workers_
         ) : pinned(pinned_), gpu_stack(gpu_stack_), workers(workers_) {}
 
         // a real example probably includes a deviceID and a stream as part of the buffer
 
-        std::shared_ptr<CudaHostAllocator> pinned;
-        std::shared_ptr<MemoryStackWithTracking<CudaDeviceAllocator>> gpu_stack;
+        std::shared_ptr<CudaHostMemory> pinned;
+        std::shared_ptr<MemoryStackWithTracking<CudaDeviceMemory>> gpu_stack;
         std::shared_ptr<ThreadPool> workers;
     };
 

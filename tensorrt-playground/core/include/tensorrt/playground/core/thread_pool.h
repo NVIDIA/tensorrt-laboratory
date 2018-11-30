@@ -59,8 +59,8 @@
 //
 #pragma once
 
-#include "tensorrt/playground/affinity.h"
-#include "tensorrt/playground/utils.h"
+#include "tensorrt/playground/core/affinity.h"
+#include "tensorrt/playground/core/utils.h"
 
 #include <future>
 #include <queue>

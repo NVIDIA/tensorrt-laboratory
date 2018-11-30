@@ -24,16 +24,16 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-add_executable(bench_nvcxx
+add_executable(bench_core
   main.cc
   bench_pool.cc
   bench_thread_pool.cc
 )
 
-target_link_libraries(bench_nvcxx 
+target_link_libraries(bench_core 
   PRIVATE 
-    ${PROJECT_NAME}::nvcxx
+    ${PROJECT_NAME}::core
     benchmark
 )
 
-add_test(NAME bench_nvcxx COMMAND $<TARGET_FILE:bench_nvcxx>)
+add_test(NAME bench_core COMMAND $<TARGET_FILE:bench_core>)

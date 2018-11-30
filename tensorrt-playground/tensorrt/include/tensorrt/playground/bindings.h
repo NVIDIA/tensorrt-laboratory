@@ -24,12 +24,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _YAIS_TENSORRT_BINDINGS_H_
-#define _YAIS_TENSORRT_BINDINGS_H_
+#pragma once
 
-#include "YAIS/TensorRT/Common.h"
-#include "YAIS/TensorRT/Model.h"
-#include "YAIS/TensorRT/Buffers.h"
+#include "tensorrt/playground/common.h"
+#include "tensorrt/playground/model.h"
+#include "tensorrt/playground/buffers.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -100,5 +99,3 @@ class Bindings
 
 } // namespace TensorRT
 } // namespace yais
-
-# endif // _YAIS_TENSORRT_BINDINGS_H_

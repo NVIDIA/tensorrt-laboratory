@@ -27,7 +27,7 @@
 #ifndef _YAIS_UNARY_H_
 #define _YAIS_UNARY_H_
 
-#include "YAIS/Interfaces.h"
+#include "nvrpc/interfaces.h"
 
 namespace yais
 {

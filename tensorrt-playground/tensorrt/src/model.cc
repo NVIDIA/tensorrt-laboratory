@@ -24,15 +24,16 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "YAIS/TensorRT/Model.h"
-#include "YAIS/TensorRT/TensorRT.h"
-#include "YAIS/TensorRT/Utils.h"
+#include "tensorrt/playground/model.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <NvInfer.h>
 
 #include <glog/logging.h>
+
+#include "tensorrt/playground/bindings.h"
+#include "tensorrt/playground/execution_context.h"
+#include "tensorrt/playground/utils.h"
 
 using ::nvinfer1::ICudaEngine;
 using ::nvinfer1::IExecutionContext;

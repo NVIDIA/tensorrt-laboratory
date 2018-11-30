@@ -29,8 +29,8 @@
 
 #include <glog/logging.h>
 
-#include "tensorrt/playground/memory.h"
-#include "tensorrt/playground/allocator.h"
+#include "tensorrt/playground/core/memory.h"
+#include "tensorrt/playground/core/allocator.h"
 
 namespace yais
 {

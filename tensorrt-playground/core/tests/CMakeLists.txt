@@ -26,7 +26,7 @@
 
 #include_directories(${GTEST_INCLUDE_DIRS})
 
-add_executable(test_nvcxx
+add_executable(test_core
   test_cyclic_allocator.cc
   test_memory.cc
   test_memory_stack.cc
@@ -34,13 +34,13 @@ add_executable(test_nvcxx
   test_thread_pool.cc
 )
 
-target_link_libraries(test_nvcxx
+target_link_libraries(test_core
   PRIVATE 
-    ${PROJECT_NAME}::nvcxx 
+    ${PROJECT_NAME}::core 
     ${GTEST_BOTH_LIBRARIES}
 )
 
 add_test(
-  NAME nvcxx
-  COMMAND $<TARGET_FILE:test_nvcxx
+  NAME core
+  COMMAND $<TARGET_FILE:test_core
 )

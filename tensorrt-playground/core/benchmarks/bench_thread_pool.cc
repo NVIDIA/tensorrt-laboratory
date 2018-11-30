@@ -25,9 +25,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <benchmark/benchmark.h>
-#include "tensorrt/playground/thread_pool.h"
-#include "tensorrt/playground/hybrid_mutex.h"
-#include "tensorrt/playground/hybrid_condition.h"
+#include "tensorrt/playground/core/thread_pool.h"
+#include "tensorrt/playground/core/hybrid_mutex.h"
+#include "tensorrt/playground/core/hybrid_condition.h"
 
 static void BM_ThreadPool_Enqueue(benchmark::State &state)
 {

@@ -25,7 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <benchmark/benchmark.h>
-#include "tensorrt/playground/pool.h"
+#include "tensorrt/playground/core/pool.h"
 
 static void BM_Pool_Pop(benchmark::State &state)
 {

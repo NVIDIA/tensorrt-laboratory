@@ -27,7 +27,7 @@
 #ifndef NVIS_RPC_H_
 #define NVIS_RPC_H_
 
-#include "YAIS/Context.h"
+#include "nvrpc/context.h"
 
 namespace yais
 {

@@ -27,7 +27,7 @@
 #ifndef _YAIS_LIFECYCLE_BATCHING_H_
 #define _YAIS_LIFECYCLE_BATCHING_H_
 
-#include "YAIS/Interfaces.h"
+#include "nvrpc/interfaces.h"
 
 namespace yais
 {

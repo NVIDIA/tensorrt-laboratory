@@ -24,15 +24,16 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _YAIS_TENSORRT_BUFFERS_H_
-#define _YAIS_TENSORRT_BUFFERS_H_
+#pragma once
+
+#include <memory>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "tensorrt/playground/memory.h"
-#include "tensorrt/playground/memory_stack.h"
-#include "YAIS/TensorRT/Common.h"
+#include "tensorrt/playground/cuda/memory.h"
+#include "tensorrt/playground/core/memory_stack.h"
+#include "tensorrt/playground/common.h"
 
 namespace yais
 {
@@ -66,8 +67,8 @@ class Buffers : public std::enable_shared_from_this<Buffers>
     Buffers(size_t host_size, size_t device_size);
     void Reset(bool writeZeros = false);
 
-    std::shared_ptr<MemoryStack<CudaHostAllocator>> m_HostStack;
-    std::shared_ptr<MemoryStack<CudaDeviceAllocator>> m_DeviceStack;
+    std::shared_ptr<MemoryStack<CudaHostMemory>> m_HostStack;
+    std::shared_ptr<MemoryStack<CudaDeviceMemory>> m_DeviceStack;
     cudaStream_t m_Stream;
 
     friend class ResourceManager;
@@ -75,5 +76,3 @@ class Buffers : public std::enable_shared_from_this<Buffers>
 
 } // namespace TensorRT
 } // namespace yais
-
-#endif // _YAIS_TENSORRT_BUFFERS_H_

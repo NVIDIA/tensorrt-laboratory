@@ -26,7 +26,7 @@
  */
 #pragma once
 
-#include "tensorrt/playground/memory.h"
+#include "tensorrt/playground/core/memory.h"
 
 namespace yais
 {

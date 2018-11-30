@@ -26,13 +26,9 @@
 
 cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
 
-project(YAIS VERSION 0.1 LANGUAGES CXX)
+project(tensorrt-playground)
 
-# Feature options
-option(BUILD_GRPC "Build with gRPC support" ON)
-option(BUILD_TENSORRT "Build with TensorRT support" ON)
-option(BUILD_TESTS "Build tests and benchmark suite" ON)
-# TODO: option(BUILD_PYTHON "Build python bindings" ON)
+include(GNUInstallDirs)
 
 # Build options
 set(CMAKE_CXX_STANDARD 17)
@@ -41,45 +37,44 @@ set(CMAKE_DEBUG_POSTFIX "-d")
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
 # CMake path
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+#list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
-# Must use GNUInstallDirs to install libraries into correct
-# locations on all platforms.
-include(GNUInstallDirs)
-
+add_subdirectory(tensorrt-playground)
 
 # Find Protobuf installation
 # Looks for protobuf-config.cmake file installed by Protobuf's cmake installation.
-set(protobuf_MODULE_COMPATIBLE TRUE)
-find_package(Protobuf CONFIG REQUIRED)
-message(STATUS "Using protobuf ${protobuf_VERSION}")
-set(_PROTOBUF_LIBPROTOBUF protobuf::libprotobuf)
-set(_PROTOBUF_PROTOC $<TARGET_FILE:protobuf::protoc>)
-
+#set(protobuf_MODULE_COMPATIBLE TRUE)
+#find_package(Protobuf CONFIG REQUIRED)
+#message(STATUS "Using protobuf ${protobuf_VERSION}")
+#set(_PROTOBUF_LIBPROTOBUF protobuf::libprotobuf)
+#set(_PROTOBUF_PROTOC $<TARGET_FILE:protobuf::protoc>)
+#
 # Find gRPC installation
 # Looks for gRPCConfig.cmake file installed by gRPC's cmake installation.
-find_package(gRPC CONFIG REQUIRED)
-message(STATUS "Using gRPC ${gRPC_VERSION}")
+#find_package(gRPC CONFIG REQUIRED)
+#message(STATUS "Using gRPC ${gRPC_VERSION}")
 
-set(_GRPC_GRPCPP_UNSECURE gRPC::grpc++_unsecure)
-set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
+#set(_GRPC_GRPCPP_UNSECURE gRPC::grpc++_unsecure)
+#set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
 
 # Prometheus C++ Client
-find_package(prometheus-cpp CONFIG REQUIRED)
-if(prometheus-cpp_FOUND)
-  message(STATUS "Prometheus Metics Enabled")
-endif(prometheus-cpp_FOUND)
+#find_package(prometheus-cpp CONFIG REQUIRED)
+#if(prometheus-cpp_FOUND)
+#  message(STATUS "Prometheus Metics Enabled")
+#endif(prometheus-cpp_FOUND)
 
 # Targets
-add_subdirectory(third_party/pybind11)
-add_subdirectory(Code/cxx/nvcxx)
-add_subdirectory(yais)
-add_subdirectory(examples)
+#add_subdirectory(third_party/pybind11)
+#add_subdirectory(Code/cxx/nvcxx)
+#add_subdirectory(yais)
+#add_subdirectory(examples)
 
-if(BUILD_TESTS)
-  find_package(GTest)
-  if(GTEST_FOUND)
-    enable_testing()
-    add_subdirectory(tests)
-  endif(GTEST_FOUND)
-endif(BUILD_TESTS)
+#if(BUILD_TESTS)
+#  find_package(GTest)
+#  if(GTEST_FOUND)
+#    enable_testing()
+#    add_subdirectory(tests)
+#  endif(GTEST_FOUND)
+#endif(BUILD_TESTS)

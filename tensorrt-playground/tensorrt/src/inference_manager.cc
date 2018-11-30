@@ -24,9 +24,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "YAIS/TensorRT/ResourceManager.h"
+#include "tensorrt/playground/inference_manager.h"
 
-#include "tensorrt/playground/memory.h"
+#include "tensorrt/playground/core/memory.h"
+#include "tensorrt/playground/cuda/device_info.h"
 
 #include <glog/logging.h>
 
@@ -97,7 +98,7 @@ void ResourceManager::RegisterModel(std::string name, std::shared_ptr<Model> mod
     }
 
     // Size according to largest padding - device alignment
-    size_t bindings = model->GetBindingMemorySize() + model->GetBindingsCount() * GetDeviceAlignment();
+    size_t bindings = model->GetBindingMemorySize() + model->GetBindingsCount() * DeviceInfo::Alignment();
     size_t activations = Align(model->GetActivationsMemorySize(), 128 * 1024); // add a cacheline
 
     size_t host = Align(bindings, 32 * 1024);

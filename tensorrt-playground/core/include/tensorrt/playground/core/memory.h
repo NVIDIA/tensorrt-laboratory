@@ -28,7 +28,7 @@
 
 #include <memory>
 
-#include "tensorrt/playground/utils.h"
+#include "tensorrt/playground/core/utils.h"
 
 namespace yais
 {
@@ -109,4 +109,4 @@ class SystemMallocMemory : public HostMemory, public AllocatableMemory
 
 } // end namespace yais
 
-#include "tensorrt/playground/impl/memory.h"
+#include "tensorrt/playground/core/impl/memory.h"

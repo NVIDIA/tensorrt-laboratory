@@ -28,8 +28,8 @@
 #define NVIS_SERVICE_H_
 #pragma once
 
-#include "YAIS/Interfaces.h"
-#include "YAIS/RPC.h"
+#include "nvrpc/interfaces.h"
+#include "nvrpc/rpc.h"
 
 namespace yais
 {

@@ -24,8 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _YAIS_TENSORRT_RESOURCEMANAGER_H_
-#define _YAIS_TENSORRT_RESOURCEMANAGER_H_
+#pragma once
 
 #include <map>
 #include <mutex>
@@ -33,13 +32,13 @@
 
 #include <NvInfer.h>
 
-#include "tensorrt/playground/pool.h"
-#include "tensorrt/playground/thread_pool.h"
-#include "YAIS/Resources.h"
-#include "YAIS/TensorRT/Common.h"
-#include "YAIS/TensorRT/Model.h"
-#include "YAIS/TensorRT/Buffers.h"
-#include "YAIS/TensorRT/ExecutionContext.h"
+#include "tensorrt/playground/core/pool.h"
+#include "tensorrt/playground/core/thread_pool.h"
+#include "tensorrt/playground/core/resources.h"
+#include "tensorrt/playground/common.h"
+#include "tensorrt/playground/model.h"
+#include "tensorrt/playground/buffers.h"
+#include "tensorrt/playground/execution_context.h"
 
 namespace yais
 {
@@ -92,5 +91,3 @@ class ResourceManager : public ::yais::Resources
 
 } // namespace TensorRT
 } // namespace yais
-
-#endif // _YAIS_TENSORRT_RESOURCEMANAGER_H_

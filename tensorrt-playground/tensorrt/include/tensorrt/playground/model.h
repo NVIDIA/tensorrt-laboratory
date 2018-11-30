@@ -24,11 +24,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _YAIS_TENSORRT_MODEL_H_
-#define _YAIS_TENSORRT_MODEL_H_
+#pragma once
 
-#include "YAIS/TensorRT/Common.h"
-#include "YAIS/TensorRT/Utils.h"
+#include <memory>
+#include <vector>
+
+#include <NvInfer.h>
 
 namespace yais
 {
@@ -108,5 +109,3 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
 
 } // namespace TensorRT
 } // namespace yais
-
-#endif // _YAIS_TENSORRT_MODEL_H_

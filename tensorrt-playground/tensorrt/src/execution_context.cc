@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "YAIS/TensorRT/ExecutionContext.h"
+#include "tensorrt/playground/execution_context.h"
 
 #include <chrono>
 
@@ -53,7 +53,7 @@ namespace TensorRT
  * timings, they are simply a nice-to-have, so a reasonable approximation on the host is sufficient.
  */
 ExecutionContext::ExecutionContext(size_t workspace_size) 
-  : m_Context{nullptr}, m_Workspace{CudaDeviceAllocator::make_unique(workspace_size)}
+  : m_Context{nullptr}, m_Workspace{Allocator<CudaDeviceMemory>::make_unique(workspace_size)}
 {
     CHECK_EQ(cudaEventCreateWithFlags(&m_ExecutionContextFinished, cudaEventDisableTiming), CUDA_SUCCESS)
         << "Failed to Create Execution Context Finished Event";

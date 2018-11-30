@@ -30,7 +30,7 @@
 
 #include <chrono>
 
-#include "YAIS/Service.h"
+#include "nvrpc/service.h"
 
 namespace yais
 {

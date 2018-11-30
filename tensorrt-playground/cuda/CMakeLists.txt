@@ -2,30 +2,30 @@
 find_package(CUDA REQUIRED)
 message(STATUS "CUDA IncludeDir ${CUDA_INCLUDE_DIRS}")
 
-add_library(nvcxx-cuda
+add_library(cuda
   src/device_info.cc
   src/memory.cc
 )
 
-add_library(${PROJECT_NAME}::nvcxx-cuda ALIAS nvcxx-cuda)
+add_library(${PROJECT_NAME}::cuda ALIAS cuda)
 
-target_link_libraries(nvcxx-cuda
+target_link_libraries(cuda
   PRIVATE
-    ${PROJECT_NAME}::nvcxx
+    ${PROJECT_NAME}::core
     ${CUDA_LIBRARIES}
     nvidia-ml
 )
 
-target_include_directories(nvcxx-cuda
+target_include_directories(cuda
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     ${CUDA_INCLUDE_DIRS}
 )
 
-set_target_properties(nvcxx-cuda PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
+set_target_properties(cuda PROPERTIES OUTPUT_NAME ${PROJECT_NAME}-cuda)
 
 install(
-  TARGETS nvcxx-cuda
+  TARGETS cuda
   EXPORT ${PROJECT_NAME}-targets
   RUNTIME DESTINATION  ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION  ${CMAKE_INSTALL_LIBDIR}

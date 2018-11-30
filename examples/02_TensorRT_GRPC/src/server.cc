@@ -35,7 +35,7 @@
 #include "nvml.h"
 
 #include "YAIS/YAIS.h"
-#include "tensorrt/playground/affinity.h"
+#include "tensorrt/playground/core/affinity.h"
 #include "YAIS/TensorRT/TensorRT.h"
 #include "YAIS/Metrics.h"
 
@@ -299,7 +299,7 @@ int main(int argc, char *argv[])
     });
 }
 
-static auto pinned_memory = yais::CudaHostAllocator::make_unique(1024 * 1024 * 1024);
+static auto pinned_memory = yais::Allocator<CudaHostMemory>::make_unique(1024 * 1024 * 1024);
 
 float *GetSharedMemory(const std::string &address)
 {

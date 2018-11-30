@@ -29,7 +29,7 @@
 
 #include <grpc++/grpc++.h>
 
-#include "YAIS/Resources.h"
+#include "tensorrt/playground/core/resources.h"
 
 namespace yais
 {
