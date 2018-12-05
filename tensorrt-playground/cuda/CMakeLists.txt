@@ -10,7 +10,6 @@ add_library(cuda
 add_library(${PROJECT_NAME}::cuda ALIAS cuda)
 
 target_link_libraries(cuda
-  PRIVATE
     ${PROJECT_NAME}::core
     ${CUDA_LIBRARIES}
     nvidia-ml

@@ -65,24 +65,4 @@ TYPED_TEST(TestMemory, make_unique)
     EXPECT_FALSE(unique);
 }
 
-class TestBytesToString : public ::testing::Test
-{
-};
-
-TEST_F(TestBytesToString, BytesToString)
-{
-    // CREDIT: https://stackoverflow.com/questions/3758606
-    using std::string;
-    EXPECT_EQ(      string("0 B"), BytesToString(0));
-    EXPECT_EQ(   string("1000 B"), BytesToString(1000));
-    EXPECT_EQ(   string("1023 B"), BytesToString(1023));
-    EXPECT_EQ(  string("1.0 KiB"), BytesToString(1024));
-    EXPECT_EQ(  string("1.7 KiB"), BytesToString(1728));
-    EXPECT_EQ(string("108.0 KiB"), BytesToString(110592));
-    EXPECT_EQ(  string("6.8 MiB"), BytesToString(7077888));
-    EXPECT_EQ(string("432.0 MiB"), BytesToString(452984832));
-    EXPECT_EQ( string("27.0 GiB"), BytesToString(28991029248));
-    EXPECT_EQ(  string("1.7 TiB"), BytesToString(1855425871872));
-}
-
 } // namespace
