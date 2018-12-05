@@ -34,7 +34,7 @@ class DeviceMemory : public Memory<DeviceMemory>
 {
   public:
     using Memory<DeviceMemory>::Memory;
-    using GenericMemoryType = DeviceMemory;
+    using BaseType = DeviceMemory;
     void Fill(char) override;
     size_t DefaultAlignment() const override;
     const std::string& Type() const override;

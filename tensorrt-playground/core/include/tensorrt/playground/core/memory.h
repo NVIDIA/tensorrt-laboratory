@@ -48,7 +48,6 @@ namespace yais
  * object; however, subsequent specializations like MemoryStacks can use the DefaultAlignment
  * to specialize their function specific to the MemoryType used.
  */
-template<class MemoryType>
 struct IMemory
 {
     virtual void* Data() const = 0;
@@ -56,16 +55,21 @@ struct IMemory
     virtual void Fill(char) = 0;
     virtual size_t DefaultAlignment() const = 0;
     virtual const std::string& Type() const = 0;
+    virtual ~IMemory() = default;
 };
 
 template<class MemoryType>
-class Memory : public IMemory<MemoryType>
+class Memory : public IMemory
 {
   public:
-    // Memory(Memory&&);
-    // Memory& operator=(Memory&& other);
+    // DELETE_COPYABILITY(Memory);
 
-    DELETE_COPYABILITY(Memory);
+//  Memory(Memory&& other) noexcept
+//      : m_MemoryAddress(std::exchange(other.m_MemoryAddress, nullptr)),
+//        m_BytesAllocated(std::exchange(other.m_BytesAllocated, 0)) 
+//  {
+//      // DLOG(INFO) << "Memory Move Constructor";
+//  }
 
     virtual ~Memory() {}
 
@@ -88,9 +92,11 @@ struct AllocatableMemory
 
 class HostMemory : public Memory<HostMemory>
 {
-  public:
+  protected:
     using Memory<HostMemory>::Memory;
-    using GenericMemoryType = HostMemory;
+
+  public:
+    using BaseType = HostMemory;
     void Fill(char) override;
     size_t DefaultAlignment() const override;
     const std::string& Type() const override;
@@ -100,10 +106,13 @@ class HostMemory : public Memory<HostMemory>
 
 class SystemMallocMemory : public HostMemory, public AllocatableMemory
 {
-  protected:
+  public:
     using HostMemory::HostMemory;
+  protected:
     void* Allocate(size_t) final override;
     void Free() final override;
+
+  public:
     const std::string& Type() const final override;
 };
 

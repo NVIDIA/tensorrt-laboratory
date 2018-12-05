@@ -65,6 +65,22 @@ TYPED_TEST(TestMemory, make_unique)
     EXPECT_FALSE(unique);
 }
 
+TYPED_TEST(TestMemory, ctor)
+{
+    Allocator<TypeParam> memory(one_mb);
+    EXPECT_TRUE(memory.Data());
+    EXPECT_EQ(one_mb, memory.Size());
+
+/*
+    Allocator<TypeParam> other(std::move(memory));
+    EXPECT_TRUE(other.Data());
+    EXPECT_EQ(one_mb, other.Size());
+
+    EXPECT_FALSE(memory.Data());
+    EXPECT_EQ(0, memory.Size());
+*/
+}
+
 class TestBytesToString : public ::testing::Test
 {
 };

@@ -56,7 +56,7 @@ namespace yais
  * MemoryStack::Allocate returns a void* to the start of a continuous segment of a given
  * size reserved on the stack.
  *
- * RotatingSegment::Allocate returns a specialized std::shared_ptr<GenericMemoryType> which is
+ * RotatingSegment::Allocate returns a specialized std::shared_ptr<BaseType> which is
  * instantiated from the same void* from the RotatingSegment's internal MemoryStack.
  * The returned shared_ptr is created with a custom deleter which holds a reference to
  * the RotatingSegment that created it. This capture of shared_from_this ensures that
@@ -114,16 +114,16 @@ class CyclicAllocator
 
     virtual ~CyclicAllocator() {}
 
-    using GenericMemoryType = typename MemoryType::GenericMemoryType;
+    using BaseType = typename MemoryType::BaseType;
 
-    std::shared_ptr<GenericMemoryType> Allocate(size_t size)
+    std::shared_ptr<BaseType> Allocate(size_t size)
     {
         return InternalAllocate(size);
     }
 
-    std::shared_ptr<MemoryStack<GenericMemoryType>> AllocateStack(size_t size)
+    std::shared_ptr<MemoryStack<BaseType>> AllocateStack(size_t size)
     {
-        return std::make_shared<MemoryStack<GenericMemoryType>>(InternalAllocate(size));
+        return std::make_shared<MemoryStack<BaseType>>(InternalAllocate(size));
     }
 
     void AddSegment()
@@ -156,7 +156,7 @@ class CyclicAllocator
     // The returned shared_ptr<MemoryType> holds a reference to the RotatingSegment object
     // which ensures the RotatingSegment cannot be returned to the Pool until all its
     // reference count goes to zero
-    std::shared_ptr<GenericMemoryType> InternalAllocate(size_t size)
+    std::shared_ptr<BaseType> InternalAllocate(size_t size)
     {
         DLOG(INFO) << "Requested Allocation: " << size << " bytes";
         CHECK_LE(size, m_MaximumAllocationSize)
@@ -218,7 +218,7 @@ class CyclicAllocator
 
         virtual ~RotatingSegment() {}
 
-        std::shared_ptr<GenericMemoryType> Allocate(size_t size)
+        std::shared_ptr<BaseType> Allocate(size_t size)
         {
             DLOG(INFO) << "RotatingSegment::Allocate pushes MemoryStack Pointer by : " << size;
             CHECK_LE(size, m_Stack->Available());
@@ -230,7 +230,7 @@ class CyclicAllocator
             // and who's destructor does not try to free any memory,
             // instead, it frees only the wrapper object
             auto ret =
-                GenericMemoryType::UnsafeWrapRawPointer(ptr, size, [segment](GenericMemoryType* p) { delete p; });
+                BaseType::UnsafeWrapRawPointer(ptr, size, [segment](BaseType* p) { delete p; });
 
             DLOG(INFO) << "Allocated " << ret->Size() << " starting at " << ret->Data()
                        << " on segment " << segment.get();

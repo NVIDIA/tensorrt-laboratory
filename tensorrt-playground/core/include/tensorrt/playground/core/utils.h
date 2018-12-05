@@ -33,8 +33,8 @@
     foo& operator=(const foo& other) = delete;
 
 #define DELETE_MOVEABILITY(foo) \
-    foo(foo&&) = delete;        \
-    foo& operator=(foo&& other) = delete;
+    foo(foo&&) noexcept = delete;        \
+    foo& operator=(foo&& other) noexcept= delete;
 
 namespace yais
 {

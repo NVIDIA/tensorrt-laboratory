@@ -34,9 +34,9 @@ template<class MemoryType>
 class Allocator final : public MemoryType
 {
   protected:
-    Allocator(size_t size);
 
   public:
+    Allocator(size_t size);
     ~Allocator() override;
 
     static std::shared_ptr<MemoryType> make_shared(size_t size);
