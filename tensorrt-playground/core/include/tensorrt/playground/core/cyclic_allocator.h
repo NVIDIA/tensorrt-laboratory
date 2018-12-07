@@ -112,7 +112,10 @@ class CyclicAllocator
         m_Alignment = m_CurrentSegment->Alignment();
     }
 
-    virtual ~CyclicAllocator() {}
+    virtual ~CyclicAllocator() 
+    { 
+        m_CurrentSegment.reset();
+    }
 
     using BaseType = typename MemoryType::BaseType;
 
@@ -121,11 +124,12 @@ class CyclicAllocator
         return InternalAllocate(size);
     }
 
+/*
     std::shared_ptr<MemoryStack<BaseType>> AllocateStack(size_t size)
     {
         return std::make_shared<MemoryStack<BaseType>>(InternalAllocate(size));
     }
-
+*/
     void AddSegment()
     {
         InternalPushSegment();
@@ -160,8 +164,8 @@ class CyclicAllocator
     {
         DLOG(INFO) << "Requested Allocation: " << size << " bytes";
         CHECK_LE(size, m_MaximumAllocationSize)
-            << "Requested allocation of " << size << " bytes exceeds the maximum allocations "
-            << "size " << m_MaximumAllocationSize << " for this CyclicAllocator memory allocator.";
+            << "Requested allocation of " << size << " bytes exceeds the maximum allocation "
+            << "size of " << m_MaximumAllocationSize << " for this CyclicAllocator.";
         std::lock_guard<std::mutex> lock(m_Mutex);
         if(!m_CurrentSegment || size > m_CurrentSegment->Available())
         {
@@ -189,16 +193,18 @@ class CyclicAllocator
 
     auto InternalPopSegment()
     {
-        return m_Segments->Pop([](RotatingSegment* segment) {
-            DLOG(INFO) << "Returning RotatingSegment to Pool";
+        auto val = m_Segments->Pop([](RotatingSegment* segment) {
+            DLOG(INFO) << "Returning RotatingSegment " << segment << " to Pool";
             segment->Reset();
         });
+        DLOG(INFO) << "Acquired RotatingSegment " << val.get() << " from Pool";
+        return val;
     }
 
-    void InternalDropSegment()
+    auto InternalDropSegment()
     {
         // Remote a Segment from the Ring
-        m_Segments->PopWithoutReturn();
+        return m_Segments->PopWithoutReturn();
     }
 
     class RotatingSegment : public std::enable_shared_from_this<RotatingSegment>

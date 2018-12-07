@@ -40,15 +40,14 @@ class TestCyclicStacks : public ::testing::Test
   protected:
     virtual void SetUp()
     {
-        stack = std::make_shared<CyclicAllocator<SystemMallocMemory>>(5, one_mb);
+        stack = std::make_unique<CyclicAllocator<SystemMallocMemory>>(5, one_mb);
     }
 
     virtual void TearDown()
     {
-        stack.reset();
     }
 
-    std::shared_ptr<CyclicAllocator<SystemMallocMemory>> stack;
+    std::unique_ptr<CyclicAllocator<SystemMallocMemory>> stack;
 };
 
 TEST_F(TestCyclicStacks, EmptyOnCreate)
@@ -110,7 +109,18 @@ TEST_F(TestCyclicStacks, Allocate)
         // The following will hang and deadlock the test
         // stack->Allocate(one_mb);
     }
+}
 
+TEST_F(TestCyclicStacks, AllocateThenReleaseStack)
+{
+    auto buf = stack->Allocate(1024);
+    stack.reset();
+    EXPECT_EQ(buf->Size(), 1024);
+    DLOG(INFO) << "Deallocation should hppen after this statement";
+}
+
+TEST_F(TestCyclicStacks, AllocateShouldFail)
+{
     EXPECT_DEATH(stack->Allocate(one_mb+1), "");
 }
 

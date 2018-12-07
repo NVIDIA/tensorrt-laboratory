@@ -29,8 +29,8 @@
 
 #include <glog/logging.h>
 
-#include "tensorrt/playground/core/memory.h"
 #include "tensorrt/playground/core/allocator.h"
+#include "tensorrt/playground/core/memory.h"
 
 namespace yais
 {
@@ -56,13 +56,22 @@ class MemoryStack
      * @param size Size of the memory allocation
      * @param alignment Byte alignment for all pointer pushed on the stack
      */
+
+    MemoryStack(std::unique_ptr<MemoryType> memory)
+        : m_Memory(std::move(memory)), m_CurrentPointer(m_Memory->Data()), m_CurrentSize(0),
+          m_Alignment(m_Memory->DefaultAlignment())
+    {
+        CHECK(m_Memory);
+    }
+
     MemoryStack(size_t size)
-        : m_Memory(Allocator<MemoryType>::make_unique(size)), m_CurrentPointer(m_Memory->Data()),
-          m_CurrentSize(0), m_Alignment(m_Memory->DefaultAlignment())
+      : MemoryStack(std::move(Allocator<MemoryType>::make_unique(size)))
     {
     }
 
     virtual ~MemoryStack() {}
+
+    using BaseType = typename MemoryType::BaseType;
 
     /**
      * @brief Advances the stack pointer
@@ -119,8 +128,49 @@ class MemoryStack
   private:
     std::unique_ptr<MemoryType> m_Memory;
     void* m_CurrentPointer;
-    size_t m_Alignment;
     size_t m_CurrentSize;
+    size_t m_Alignment;
+};
+
+template<typename MemoryType>
+class MemoryDescriptorStack : public MemoryStack<MemoryType>,
+                              public std::enable_shared_from_this<MemoryDescriptorStack<MemoryType>>
+{
+  protected:
+    using MemoryStack<MemoryType>::Allocate;
+
+  public:
+    using MemoryStack<MemoryType>::MemoryStack;
+    using Handle = std::shared_ptr<MemoryDescriptorStack<MemoryType>>;
+    using BaseType = typename MemoryType::BaseType;
+    using Descriptor = std::shared_ptr<BaseType>;
+
+    static Handle Create(size_t size)
+    {
+        return std::make_shared<MemoryDescriptorStack>(size);
+    }
+    static Handle Create(std::unique_ptr<MemoryType> memory)
+    {
+        return std::make_shared<MemoryDescriptorStack>(memory);
+    }
+
+    Descriptor Allocate(size_t size)
+    {
+        CHECK_LE(size, this->Available());
+
+        auto ptr = MemoryStack<MemoryType>::Allocate(size);
+        auto segment = this->shared_from_this();
+
+        // Special smart pointer that hold a reference to the Segment
+        // and who's destructor does not try to free any memory,
+        // instead, it frees only the wrapper object
+        auto ret = BaseType::UnsafeWrapRawPointer(ptr, size, [segment](BaseType* p) { delete p; });
+
+        DLOG(INFO) << "Allocated " << ret->Size() << " starting at " << ret->Data()
+                   << " on segment " << segment.get();
+
+        return ret;
+    }
 };
 
 // Template Implementations
@@ -128,6 +178,8 @@ class MemoryStack
 template<class MemoryType>
 void* MemoryStack<MemoryType>::Allocate(size_t size)
 {
+    DLOG(INFO) << "Allocate pushes MemoryStack Pointer by : " << size;
+
     CHECK_LE(m_CurrentSize + size, m_Memory->Size())
         << "Allocation too large.  Memory Total: " << m_Memory->Size() / (1024 * 1024) << "MB. "
         << "Used: " << m_CurrentSize / (1024 * 1024) << "MB. "

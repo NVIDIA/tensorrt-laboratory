@@ -52,6 +52,22 @@ class TestMemoryStack : public ::testing::Test
     std::shared_ptr<MemoryStack<SystemMallocMemory>> stack;
 };
 
+class TestMemoryDescriptorStack : public ::testing::Test
+{
+  protected:
+    virtual void SetUp()
+    {
+        stack = MemoryDescriptorStack<SystemMallocMemory>::Create(one_mb);
+    }
+
+    virtual void TearDown()
+    {
+        stack->Reset();
+    }
+
+    std::shared_ptr<MemoryDescriptorStack<SystemMallocMemory>> stack;
+};
+
 //using MemoryTypes = ::testing::Types<SystemMallocMemory>;
 //TYPED_TEST_CASE(TestMemoryStack, MemoryTypes);
 
@@ -85,6 +101,24 @@ TEST_F(TestMemoryStack, Unaligned)
 
     auto len = (char *)p1 - (char *)p0;
     EXPECT_EQ(len, stack->Alignment());
+}
+
+TEST_F(TestMemoryDescriptorStack, EmptyOnCreate)
+{
+    ASSERT_EQ(one_mb, stack->Size());
+    ASSERT_EQ(one_mb, stack->Available());
+    ASSERT_EQ(0, stack->Allocated());
+}
+
+TEST_F(TestMemoryDescriptorStack, AllocateAndReset)
+{
+    auto p0 = stack->Allocate(128 * 1024);
+    ASSERT_TRUE(p0);
+    EXPECT_EQ(128 * 1024, stack->Allocated());
+    stack->Reset();
+    EXPECT_EQ(0, stack->Allocated());
+    auto p1 = stack->Allocate(1);
+    EXPECT_EQ(p0->Data(), p1->Data());
 }
 
 } // namespace
