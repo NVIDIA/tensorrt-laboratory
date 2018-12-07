@@ -65,6 +65,8 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
         queue_ = std::move(other.queue_);
     }
 
+    virtual ~Queue() {}
+
     /**
      * @brief Push a new value of T to the Queue
      *
@@ -136,12 +138,17 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
 template<typename ResourceType>
 class Pool : public Queue<std::shared_ptr<ResourceType>>
 {
+  protected:
+    using Queue<std::shared_ptr<ResourceType>>::Queue;
+
   public:
     /**
      * @brief Factory function for creating a Pool.
      *
      * @return std::shared_ptr<Pool<ResourceType>>
      */
+
+
     static std::shared_ptr<Pool<ResourceType>> Create()
     {
         return std::shared_ptr<Pool<ResourceType>>(new Pool<ResourceType>());
@@ -178,9 +185,10 @@ class Pool : public Queue<std::shared_ptr<ResourceType>>
     {
         auto pool_ptr = this->shared_from_this();
         auto from_pool = Queue<std::shared_ptr<ResourceType>>::Pop();
-        std::shared_ptr<ResourceType> ptr(from_pool.get(), [from_pool, pool_ptr, onReturn](auto p) {
+        std::shared_ptr<ResourceType> ptr(from_pool.get(), [from_pool, pool_ptr, onReturn](auto p) mutable {
             onReturn(p);
-            pool_ptr->Push(from_pool);
+            pool_ptr->Push(std::move(from_pool));
+            pool_ptr.reset();
         });
         return ptr;
     }
