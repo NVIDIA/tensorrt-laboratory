@@ -164,7 +164,7 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
         // Special smart pointer that hold a reference to the Segment
         // and who's destructor does not try to free any memory,
         // instead, it frees only the wrapper object
-        auto ret = BaseType::UnsafeWrapRawPointer(ptr, size, [segment](BaseType* p) { delete p; });
+        auto ret = Allocator<BaseType>::UnsafeWrapRawPointer(ptr, size, [segment](BaseType* p) {});
 
         DLOG(INFO) << "Allocated " << ret->Size() << " starting at " << ret->Data()
                    << " on segment " << segment.get();

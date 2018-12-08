@@ -33,11 +33,17 @@ namespace yais
 template<class MemoryType>
 class Allocator final : public MemoryType
 {
-  protected:
-
   public:
     Allocator(size_t size);
     ~Allocator() override;
+
+    Allocator(Allocator&& other) noexcept
+        : MemoryType(std::move(other)) {}
+
+    Allocator& operator=(Allocator&& other) noexcept
+    {
+        return MemoryType::operator=(other);
+    }
 
     static std::shared_ptr<MemoryType> make_shared(size_t size);
     static std::unique_ptr<MemoryType> make_unique(size_t size);

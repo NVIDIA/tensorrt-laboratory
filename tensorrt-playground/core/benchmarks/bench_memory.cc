@@ -24,52 +24,52 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#pragma once
+#include <benchmark/benchmark.h>
+#include "tensorrt/playground/core/allocator.h"
+#include "tensorrt/playground/core/memory.h"
 
-#include <glog/logging.h>
+using namespace yais;
 
-namespace yais
+static void BM_Memory_SystemMalloc(benchmark::State &state)
 {
-template<class MemoryType>
-Allocator<MemoryType>::Allocator(size_t size) : MemoryType(this->Allocate(size), size)
-{
-    DLOG(INFO) << "Allocated " << this->Type() << ": ptr=" << this->Data()
-               << "; size=" << this->Size();
-}
-
-template<class MemoryType>
-Allocator<MemoryType>::~Allocator()
-{
-    if(this->Data() && this->Size())
+    for (auto _ : state)
     {
-        this->Free();
-        DLOG(INFO) << "Deallocated " << this->Type() << ": ptr=" << this->Data()
-                   << "; size=" << this->Size();
+        auto unique = std::make_unique<Allocator<SystemMallocMemory>>(1024*1024);
+        auto shared = std::make_shared<Allocator<SystemMallocMemory>>(1024*1024);
+        Allocator<SystemMallocMemory> memory(1024*1024);
     }
 }
 
-/**
- * @brief Create a shared_ptr to an Allocator of MemoryType
- *
- * @param size Size in bytes to be allocated
- * @return std::shared_ptr<Allocator>
- */
-template<class MemoryType>
-std::shared_ptr<MemoryType> Allocator<MemoryType>::make_shared(size_t size)
+static void BM_Memory_SystemMalloc_ctor(benchmark::State &state)
 {
-    return std::shared_ptr<MemoryType>(new Allocator(size));
+    for (auto _ : state)
+    {
+        Allocator<SystemMallocMemory> memory(1024*1024);
+        Allocator<SystemMallocMemory> memory1(1024*1024);
+        Allocator<SystemMallocMemory> memory2(1024*1024);
+    }
 }
 
-/**
- * @brief Create a unique_ptr to an Allocator of MemoryType
- *
- * @param size Size in bytes to be allocated
- * @return unique_ptr
- */
-template<class MemoryType>
-std::unique_ptr<MemoryType> Allocator<MemoryType>::make_unique(size_t size)
+static void BM_Memory_SystemMalloc_shared(benchmark::State &state)
 {
-    return std::unique_ptr<MemoryType>(new Allocator(size));
+    for (auto _ : state)
+    {
+        auto shared = std::make_shared<Allocator<SystemMallocMemory>>(1024*1024);
+    }
 }
 
-} // namespace yais
+
+
+static void BM_Memory_UnsafeWrapRawPointer(benchmark::State &state)
+{
+    auto memory = std::make_shared<Allocator<SystemMallocMemory>>(1024*1024);
+    for (auto _ : state)
+    {
+        auto base = memory->UnsafeWrapRawPointer(memory->Data(), memory->Size(), [memory](HostMemory *ptr) mutable {});
+    }
+}
+
+BENCHMARK(BM_Memory_SystemMalloc);
+BENCHMARK(BM_Memory_SystemMalloc_ctor);
+BENCHMARK(BM_Memory_SystemMalloc_shared);
+BENCHMARK(BM_Memory_UnsafeWrapRawPointer);

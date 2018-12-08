@@ -30,19 +30,20 @@ namespace yais
 {
 
 template<class MemoryType>
-void* yais::Memory<MemoryType>::Data() const
+void* BaseMemory<MemoryType>::Data() const
 {
     return m_MemoryAddress;
 }
 
 template<class MemoryType>
-size_t yais::Memory<MemoryType>::Size() const
+size_t BaseMemory<MemoryType>::Size() const
 {
     return m_BytesAllocated;
 }
+
 /*
 template<class MemoryType>
-Memory<MemoryType>::Memory(Memory&& other)
+BaseMemory<MemoryType>::Memory(Memory&& other)
 {
     m_MemoryAddress = other.m_MemoryAddress;
     m_BytesAllocated = other.m_BytesAllocated;
@@ -51,7 +52,7 @@ Memory<MemoryType>::Memory(Memory&& other)
 }
 
 template<class MemoryType>
-Memory& Memory<MemoryType>::operator=(Memory&& other)
+Memory& BaseMemory<MemoryType>::operator=(Memory&& other)
 {
     m_MemoryAddress = other.m_MemoryAddress;
     m_BytesAllocated = other.m_BytesAllocated;

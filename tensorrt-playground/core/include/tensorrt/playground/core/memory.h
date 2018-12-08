@@ -27,6 +27,8 @@
 #pragma once
 
 #include <memory>
+#include <glog/logging.h>
+
 
 #include "tensorrt/playground/core/utils.h"
 
@@ -58,62 +60,82 @@ struct IMemory
     virtual ~IMemory() = default;
 };
 
-template<class MemoryType>
-class Memory : public IMemory
+struct IAllocatableMemory
 {
+    virtual void* Allocate(size_t) = 0;
+    virtual void Free() = 0;
+};
+
+template<class MemoryType>
+class BaseMemory : public IMemory
+{
+  protected:
+    BaseMemory(void* ptr, size_t size) : m_MemoryAddress(ptr), m_BytesAllocated(size) {}
+
+    BaseMemory(BaseMemory&& other) noexcept
+        : m_MemoryAddress{std::exchange(other.m_MemoryAddress, nullptr)},
+          m_BytesAllocated{std::exchange(other.m_BytesAllocated, 0)} {}
+
+    BaseMemory& operator=(BaseMemory&& other) noexcept
+    {
+        m_MemoryAddress = std::exchange(other.m_MemoryAddress, nullptr);
+        m_BytesAllocated = std::exchange(other.m_BytesAllocated, 0);
+    }
+
+    DELETE_COPYABILITY(BaseMemory);
+
   public:
-    // DELETE_COPYABILITY(Memory);
+    virtual ~BaseMemory() {}
 
-//  Memory(Memory&& other) noexcept
-//      : m_MemoryAddress(std::exchange(other.m_MemoryAddress, nullptr)),
-//        m_BytesAllocated(std::exchange(other.m_BytesAllocated, 0)) 
-//  {
-//      // DLOG(INFO) << "Memory Move Constructor";
-//  }
-
-    virtual ~Memory() {}
+    using BaseType = MemoryType;
 
     inline void* Data() const final override;
     inline size_t Size() const final override;
 
-  protected:
-    Memory(void* ptr, size_t size) : m_MemoryAddress(ptr), m_BytesAllocated(size) {}
+    static std::shared_ptr<MemoryType> UnsafeWrapRawPointer(
+        void* ptr, size_t size, std::function<void(MemoryType*)> onDelete)
+    {
+        return std::shared_ptr<MemoryType>(new MemoryType(ptr, size), [onDelete](MemoryType *ptr) mutable {
+            onDelete(ptr);
+            delete ptr;
+        });
+    }
+
+    static std::unique_ptr<MemoryType> UnsafeWrapRawPointer2(
+        void* ptr, size_t size, std::function<void(MemoryType*)> onDelete)
+    {
+        return std::unique_ptr<MemoryType>(new MemoryType(ptr, size), [onDelete](MemoryType *ptr) mutable {
+            onDelete(ptr);
+            delete ptr;
+        });
+    }
 
   private:
     void* m_MemoryAddress;
     size_t m_BytesAllocated;
 };
 
-struct AllocatableMemory
+class HostMemory : public BaseMemory<HostMemory>
 {
-    virtual void* Allocate(size_t) = 0;
-    virtual void Free() = 0;
-};
-
-class HostMemory : public Memory<HostMemory>
-{
-  protected:
-    using Memory<HostMemory>::Memory;
-
   public:
-    using BaseType = HostMemory;
+    using BaseMemory<HostMemory>::BaseMemory;
+
     void Fill(char) override;
     size_t DefaultAlignment() const override;
     const std::string& Type() const override;
-    static std::shared_ptr<HostMemory> UnsafeWrapRawPointer(void*, size_t,
-                                                            std::function<void(HostMemory*)>);
+
+    friend class BaseMemory<HostMemory>;
 };
 
-class SystemMallocMemory : public HostMemory, public AllocatableMemory
+class SystemMallocMemory : public HostMemory, public IAllocatableMemory
 {
   public:
     using HostMemory::HostMemory;
+    const std::string& Type() const final override;
+
   protected:
     void* Allocate(size_t) final override;
     void Free() final override;
-
-  public:
-    const std::string& Type() const final override;
 };
 
 } // end namespace yais

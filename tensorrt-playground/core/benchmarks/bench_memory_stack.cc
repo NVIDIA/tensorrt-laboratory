@@ -24,52 +24,43 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#pragma once
+#include <benchmark/benchmark.h>
+#include "tensorrt/playground/core/allocator.h"
+#include "tensorrt/playground/core/memory.h"
+#include "tensorrt/playground/core/memory_stack.h"
+#include "tensorrt/playground/core/cyclic_allocator.h"
 
-#include <glog/logging.h>
+using namespace yais;
 
-namespace yais
+static void BM_MemoryStack_Allocate(benchmark::State &state)
 {
-template<class MemoryType>
-Allocator<MemoryType>::Allocator(size_t size) : MemoryType(this->Allocate(size), size)
-{
-    DLOG(INFO) << "Allocated " << this->Type() << ": ptr=" << this->Data()
-               << "; size=" << this->Size();
-}
-
-template<class MemoryType>
-Allocator<MemoryType>::~Allocator()
-{
-    if(this->Data() && this->Size())
+    auto stack = std::make_shared<MemoryStack<SystemMallocMemory>>(1024*1024);
+    for (auto _ : state)
     {
-        this->Free();
-        DLOG(INFO) << "Deallocated " << this->Type() << ": ptr=" << this->Data()
-                   << "; size=" << this->Size();
+        auto ptr = stack->Allocate(1024);
+        stack->Reset();
     }
 }
 
-/**
- * @brief Create a shared_ptr to an Allocator of MemoryType
- *
- * @param size Size in bytes to be allocated
- * @return std::shared_ptr<Allocator>
- */
-template<class MemoryType>
-std::shared_ptr<MemoryType> Allocator<MemoryType>::make_shared(size_t size)
+static void BM_MemoryDescriptorStack_Allocate(benchmark::State &state)
 {
-    return std::shared_ptr<MemoryType>(new Allocator(size));
+    auto stack = std::make_shared<MemoryDescriptorStack<SystemMallocMemory>>(1024*1024);
+    for (auto _ : state)
+    {
+        auto ptr = stack->Allocate(1024);
+        stack->Reset();
+    }
 }
 
-/**
- * @brief Create a unique_ptr to an Allocator of MemoryType
- *
- * @param size Size in bytes to be allocated
- * @return unique_ptr
- */
-template<class MemoryType>
-std::unique_ptr<MemoryType> Allocator<MemoryType>::make_unique(size_t size)
+static void BM_CyclicAllocator_Allocate(benchmark::State &state)
 {
-    return std::unique_ptr<MemoryType>(new Allocator(size));
+    auto stack = std::make_unique<CyclicAllocator<SystemMallocMemory>>(10, 1024*1024);
+    for (auto _ : state)
+    {
+        auto ptr = stack->Allocate(1024);
+    }
 }
 
-} // namespace yais
+BENCHMARK(BM_MemoryStack_Allocate);
+BENCHMARK(BM_MemoryDescriptorStack_Allocate);
+BENCHMARK(BM_CyclicAllocator_Allocate);

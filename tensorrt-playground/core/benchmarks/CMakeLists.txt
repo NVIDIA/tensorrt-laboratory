@@ -28,7 +28,8 @@ add_executable(bench_core
   main.cc
   bench_pool.cc
   bench_thread_pool.cc
-  benchmark_memory_stack.cc
+  bench_memory.cc
+  bench_memory_stack.cc
 )
 
 target_link_libraries(bench_core 
