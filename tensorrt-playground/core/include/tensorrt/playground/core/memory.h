@@ -26,9 +26,8 @@
  */
 #pragma once
 
-#include <memory>
 #include <glog/logging.h>
-
+#include <memory>
 
 #include "tensorrt/playground/core/utils.h"
 
@@ -74,7 +73,9 @@ class BaseMemory : public IMemory
 
     BaseMemory(BaseMemory&& other) noexcept
         : m_MemoryAddress{std::exchange(other.m_MemoryAddress, nullptr)},
-          m_BytesAllocated{std::exchange(other.m_BytesAllocated, 0)} {}
+          m_BytesAllocated{std::exchange(other.m_BytesAllocated, 0)}
+    {
+    }
 
     BaseMemory& operator=(BaseMemory&& other) noexcept
     {
@@ -92,22 +93,24 @@ class BaseMemory : public IMemory
     inline void* Data() const final override;
     inline size_t Size() const final override;
 
-    static std::shared_ptr<MemoryType> UnsafeWrapRawPointer(
-        void* ptr, size_t size, std::function<void(MemoryType*)> onDelete)
+    static std::shared_ptr<MemoryType>
+        UnsafeWrapRawPointer(void* ptr, size_t size, std::function<void(MemoryType*)> onDelete)
     {
-        return std::shared_ptr<MemoryType>(new MemoryType(ptr, size), [onDelete](MemoryType *ptr) mutable {
-            onDelete(ptr);
-            delete ptr;
-        });
+        return std::shared_ptr<MemoryType>(new MemoryType(ptr, size),
+                                           [onDelete](MemoryType* ptr) mutable {
+                                               onDelete(ptr);
+                                               delete ptr;
+                                           });
     }
 
-    static std::unique_ptr<MemoryType> UnsafeWrapRawPointer2(
-        void* ptr, size_t size, std::function<void(MemoryType*)> onDelete)
+    static std::unique_ptr<MemoryType>
+        UnsafeWrapRawPointer2(void* ptr, size_t size, std::function<void(MemoryType*)> onDelete)
     {
-        return std::unique_ptr<MemoryType>(new MemoryType(ptr, size), [onDelete](MemoryType *ptr) mutable {
-            onDelete(ptr);
-            delete ptr;
-        });
+        return std::unique_ptr<MemoryType>(new MemoryType(ptr, size),
+                                           [onDelete](MemoryType* ptr) mutable {
+                                               onDelete(ptr);
+                                               delete ptr;
+                                           });
     }
 
   private:
@@ -136,6 +139,54 @@ class SystemMallocMemory : public HostMemory, public IAllocatableMemory
   protected:
     void* Allocate(size_t) final override;
     void Free() final override;
+};
+
+class SystemV : public HostMemory, public IAllocatableMemory
+{
+  protected:
+    static void* Attach(int shm_id);
+    static size_t SegSize(int shm_id);
+
+  public:
+    SystemV(int shm_id)
+        : HostMemory(Attach(shm_id), SegSize(shm_id)), m_ShmID(shm_id), m_Attachable(false)
+    {
+    }
+
+  protected:
+    SystemV(void* ptr, size_t size) : HostMemory(ptr, size) {}
+
+  public:
+    SystemV(SystemV&& other) noexcept
+        : HostMemory(std::move(other)), m_ShmID{std::exchange(other.m_ShmID, -1)},
+          m_Attachable{std::exchange(other.m_Attachable, false)}
+    {
+    }
+
+    SystemV& operator=(SystemV&& other) noexcept
+    {
+        m_ShmID = std::exchange(other.m_ShmID, -1);
+        m_Attachable = std::exchange(other.m_Attachable, false);
+    }
+
+  public:
+    virtual ~SystemV() override;
+
+    const std::string& Type() const final override;
+
+    int ShmID() const;
+    bool Attachable() const;
+    void DisableAttachment();
+
+    // static SystemV Attach(int shm_id);
+
+  protected:
+    void* Allocate(size_t) final override;
+    void Free() final override;
+
+  private:
+    int m_ShmID;
+    bool m_Attachable;
 };
 
 } // end namespace yais

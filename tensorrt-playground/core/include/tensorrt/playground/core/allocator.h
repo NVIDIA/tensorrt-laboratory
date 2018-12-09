@@ -44,9 +44,6 @@ class Allocator final : public MemoryType
     {
         return MemoryType::operator=(other);
     }
-
-    static std::shared_ptr<MemoryType> make_shared(size_t size);
-    static std::unique_ptr<MemoryType> make_unique(size_t size);
 };
 
 } // namespace yais

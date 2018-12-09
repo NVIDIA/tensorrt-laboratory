@@ -29,11 +29,14 @@
 #include <algorithm>
 #include <cstring>
 
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/types.h>
+
 #include <glog/logging.h>
 
 namespace yais
 {
-
 // HostMemory
 
 size_t HostMemory::DefaultAlignment() const
@@ -45,7 +48,7 @@ void HostMemory::Fill(char fill_value)
 {
     std::memset(Data(), 0, Size());
 }
- 
+
 const std::string& HostMemory::Type() const
 {
     static std::string type = "HostMemory";
@@ -64,7 +67,7 @@ std::shared_ptr<HostMemory> HostMemory::UnsafeWrapRawPointer(
 
 void* SystemMallocMemory::Allocate(size_t size)
 {
-    void *ptr = malloc(size);
+    void* ptr = malloc(size);
     CHECK(ptr) << "malloc(" << size << ") failed";
     return ptr;
 }
@@ -78,6 +81,77 @@ const std::string& SystemMallocMemory::Type() const
 {
     static std::string type = "SystemMallocMemory";
     return type;
+}
+
+// SystemV
+
+const std::string& SystemV::Type() const
+{
+    static std::string type = "SystemV";
+    return type;
+}
+
+void* SystemV::Attach(int shm_id)
+{
+    auto ptr = shmat(shm_id, 0, 0);
+    CHECK(ptr);
+    return ptr;
+}
+
+size_t SystemV::SegSize(int shm_id)
+{
+    struct shmid_ds stats;
+    CHECK_EQ(shmctl(shm_id, IPC_STAT, &stats), 0);
+    auto size = stats.shm_segsz;
+    return size;
+}
+
+SystemV::~SystemV()
+{
+    if(Data() && Size())
+    {
+       DLOG(INFO) << "SystemV dtor detaching from sysv shmem";
+       CHECK_EQ(shmdt(Data()), 0);
+    }
+}
+
+void* SystemV::Allocate(size_t size)
+{
+    m_ShmID = shmget(IPC_PRIVATE, size, IPC_CREAT | 0666);
+    m_Attachable = (bool)(m_ShmID != -1);
+    CHECK(m_Attachable);
+    return Attach(m_ShmID);
+}
+
+void SystemV::Free()
+{
+    DisableAttachment();
+    DLOG(INFO) << "SystemV::Free deleting sysv shmem segment";
+    // CHECK_EQ(shmdt(Data()), 0);
+}
+
+void SystemV::DisableAttachment()
+{
+    if(m_Attachable)
+    {
+        struct shmid_ds buff;
+        CHECK_EQ(shmctl(m_ShmID, IPC_RMID, &buff), 0);
+    }
+    else
+    {
+        DLOG(WARNING) << "Attempting to disable attachment from a SystemV object that is either "
+                      << "already detached, or was not the originating creator.";
+    }
+}
+
+int SystemV::ShmID() const
+{
+    return m_ShmID;
+}
+
+bool SystemV::Attachable() const
+{
+    return m_Attachable;
 }
 
 } // namespace yais

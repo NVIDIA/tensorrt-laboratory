@@ -48,28 +48,4 @@ Allocator<MemoryType>::~Allocator()
     }
 }
 
-/**
- * @brief Create a shared_ptr to an Allocator of MemoryType
- *
- * @param size Size in bytes to be allocated
- * @return std::shared_ptr<Allocator>
- */
-template<class MemoryType>
-std::shared_ptr<MemoryType> Allocator<MemoryType>::make_shared(size_t size)
-{
-    return std::shared_ptr<MemoryType>(new Allocator(size));
-}
-
-/**
- * @brief Create a unique_ptr to an Allocator of MemoryType
- *
- * @param size Size in bytes to be allocated
- * @return unique_ptr
- */
-template<class MemoryType>
-std::unique_ptr<MemoryType> Allocator<MemoryType>::make_unique(size_t size)
-{
-    return std::unique_ptr<MemoryType>(new Allocator(size));
-}
-
 } // namespace yais

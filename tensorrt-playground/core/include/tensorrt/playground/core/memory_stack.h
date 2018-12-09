@@ -65,7 +65,7 @@ class MemoryStack
     }
 
     MemoryStack(size_t size)
-      : MemoryStack(std::move(Allocator<MemoryType>::make_unique(size)))
+      : MemoryStack(std::move(std::make_unique<Allocator<MemoryType>>(size)))
     {
     }
 
