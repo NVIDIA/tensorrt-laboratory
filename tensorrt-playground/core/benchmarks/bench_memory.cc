@@ -59,7 +59,7 @@ static void BM_Memory_SystemMalloc_shared(benchmark::State &state)
 }
 
 
-
+/*
 static void BM_Memory_UnsafeWrapRawPointer(benchmark::State &state)
 {
     auto memory = std::make_shared<Allocator<SystemMallocMemory>>(1024*1024);
@@ -68,8 +68,9 @@ static void BM_Memory_UnsafeWrapRawPointer(benchmark::State &state)
         auto base = memory->UnsafeWrapRawPointer(memory->Data(), memory->Size(), [memory](HostMemory *ptr) mutable {});
     }
 }
+*/
 
 BENCHMARK(BM_Memory_SystemMalloc);
 BENCHMARK(BM_Memory_SystemMalloc_ctor);
 BENCHMARK(BM_Memory_SystemMalloc_shared);
-BENCHMARK(BM_Memory_UnsafeWrapRawPointer);
+// BENCHMARK(BM_Memory_UnsafeWrapRawPointer);

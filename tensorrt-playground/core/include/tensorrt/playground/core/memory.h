@@ -51,12 +51,15 @@ namespace yais
  */
 struct IMemory
 {
+    virtual ~IMemory() = default;
+
+    virtual const std::string& Type() const = 0;
+
     virtual void* Data() const = 0;
     virtual size_t Size() const = 0;
+
     virtual void Fill(char) = 0;
     virtual size_t DefaultAlignment() const = 0;
-    virtual const std::string& Type() const = 0;
-    virtual ~IMemory() = default;
 };
 
 struct IAllocatableMemory
@@ -93,26 +96,6 @@ class BaseMemory : public IMemory
     inline void* Data() const final override;
     inline size_t Size() const final override;
 
-    static std::shared_ptr<MemoryType>
-        UnsafeWrapRawPointer(void* ptr, size_t size, std::function<void(MemoryType*)> onDelete)
-    {
-        return std::shared_ptr<MemoryType>(new MemoryType(ptr, size),
-                                           [onDelete](MemoryType* ptr) mutable {
-                                               onDelete(ptr);
-                                               delete ptr;
-                                           });
-    }
-
-    static std::unique_ptr<MemoryType>
-        UnsafeWrapRawPointer2(void* ptr, size_t size, std::function<void(MemoryType*)> onDelete)
-    {
-        return std::unique_ptr<MemoryType>(new MemoryType(ptr, size),
-                                           [onDelete](MemoryType* ptr) mutable {
-                                               onDelete(ptr);
-                                               delete ptr;
-                                           });
-    }
-
   private:
     void* m_MemoryAddress;
     size_t m_BytesAllocated;
@@ -122,12 +105,10 @@ class HostMemory : public BaseMemory<HostMemory>
 {
   public:
     using BaseMemory<HostMemory>::BaseMemory;
+    const std::string& Type() const override;
 
     void Fill(char) override;
     size_t DefaultAlignment() const override;
-    const std::string& Type() const override;
-
-    friend class BaseMemory<HostMemory>;
 };
 
 class SystemMallocMemory : public HostMemory, public IAllocatableMemory

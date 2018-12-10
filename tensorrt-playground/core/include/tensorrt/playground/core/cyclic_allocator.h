@@ -97,6 +97,8 @@ template<class MemoryType>
 class CyclicAllocator
 {
   public:
+    using RotatingSegment = MemoryDescriptorStack<MemoryType>;
+
     CyclicAllocator(size_t segments, size_t bytes_per_segment)
         : m_Segments(Pool<RotatingSegment>::Create()), m_MaximumAllocationSize(bytes_per_segment)
     {
@@ -118,8 +120,9 @@ class CyclicAllocator
     }
 
     using BaseType = typename MemoryType::BaseType;
+    using Descriptor = typename MemoryDescriptorStack<MemoryType>::Descriptor;
 
-    std::shared_ptr<BaseType> Allocate(size_t size)
+    Descriptor Allocate(size_t size)
     {
         return InternalAllocate(size);
     }
@@ -160,7 +163,7 @@ class CyclicAllocator
     // The returned shared_ptr<MemoryType> holds a reference to the RotatingSegment object
     // which ensures the RotatingSegment cannot be returned to the Pool until all its
     // reference count goes to zero
-    std::shared_ptr<BaseType> InternalAllocate(size_t size)
+    Descriptor InternalAllocate(size_t size)
     {
         DLOG(INFO) << "Requested Allocation: " << size << " bytes";
         CHECK_LE(size, m_MaximumAllocationSize)
@@ -185,8 +188,9 @@ class CyclicAllocator
 
     void InternalPushSegment()
     {
-        auto stack = std::make_unique<MemoryStack<MemoryType>>(m_MaximumAllocationSize);
-        auto segment = RotatingSegment::make_shared(std::move(stack));
+        //auto stack = std::make_unique<MemoryStack<MemoryType>>(m_MaximumAllocationSize);
+        //auto segment = RotatingSegment::make_shared(std::move(stack));
+        auto segment = std::make_shared<RotatingSegment>(m_MaximumAllocationSize);
         m_Segments->Push(segment);
         DLOG(INFO) << "Pushed New Rotating Segment " << segment.get() << " to Pool";
     }
@@ -206,62 +210,6 @@ class CyclicAllocator
         // Remote a Segment from the Ring
         return m_Segments->PopWithoutReturn();
     }
-
-    class RotatingSegment : public std::enable_shared_from_this<RotatingSegment>
-    {
-      private:
-        RotatingSegment(std::unique_ptr<MemoryStack<MemoryType>> stack)
-            : m_Stack(std::move(stack))
-        {
-        }
-
-      public:
-        static std::shared_ptr<RotatingSegment>
-            make_shared(std::unique_ptr<MemoryStack<MemoryType>> stack)
-        {
-            return std::shared_ptr<RotatingSegment>(new RotatingSegment(std::move(stack)));
-        }
-
-        virtual ~RotatingSegment() {}
-
-        std::shared_ptr<BaseType> Allocate(size_t size)
-        {
-            DLOG(INFO) << "RotatingSegment::Allocate pushes MemoryStack Pointer by : " << size;
-            CHECK_LE(size, m_Stack->Available());
-
-            auto ptr = m_Stack->Allocate(size);
-            auto segment = this->shared_from_this();
-
-            // Special smart pointer that hold a reference to the Segment
-            // and who's destructor does not try to free any memory,
-            // instead, it frees only the wrapper object
-            auto ret =
-                BaseType::UnsafeWrapRawPointer(ptr, size, [segment](BaseType* p) {});
-
-            DLOG(INFO) << "Allocated " << ret->Size() << " starting at " << ret->Data()
-                       << " on segment " << segment.get();
-
-            return ret;
-        }
-
-        void Reset()
-        {
-            m_Stack->Reset();
-        }
-
-        size_t Available()
-        {
-            return m_Stack->Available();
-        }
-
-        size_t Alignment()
-        {
-            return m_Stack->Alignment();
-        }
-
-      private:
-        std::unique_ptr<MemoryStack<MemoryType>> m_Stack;
-    };
 
     std::shared_ptr<Pool<RotatingSegment>> m_Segments;
     std::shared_ptr<RotatingSegment> m_CurrentSegment;

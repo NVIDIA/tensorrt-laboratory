@@ -64,8 +64,7 @@ class MemoryStack
         CHECK(m_Memory);
     }
 
-    MemoryStack(size_t size)
-      : MemoryStack(std::move(std::make_unique<Allocator<MemoryType>>(size)))
+    MemoryStack(size_t size) : MemoryStack(std::move(std::make_unique<Allocator<MemoryType>>(size)))
     {
     }
 
@@ -83,6 +82,23 @@ class MemoryStack
      * @return void* Starting address of the stack reservation
      */
     void* Allocate(size_t size);
+
+    /**
+     * @brief Computes offset of a pointer to the base pointer of the stack
+     *
+     * Checks to ensure that the ptr passed is a member of the stack by ensuring that the offset
+     * is never larger than the size of the stack.
+     *
+     * @param ptr
+     * @return size_t
+     */
+    size_t Offset(void* ptr) const
+    {
+        char* base = static_cast<char*>(m_Memory->Data());
+        size_t offset = static_cast<char*>(ptr) - base;
+        CHECK_LT(offset, m_Memory->Size());
+        return offset;
+    }
 
     /**
      * @brief Reset the memory stack
@@ -125,6 +141,11 @@ class MemoryStack
         return m_Alignment;
     }
 
+    const MemoryType& Memory() const
+    {
+        return *m_Memory;
+    }
+
   private:
     std::unique_ptr<MemoryType> m_Memory;
     void* m_CurrentPointer;
@@ -137,21 +158,53 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
                               public std::enable_shared_from_this<MemoryDescriptorStack<MemoryType>>
 {
   protected:
+    using MemoryStack<MemoryType>::MemoryStack;
     using MemoryStack<MemoryType>::Allocate;
 
   public:
-    using MemoryStack<MemoryType>::MemoryStack;
-    using Handle = std::shared_ptr<MemoryDescriptorStack<MemoryType>>;
-    using BaseType = typename MemoryType::BaseType;
-    using Descriptor = std::shared_ptr<BaseType>;
+    class StackDescriptor : public MemoryType
+    {
+      protected:
+        StackDescriptor(void* ptr, size_t size, size_t offset,
+                   std::shared_ptr<const MemoryDescriptorStack<MemoryType>> stack)
+            : MemoryType(ptr, size), m_Offset(offset), m_Stack(stack)
+        {
+        }
 
-    static Handle Create(size_t size)
+      public:
+        StackDescriptor(StackDescriptor&& other)
+            : MemoryType(std::move(other)), m_Offset{std::exchange(other.m_Offset, 0)},
+              m_Stack{std::exchange(other.m_Stack, nullptr)}
+        {
+        }
+
+        size_t Offset() const
+        {
+            return m_Offset;
+        }
+        const MemoryStack<MemoryType>& Stack() const
+        {
+            return m_Stack;
+        }
+
+      private:
+        size_t m_Offset;
+        std::shared_ptr<const MemoryDescriptorStack<MemoryType>> m_Stack;
+
+        friend class MemoryDescriptorStack<MemoryType>;
+    };
+
+  public:
+    using StackType = std::shared_ptr<MemoryDescriptorStack<MemoryType>>;
+    using Descriptor = std::unique_ptr<StackDescriptor>;
+
+    static StackType Create(size_t size)
     {
-        return std::make_shared<MemoryDescriptorStack>(size);
+        return StackType(new MemoryDescriptorStack(size));
     }
-    static Handle Create(std::unique_ptr<MemoryType> memory)
+    static StackType Create(std::unique_ptr<MemoryType> memory)
     {
-        return std::make_shared<MemoryDescriptorStack>(memory);
+        return StackType(new MemoryDescriptorStack(memory));
     }
 
     Descriptor Allocate(size_t size)
@@ -161,10 +214,10 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
         auto ptr = MemoryStack<MemoryType>::Allocate(size);
         auto segment = this->shared_from_this();
 
-        // Special smart pointer that hold a reference to the Segment
-        // and who's destructor does not try to free any memory,
-        // instead, it frees only the wrapper object
-        auto ret = Allocator<BaseType>::UnsafeWrapRawPointer(ptr, size, [segment](BaseType* p) {});
+        // Special Descriptor derived from MemoryType that hold a reference to the MemoryStack,
+        // and who's destructor does not try to free the MemoryType memory.
+        auto ret = std::make_unique<StackDescriptor>(
+            std::move(StackDescriptor(ptr, size, this->Offset(ptr), segment)));
 
         DLOG(INFO) << "Allocated " << ret->Size() << " starting at " << ret->Data()
                    << " on segment " << segment.get();

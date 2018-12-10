@@ -101,6 +101,9 @@ TEST_F(TestMemoryStack, Unaligned)
 
     auto len = (char *)p1 - (char *)p0;
     EXPECT_EQ(len, stack->Alignment());
+
+    EXPECT_EQ(stack->Offset(p0), 0);
+    EXPECT_EQ(stack->Offset(p1), stack->Alignment());
 }
 
 TEST_F(TestMemoryDescriptorStack, EmptyOnCreate)
