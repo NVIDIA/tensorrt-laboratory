@@ -39,16 +39,9 @@ size_t DeviceMemory::DefaultAlignment() const
     return DeviceInfo::Alignment();
 }
 
-void DeviceMemory::Fill(char)
+void DeviceMemory::Fill(char val)
 {
-    CHECK_EQ(cudaMemset(Data(), 0, Size()), CUDA_SUCCESS);
-}
-
-std::shared_ptr<DeviceMemory>
-    DeviceMemory::UnsafeWrapRawPointer(void* ptr, size_t size,
-                                       std::function<void(DeviceMemory*)> deleter)
-{
-    return std::shared_ptr<DeviceMemory>(new DeviceMemory(ptr, size), deleter);
+    CHECK_EQ(cudaMemset(Data(), val, Size()), CUDA_SUCCESS);
 }
 
 const std::string& DeviceMemory::Type() const
@@ -61,20 +54,18 @@ const std::string& DeviceMemory::Type() const
 void* CudaManagedMemory::Allocate(size_t size)
 {
     void* ptr;
-    CHECK_EQ(cudaMallocManaged((void**)&ptr, size, cudaMemAttachGlobal), CUDA_SUCCESS)
-        << "cudaMallocManaged " << size << " bytes failed";
-    DLOG(INFO) << "Allocated Cuda Managed Memory (" << ptr << ", " << size << ")";
+    CHECK_EQ(cudaMallocManaged((void**)&ptr, size, cudaMemAttachGlobal), CUDA_SUCCESS);
+    return ptr;
 }
 
 void CudaManagedMemory::Free()
 {
-    CHECK_EQ(cudaFree(Data()), CUDA_SUCCESS) << "cudaFree(" << Data() << ") failed";
-    DLOG(INFO) << "Deleted Cuda Manged Memory (" << Data() << ", " << Size() << ")";
+    CHECK_EQ(cudaFree(Data()), CUDA_SUCCESS);
 }
 
 const std::string& CudaManagedMemory::Type() const
 {
-    static std::string type = "CudaManagedMemory";
+    static std::string type = "CudaMallocManaged";
     return type;
 }
 
@@ -83,20 +74,18 @@ const std::string& CudaManagedMemory::Type() const
 void* CudaDeviceMemory::Allocate(size_t size)
 {
     void* ptr;
-    CHECK_EQ(cudaMalloc((void**)&ptr, size), CUDA_SUCCESS)
-        << "cudaMalloc " << size << " bytes failed";
-    DLOG(INFO) << "Allocated Cuda Device Memory (" << ptr << ", " << size << ")";
+    CHECK_EQ(cudaMalloc((void**)&ptr, size), CUDA_SUCCESS);
+    return ptr;
 }
 
 void CudaDeviceMemory::Free()
 {
-    CHECK_EQ(cudaFree(Data()), CUDA_SUCCESS) << "cudaFree(" << Data() << ") failed";
-    DLOG(INFO) << "Deleted Cuda Device Memory (" << Data() << ", " << Size() << ")";
+    CHECK_EQ(cudaFree(Data()), CUDA_SUCCESS);
 }
 
 const std::string& CudaDeviceMemory::Type() const
 {
-    static std::string type = "CudaDeviceMemory";
+    static std::string type = "CudaMalloc";
     return type;
 }
 
@@ -105,20 +94,18 @@ const std::string& CudaDeviceMemory::Type() const
 void* CudaHostMemory::Allocate(size_t size)
 {
     void* ptr;
-    CHECK_EQ(cudaMallocHost((void**)&ptr, size), CUDA_SUCCESS)
-        << "cudaMalloc " << size << " bytes failed";
-    DLOG(INFO) << "Allocated Cuda Host Memory (" << ptr << ", " << size << ")";
+    CHECK_EQ(cudaMallocHost((void**)&ptr, size), CUDA_SUCCESS);
+    return ptr;
 }
 
 void CudaHostMemory::Free()
 {
-    CHECK_EQ(cudaFreeHost(Data()), CUDA_SUCCESS) << "cudaFree(" << Data() << ") failed";
-    DLOG(INFO) << "Deleted Cuda Host Memory (" << Data() << ", " << Size() << ")";
+    CHECK_EQ(cudaFreeHost(Data()), CUDA_SUCCESS);
 }
 
 const std::string& CudaHostMemory::Type() const
 {
-    static std::string type = "CudaHostMemory";
+    static std::string type = "CudaMallocHost";
     return type;
 }
 

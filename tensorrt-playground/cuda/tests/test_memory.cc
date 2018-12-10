@@ -49,7 +49,7 @@ TYPED_TEST_CASE(TestMemory, MemoryTypes);
 
 TYPED_TEST(TestMemory, make_shared)
 {
-    auto shared = Allocator<TypeParam>::make_shared(one_mb);
+    auto shared = std::make_shared<Allocator<TypeParam>>(one_mb);
     EXPECT_TRUE(shared->Data());
     EXPECT_EQ(one_mb, shared->Size());
     shared.reset();
@@ -58,11 +58,38 @@ TYPED_TEST(TestMemory, make_shared)
 
 TYPED_TEST(TestMemory, make_unique)
 {
-    auto unique = Allocator<TypeParam>::make_unique(one_mb);
+    auto unique = std::make_unique<Allocator<TypeParam>>(one_mb);
     EXPECT_TRUE(unique->Data());
     EXPECT_EQ(one_mb, unique->Size());
     unique.reset();
     EXPECT_FALSE(unique);
+}
+
+TYPED_TEST(TestMemory, ctor)
+{
+    Allocator<TypeParam> memory(one_mb);
+    EXPECT_TRUE(memory.Data());
+    EXPECT_EQ(one_mb, memory.Size());
+}
+
+TYPED_TEST(TestMemory, move_ctor)
+{
+    Allocator<TypeParam> memory(one_mb);
+    Allocator<TypeParam> host(std::move(memory));
+
+    EXPECT_TRUE(host.Data());
+    EXPECT_EQ(one_mb, host.Size());
+
+    EXPECT_FALSE(memory.Data());
+    EXPECT_EQ(0, memory.Size());
+}
+
+TYPED_TEST(TestMemory, move_to_shared_ptr)
+{
+    Allocator<TypeParam> memory(one_mb);
+    auto ptr = std::make_shared<Allocator<TypeParam>>(std::move(memory));
+    EXPECT_TRUE(ptr);
+    EXPECT_TRUE(ptr->Data());
 }
 
 } // namespace

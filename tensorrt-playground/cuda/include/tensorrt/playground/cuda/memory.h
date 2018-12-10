@@ -30,30 +30,15 @@
 
 namespace yais
 {
+
 class DeviceMemory : public BaseMemory<DeviceMemory>
 {
   public:
-    using BaseMemory<DeviceMemory>::Memory;
-    using BaseType = DeviceMemory;
+    using BaseMemory<DeviceMemory>::BaseMemory;
+    const std::string& Type() const override;
+
     void Fill(char) override;
     size_t DefaultAlignment() const override;
-    const std::string& Type() const override;
-    static std::shared_ptr<DeviceMemory> UnsafeWrapRawPointer(void*, size_t,
-                                                              std::function<void(DeviceMemory*)>);
-};
-
-/**
- * @brief Allocates CUDA Managed Memory
- *
- * Allocates memory that will be automatically managed by the Unified Memory system.
- */
-class CudaManagedMemory : public DeviceMemory, public IAllocatableMemory
-{
-  protected:
-    using DeviceMemory::DeviceMemory;
-    void* Allocate(size_t) final override;
-    void Free() final override;
-    const std::string& Type() const final override;
 };
 
 /**
@@ -63,11 +48,29 @@ class CudaManagedMemory : public DeviceMemory, public IAllocatableMemory
  */
 class CudaDeviceMemory : public DeviceMemory, public IAllocatableMemory
 {
-  protected:
+  public:
     using DeviceMemory::DeviceMemory;
+    const std::string& Type() const final override;
+
+  protected:
     void* Allocate(size_t) final override;
     void Free() final override;
+};
+
+/**
+ * @brief Allocates CUDA Managed Memory
+ *
+ * Allocates memory that will be automatically managed by the Unified Memory system.
+ */
+class CudaManagedMemory : public DeviceMemory, public IAllocatableMemory
+{
+  public:
+    using DeviceMemory::DeviceMemory;
     const std::string& Type() const final override;
+
+  protected:
+    void* Allocate(size_t) final override;
+    void Free() final override;
 };
 
 /**
@@ -78,12 +81,13 @@ class CudaDeviceMemory : public DeviceMemory, public IAllocatableMemory
  */
 class CudaHostMemory : public HostMemory, public IAllocatableMemory
 {
-  protected:
-  protected:
+  public:
     using HostMemory::HostMemory;
+    const std::string& Type() const final override;
+
+  protected:
     void* Allocate(size_t) final override;
     void Free() final override;
-    const std::string& Type() const final override;
 };
 
 } // namespace yais
