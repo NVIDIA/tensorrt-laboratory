@@ -57,15 +57,15 @@ class TestMemoryDescriptorStack : public ::testing::Test
   protected:
     virtual void SetUp()
     {
-        stack = MemoryDescriptorStack<SystemMallocMemory>::Create(one_mb);
+        stack = MemoryDescriptorStack<SystemV>::Create(one_mb);
     }
 
     virtual void TearDown()
     {
-        stack->Reset();
+        if(stack) stack->Reset();
     }
 
-    std::shared_ptr<MemoryDescriptorStack<SystemMallocMemory>> stack;
+    std::shared_ptr<MemoryDescriptorStack<SystemV>> stack;
 };
 
 //using MemoryTypes = ::testing::Types<SystemMallocMemory>;
@@ -122,6 +122,40 @@ TEST_F(TestMemoryDescriptorStack, AllocateAndReset)
     EXPECT_EQ(0, stack->Allocated());
     auto p1 = stack->Allocate(1);
     EXPECT_EQ(p0->Data(), p1->Data());
+}
+
+TEST_F(TestMemoryDescriptorStack, Unaligned)
+{
+    auto p0 = stack->Allocate(1);
+    ASSERT_TRUE(p0->Data());
+    EXPECT_EQ(stack->Alignment(), stack->Allocated());
+
+    auto p1 = stack->Allocate(1);
+    ASSERT_TRUE(p1);
+    EXPECT_EQ(2 * stack->Alignment(), stack->Allocated());
+
+    auto len = (char *)p1->Data() - (char *)p0->Data();
+    EXPECT_EQ(len, stack->Alignment());
+
+    EXPECT_EQ(stack->Offset(p0->Data()), 0);
+    EXPECT_EQ(stack->Offset(p1->Data()), stack->Alignment());
+
+    EXPECT_EQ(p0->Offset(), 0);
+    EXPECT_EQ(p1->Offset(), stack->Alignment());
+
+    EXPECT_EQ(stack->Memory().Type(), "SystemV");
+
+    EXPECT_GE(p0->Stack().Memory().ShmID(), 0);
+    EXPECT_EQ(p0->ShmID(), -1);
+
+    DLOG(INFO) << "delete descriptors";
+
+    p0.reset();
+    p1.reset();
+
+    DLOG(INFO) << "delete stack";
+
+    stack.reset();
 }
 
 } // namespace

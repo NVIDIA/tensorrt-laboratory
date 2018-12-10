@@ -49,7 +49,7 @@ add_library(yais-tensorrt
   src/TensorRT/Buffers.cc
   src/TensorRT/Bindings.cc
   src/TensorRT/ExecutionContext.cc
-  src/TensorRT/ResourceManager.cc
+  src/TensorRT/InferenceManager.cc
   src/TensorRT/Utils.cc
 )
 

@@ -302,7 +302,7 @@ class DemoMiddlemanService : public InferMiddlemanService
         using InferMiddlemanService::Resources::Resources;
         void PreprocessRequest(easter::InferRequest *req) override
         {
-            static auto local_data = yais::Allocator<SystemMallocMemory>::make_unique(10*1024*1024);
+            static auto local_data = yais::Allocated<SystemMallocMemory>::make_unique(10*1024*1024);
             DLOG(INFO) << "Boom - preprocess request here!";
             auto bytes = req->meta_data().batch_size() * req->meta_data().input(0).byte_size();
             CHECK_EQ(0, req->raw_input_size());

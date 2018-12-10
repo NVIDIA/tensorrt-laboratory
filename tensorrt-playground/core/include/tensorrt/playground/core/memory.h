@@ -57,6 +57,7 @@ struct IMemory
 
     virtual void* Data() const = 0;
     virtual size_t Size() const = 0;
+    virtual bool Allocated() const = 0;
 
     virtual void Fill(char) = 0;
     virtual size_t DefaultAlignment() const = 0;
@@ -72,20 +73,9 @@ template<class MemoryType>
 class BaseMemory : public IMemory
 {
   protected:
-    BaseMemory(void* ptr, size_t size) : m_MemoryAddress(ptr), m_BytesAllocated(size) {}
-
-    BaseMemory(BaseMemory&& other) noexcept
-        : m_MemoryAddress{std::exchange(other.m_MemoryAddress, nullptr)},
-          m_BytesAllocated{std::exchange(other.m_BytesAllocated, 0)}
-    {
-    }
-
-    BaseMemory& operator=(BaseMemory&& other) noexcept
-    {
-        m_MemoryAddress = std::exchange(other.m_MemoryAddress, nullptr);
-        m_BytesAllocated = std::exchange(other.m_BytesAllocated, 0);
-    }
-
+    BaseMemory(void* ptr, size_t size, bool allocated); 
+    BaseMemory(BaseMemory&& other) noexcept;
+    BaseMemory& operator=(BaseMemory&&) noexcept = delete;
     DELETE_COPYABILITY(BaseMemory);
 
   public:
@@ -95,10 +85,12 @@ class BaseMemory : public IMemory
 
     inline void* Data() const final override;
     inline size_t Size() const final override;
+    inline bool Allocated() const final override;
 
   private:
     void* m_MemoryAddress;
     size_t m_BytesAllocated;
+    bool m_Allocated;
 };
 
 class HostMemory : public BaseMemory<HostMemory>
@@ -125,21 +117,11 @@ class SystemMallocMemory : public HostMemory, public IAllocatableMemory
 class SystemV : public HostMemory, public IAllocatableMemory
 {
   protected:
-    SystemV(void* ptr, size_t size) : HostMemory(ptr, size) {}
+    SystemV(void* ptr, size_t size, bool allocated);
 
   public:
-    SystemV(int shm_id)
-        : HostMemory(Attach(shm_id), SegSize(shm_id)), m_ShmID(shm_id), m_Attachable(false) { }
-
-    SystemV(SystemV&& other) noexcept
-        : HostMemory(std::move(other)), m_ShmID{std::exchange(other.m_ShmID, -1)},
-          m_Attachable{std::exchange(other.m_Attachable, false)} {}
-
-    SystemV& operator=(SystemV&& other) noexcept
-    {
-        m_ShmID = std::exchange(other.m_ShmID, -1);
-        m_Attachable = std::exchange(other.m_Attachable, false);
-    }
+    SystemV(int shm_id);
+    SystemV(SystemV&& other) noexcept;
 
   public:
     virtual ~SystemV() override;
@@ -147,7 +129,6 @@ class SystemV : public HostMemory, public IAllocatableMemory
     const std::string& Type() const final override;
 
     int ShmID() const;
-    bool Attachable() const;
     void DisableAttachment();
 
   protected:
@@ -155,11 +136,10 @@ class SystemV : public HostMemory, public IAllocatableMemory
     void Free() final override;
 
   private:
-    static void* Attach(int shm_id);
+    void* Attach(int shm_id);
     static size_t SegSize(int shm_id);
 
     int m_ShmID;
-    bool m_Attachable;
 };
 
 } // end namespace yais

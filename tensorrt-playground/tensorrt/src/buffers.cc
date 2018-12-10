@@ -37,23 +37,7 @@ namespace yais
 namespace TensorRT
 {
 
-/**
- * @brief Construct a new Buffers object
- * 
- * In most cases, Buffers will be created with equal sized host and device stacks;
- * however, for very custom cases, you may choose to configure them to your problem.
- * 
- * @param host_size 
- * @param device_size 
- */
-auto Buffers::Create(size_t host_size, size_t device_size) -> std::shared_ptr<Buffers>
-{
-    return std::shared_ptr<Buffers>(new Buffers(host_size, device_size));
-}
-
-Buffers::Buffers(size_t host_size, size_t device_size)
-    : m_HostStack(std::make_shared<MemoryStack<CudaHostMemory>>(host_size)),
-      m_DeviceStack(std::make_shared<MemoryStack<CudaDeviceMemory>>(device_size))
+Buffers::Buffers()
 {
     //CHECK(cudaStreamCreateWithFlags(&m_Stream, cudaStreamNonBlocking) == cudaSuccess); <-- breaks
     CHECK_EQ(cudaStreamCreate(&m_Stream), cudaSuccess) << "Failed to create cudaStream";
@@ -61,13 +45,32 @@ Buffers::Buffers(size_t host_size, size_t device_size)
 
 Buffers::~Buffers()
 {
+    DLOG(INFO) << "Buffers Deconstructor";
     CHECK_EQ(cudaStreamSynchronize(m_Stream), CUDA_SUCCESS) << "Failed to sync on stream while destroying Buffer";
     CHECK_EQ(cudaStreamDestroy(m_Stream), CUDA_SUCCESS) << "Failed to destroy stream";
 }
 
 auto Buffers::CreateBindings(const std::shared_ptr<Model> &model) -> std::shared_ptr<Bindings>
 {
-    return std::shared_ptr<Bindings>(new Bindings(model, shared_from_this()));
+    auto bindings = std::shared_ptr<Bindings>(new Bindings(model, shared_from_this()));
+    ConfigureBindings(model, bindings);
+    return bindings;
+}
+
+void Buffers::Synchronize()
+{
+    CHECK_EQ(cudaStreamSynchronize(m_Stream), CUDA_SUCCESS) << "Stream Sync failed";
+}
+
+FixedBuffers::FixedBuffers(size_t host_size, size_t device_size)
+    : m_HostStack(std::make_unique<MemoryStack<CudaHostMemory>>(host_size)),
+      m_DeviceStack(std::make_unique<MemoryStack<CudaDeviceMemory>>(device_size)),
+      Buffers()
+{
+}
+
+FixedBuffers::~FixedBuffers()
+{
 }
 
 /**
@@ -82,9 +85,8 @@ auto Buffers::CreateBindings(const std::shared_ptr<Model> &model) -> std::shared
  * @param batch_size 
  * @return bindings
  */
-auto Buffers::CreateAndConfigureBindings(const std::shared_ptr<Model> &model) -> std::shared_ptr<Bindings>
+void FixedBuffers::ConfigureBindings(const std::shared_ptr<Model> &model, std::shared_ptr<Bindings> bindings)
 {
-    auto bindings = CreateBindings(model);
     for (uint32_t i = 0; i < model->GetBindingsCount(); i++)
     {
         auto binding_size = model->GetBinding(i).bytesPerBatchItem * model->GetMaxBatchSize();
@@ -92,7 +94,6 @@ auto Buffers::CreateAndConfigureBindings(const std::shared_ptr<Model> &model) ->
         bindings->SetHostAddress(i, m_HostStack->Allocate(binding_size));
         bindings->SetDeviceAddress(i, m_DeviceStack->Allocate(binding_size));
     }
-    return bindings;
 }
 
 /**
@@ -100,16 +101,12 @@ auto Buffers::CreateAndConfigureBindings(const std::shared_ptr<Model> &model) ->
  * 
  * @param writeZeros 
  */
-void Buffers::Reset(bool writeZeros)
+void FixedBuffers::Reset(bool writeZeros)
 {
     m_HostStack->Reset(writeZeros);
     m_DeviceStack->Reset(writeZeros);
 }
 
-void Buffers::Synchronize()
-{
-    CHECK_EQ(cudaStreamSynchronize(m_Stream), CUDA_SUCCESS) << "Stream Sync failed";
-}
 
 } // namespace TensorRT
 } // namespace yais

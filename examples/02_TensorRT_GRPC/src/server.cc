@@ -48,7 +48,7 @@ using yais::Metrics;
 using yais::Server;
 using yais::ThreadPool;
 using yais::TensorRT::Model;
-using yais::TensorRT::ResourceManager;
+using yais::TensorRT::InferenceManager;
 using yais::TensorRT::Runtime;
 
 // Flowers Protos
@@ -105,13 +105,13 @@ static auto &power_gauge = power_gauge_fam.Add({{"gpu", "0"}});
 float *GetSharedMemory(const std::string &address);
 
 /*
- * YAIS Resources - TensorRT ResourceManager + ThreadPools + External Datasource
+ * YAIS Resources - TensorRT InferenceManager + ThreadPools + External Datasource
  */
-class FlowersResources : public ResourceManager
+class FlowersResources : public InferenceManager
 {
   public:
     explicit FlowersResources(int max_executions, int max_buffers, int nCuda, int nResp, float *sysv_data)
-        : ResourceManager(max_executions, max_buffers),
+        : InferenceManager(max_executions, max_buffers),
           m_CudaThreadPool(nCuda),
           m_ResponseThreadPool(nResp),
           m_SharedMemory(sysv_data)
@@ -299,7 +299,7 @@ int main(int argc, char *argv[])
     });
 }
 
-static auto pinned_memory = yais::Allocator<CudaHostMemory>::make_unique(1024 * 1024 * 1024);
+static auto pinned_memory = yais::Allocated<CudaHostMemory>::make_unique(1024 * 1024 * 1024);
 
 float *GetSharedMemory(const std::string &address)
 {

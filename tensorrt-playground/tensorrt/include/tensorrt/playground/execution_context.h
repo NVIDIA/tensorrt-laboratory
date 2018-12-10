@@ -69,7 +69,7 @@ namespace TensorRT
 
         std::unique_ptr<CudaDeviceMemory> m_Workspace;
 
-        friend class ResourceManager;
+        friend class InferenceManager;
     };
 
 } // namespace TensorRT

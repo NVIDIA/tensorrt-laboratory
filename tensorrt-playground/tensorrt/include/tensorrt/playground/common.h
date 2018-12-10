@@ -41,7 +41,7 @@ class Model;
 class Buffers;
 class Bindings;
 class ExecutionContext;
-class ResourceManager;
+class InferenceManager;
 
 struct NvInferDeleter
 {

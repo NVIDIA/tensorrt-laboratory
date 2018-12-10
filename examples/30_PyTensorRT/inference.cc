@@ -44,18 +44,18 @@ using yais::Server;
 using yais::ThreadPool;
 using yais::TensorRT::Bindings;
 using yais::TensorRT::ManagedRuntime;
-using yais::TensorRT::ResourceManager;
+using yais::TensorRT::InferenceManager;
 using yais::TensorRT::Runtime;
 
 class Inference;
 class InferenceManager;
 void Serve(std::shared_ptr<InferenceManager>);
 
-class InferenceManager : public ResourceManager
+class InferenceManager : public InferenceManager
 {
   public:
     InferenceManager(int max_executions, int max_buffers, int nCuda, int nResp)
-        : ResourceManager(max_executions, max_buffers),
+        : InferenceManager(max_executions, max_buffers),
           m_CudaThreadPool(std::make_unique<ThreadPool>(nCuda)),
           m_ResponseThreadPool(std::make_unique<ThreadPool>(nResp)),
           m_PreprocessThreadPool(std::make_unique<ThreadPool>(3)) {}

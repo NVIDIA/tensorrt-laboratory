@@ -39,7 +39,7 @@ namespace TensorRT
 /**
  * @brief General TensorRT Resource class
  * 
- * Derived from yais::Resources, this ResourceManager object provides the basic memory and compute resources
+ * Derived from yais::Resources, this InferenceManager object provides the basic memory and compute resources
  * needed for using with a TensorRT Context.  Limited quanity resources such as Buffers and ExecutionContexts
  * are managed by thead-safe Pools.  In general, the compute is always limited by the number of resources.
  * For example, limiting the number of ExecutionContexts to 1 will ensure only 1 Inference calcuation is
@@ -53,7 +53,7 @@ namespace TensorRT
  * 
  * @see Pool for more details on how limited quantity Resources are managed.
  */
-ResourceManager::ResourceManager(int max_executions, int max_buffers)
+InferenceManager::InferenceManager(int max_executions, int max_buffers)
     : m_MaxExecutions(max_executions), m_MaxBuffers(max_buffers),
       m_HostStackSize(0), m_DeviceStackSize(0), m_ActivationsSize(0), m_Buffers{nullptr}
 {
@@ -62,26 +62,26 @@ ResourceManager::ResourceManager(int max_executions, int max_buffers)
     LOG(INFO) << "Maximum Copy Concurrency: " << m_MaxBuffers;
 }
 
-ResourceManager::~ResourceManager()
+InferenceManager::~InferenceManager()
 {
 }
 
 /**
- * @brief Register a Model with the ResourceManager object
+ * @brief Register a Model with the InferenceManager object
  */
-void ResourceManager::RegisterModel(std::string name, std::shared_ptr<Model> model)
+void InferenceManager::RegisterModel(std::string name, std::shared_ptr<Model> model)
 {
     RegisterModel(name, model, m_MaxExecutions);
 }
 
 /**
- * @brief Register a Model with the ResourceManager object
+ * @brief Register a Model with the InferenceManager object
  * 
  * This variant allows you to specify an alternate maximum concurrency for this model.  The value
  * must be 1 <= concurrency <= MaxConcurrency.  Larger values will be capped to the maximum
- * concurrency allowed by the ResourceManager object.
+ * concurrency allowed by the InferenceManager object.
  */
-void ResourceManager::RegisterModel(std::string name, std::shared_ptr<Model> model, uint32_t max_concurrency)
+void InferenceManager::RegisterModel(std::string name, std::shared_ptr<Model> model, uint32_t max_concurrency)
 {
     auto item = m_Models.find(name);
     if (item != m_Models.end())
@@ -140,10 +140,10 @@ void ResourceManager::RegisterModel(std::string name, std::shared_ptr<Model> mod
 /**
  * @brief Allocates Host and Device Resources for Inference
  * 
- * Buffers are sized according to the registered models.  Models registered after AllocateResourceManager
+ * Buffers are sized according to the registered models.  Models registered after AllocateInferenceManager
  * has been call that require larger buffers should throw an exception (TODO).
  */
-void ResourceManager::AllocateResources()
+void InferenceManager::AllocateResources()
 {
     LOG(INFO) << "-- Allocating TensorRT Resources --";
     LOG(INFO) << "Creating " << m_MaxExecutions << " TensorRT execution tokens.";
@@ -156,7 +156,7 @@ void ResourceManager::AllocateResources()
     for (int i = 0; i < m_MaxBuffers; i++)
     {
         DLOG(INFO) << "Allocating Host/Device Buffers #" << i;
-        m_Buffers->Push(Buffers::Create(m_HostStackSize, m_DeviceStackSize));
+        m_Buffers->Push(std::make_shared<FixedBuffers>(m_HostStackSize, m_DeviceStackSize));
     }
 
     m_ExecutionContexts = Pool<ExecutionContext>::Create();
@@ -172,7 +172,7 @@ void ResourceManager::AllocateResources()
  * @param model_name 
  * @return std::shared_ptr<Model> 
  */
-auto ResourceManager::GetModel(std::string model_name) -> std::shared_ptr<Model>
+auto InferenceManager::GetModel(std::string model_name) -> std::shared_ptr<Model>
 {
     auto item = m_Models.find(model_name);
     CHECK(item != m_Models.end()) << "Unable to find entry for model: " << model_name;
@@ -191,7 +191,7 @@ auto ResourceManager::GetModel(std::string model_name) -> std::shared_ptr<Model>
  * 
  * @return std::shared_ptr<Buffers> 
  */
-auto ResourceManager::GetBuffers() -> std::shared_ptr<Buffers>
+auto InferenceManager::GetBuffers() -> std::shared_ptr<Buffers>
 {
     CHECK(m_Buffers) << "Call AllocateResources() before trying to acquire a Buffers object.";
     return m_Buffers->Pop([](Buffers *ptr) {
@@ -212,7 +212,7 @@ auto ResourceManager::GetBuffers() -> std::shared_ptr<Buffers>
  * 
  * @return std::shared_ptr<ExecutionContext> 
  */
-auto ResourceManager::GetExecutionContext(const Model *model) -> std::shared_ptr<ExecutionContext>
+auto InferenceManager::GetExecutionContext(const Model *model) -> std::shared_ptr<ExecutionContext>
 {
     CHECK(m_ExecutionContexts) << "Call AllocateResources() before trying to acquire an ExeuctionContext.";
     auto item = m_ModelExecutionContexts.find(model);
@@ -239,12 +239,12 @@ auto ResourceManager::GetExecutionContext(const Model *model) -> std::shared_ptr
  * @param model 
  * @return std::shared_ptr<ExecutionContext> 
  */
-auto ResourceManager::GetExecutionContext(const std::shared_ptr<Model> &model) -> std::shared_ptr<ExecutionContext>
+auto InferenceManager::GetExecutionContext(const std::shared_ptr<Model> &model) -> std::shared_ptr<ExecutionContext>
 {
     return GetExecutionContext(model.get());
 }
 
-auto ResourceManager::GetThreadPool(std::string name) -> ThreadPool &
+auto InferenceManager::GetThreadPool(std::string name) -> ThreadPool &
 {
     // std::shared_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
     auto search = m_ThreadPools.find(name);
@@ -252,7 +252,7 @@ auto ResourceManager::GetThreadPool(std::string name) -> ThreadPool &
     return *(search->second);
 }
 
-void ResourceManager::SetThreadPool(std::string name, std::unique_ptr<ThreadPool> threads)
+void InferenceManager::SetThreadPool(std::string name, std::unique_ptr<ThreadPool> threads)
 {
     // std::unique_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
     DLOG(INFO) << "Swapping ThreadPool: " << name;
@@ -261,7 +261,7 @@ void ResourceManager::SetThreadPool(std::string name, std::unique_ptr<ThreadPool
     m_ThreadPools[name].swap(threads);
 }
 
-void ResourceManager::JoinAllThreads()
+void InferenceManager::JoinAllThreads()
 {
     // std::unique_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
     DLOG(INFO) << "Joining All Threads";

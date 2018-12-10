@@ -41,7 +41,7 @@ namespace TensorRT
 {
 
 /**
- * @brief Manages input/output buffers and CudaStream
+ * @brief Manages inpu/output buffers and CudaStream
  * 
  * Primary TensorRT resource class used to manage both a host and a device memory stacks
  * and owns the cudaStream_t that should be used for transfers or compute on these
@@ -49,29 +49,40 @@ namespace TensorRT
  */
 class Buffers : public std::enable_shared_from_this<Buffers>
 {
-    static auto Create(size_t host_size, size_t device_size) -> std::shared_ptr<Buffers>;
-
   public:
+    Buffers();
     virtual ~Buffers();
-
-    void *AllocateHost(size_t size) { return m_HostStack->Allocate(size); }
-    void *AllocateDevice(size_t size) { return m_DeviceStack->Allocate(size); }
-
-    auto CreateBindings(const std::shared_ptr<Model> &model) -> std::shared_ptr<Bindings>; // todo: remove batchsize
-    auto CreateAndConfigureBindings(const std::shared_ptr<Model> &model) -> std::shared_ptr<Bindings>; // todo: remove batchsize
+    
+    auto CreateBindings(const std::shared_ptr<Model>&) -> std::shared_ptr<Bindings>;
 
     inline cudaStream_t Stream() { return m_Stream; }
     void Synchronize();
 
+  protected:
+    virtual void Reset(bool writeZeros = false) {};
+    virtual void ConfigureBindings(const std::shared_ptr<Model> &model, std::shared_ptr<Bindings>) = 0;
+
   private:
-    Buffers(size_t host_size, size_t device_size);
-    void Reset(bool writeZeros = false);
-
-    std::shared_ptr<MemoryStack<CudaHostMemory>> m_HostStack;
-    std::shared_ptr<MemoryStack<CudaDeviceMemory>> m_DeviceStack;
     cudaStream_t m_Stream;
+    friend class InferenceManager;
+};
 
-    friend class ResourceManager;
+class FixedBuffers : public Buffers
+{
+  public:
+    FixedBuffers(size_t host_size, size_t device_size);
+    ~FixedBuffers() override;
+
+  protected:
+    void Reset(bool writeZeros = false) final override;
+    void ConfigureBindings(const std::shared_ptr<Model> &model, std::shared_ptr<Bindings>) override;
+
+    void *AllocateHost(size_t size) { return m_HostStack->Allocate(size); }
+    void *AllocateDevice(size_t size) { return m_DeviceStack->Allocate(size); }
+
+  private:
+    std::unique_ptr<MemoryStack<CudaHostMemory>> m_HostStack;
+    std::unique_ptr<MemoryStack<CudaDeviceMemory>> m_DeviceStack;
 };
 
 } // namespace TensorRT

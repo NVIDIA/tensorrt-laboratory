@@ -30,10 +30,10 @@
 
 namespace yais
 {
-class DeviceMemory : public Memory<DeviceMemory>
+class DeviceMemory : public BaseMemory<DeviceMemory>
 {
   public:
-    using Memory<DeviceMemory>::Memory;
+    using BaseMemory<DeviceMemory>::Memory;
     using BaseType = DeviceMemory;
     void Fill(char) override;
     size_t DefaultAlignment() const override;
@@ -47,7 +47,7 @@ class DeviceMemory : public Memory<DeviceMemory>
  *
  * Allocates memory that will be automatically managed by the Unified Memory system.
  */
-class CudaManagedMemory : public DeviceMemory, public AllocatableMemory
+class CudaManagedMemory : public DeviceMemory, public IAllocatableMemory
 {
   protected:
     using DeviceMemory::DeviceMemory;
@@ -61,7 +61,7 @@ class CudaManagedMemory : public DeviceMemory, public AllocatableMemory
  *
  * Derived Memory class for GPU memory management using cudaMalloc and cudaFree.
  */
-class CudaDeviceMemory : public DeviceMemory, public AllocatableMemory
+class CudaDeviceMemory : public DeviceMemory, public IAllocatableMemory
 {
   protected:
     using DeviceMemory::DeviceMemory;
@@ -76,7 +76,7 @@ class CudaDeviceMemory : public DeviceMemory, public AllocatableMemory
  * Allocated page locked host memory using cudaMallocHost.  Pinned memory can provided better
  * performance, but should be used sparingly for staging areas for H2D and D2H transfers.
  */
-class CudaHostMemory : public HostMemory, public AllocatableMemory
+class CudaHostMemory : public HostMemory, public IAllocatableMemory
 {
   protected:
   protected:

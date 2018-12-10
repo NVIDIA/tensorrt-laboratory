@@ -31,8 +31,7 @@
 namespace yais
 {
 template<class MemoryType>
-Allocator<MemoryType>::Allocator(size_t size) 
-    : MemoryType(this->Allocate(size), size)
+Allocator<MemoryType>::Allocator(size_t size) : MemoryType(this->Allocate(size), size, true)
 {
     DLOG(INFO) << "Allocated " << this->Type() << ": ptr=" << this->Data()
                << "; size=" << this->Size();
@@ -50,7 +49,8 @@ Allocator<MemoryType>::~Allocator()
 }
 
 template<class MemoryType>
-Allocator<MemoryType>::Allocator(Allocator&& other) noexcept
-    :  MemoryType(std::move(other)) {}
+Allocator<MemoryType>::Allocator(Allocator&& other) noexcept : MemoryType(std::move(other))
+{
+}
 
 } // namespace yais

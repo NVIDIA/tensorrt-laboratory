@@ -28,6 +28,19 @@
 
 namespace yais
 {
+template<class MemoryType>
+BaseMemory<MemoryType>::BaseMemory(void* ptr, size_t size, bool allocated)
+    : m_MemoryAddress(ptr), m_BytesAllocated(size), m_Allocated(allocated)
+{
+}
+
+template<class MemoryType>
+BaseMemory<MemoryType>::BaseMemory(BaseMemory&& other) noexcept
+    : m_MemoryAddress{std::exchange(other.m_MemoryAddress, nullptr)},
+      m_BytesAllocated{std::exchange(other.m_BytesAllocated, 0)}, 
+      m_Allocated{std::exchange(other.m_Allocated, false)} 
+{
+}
 
 template<class MemoryType>
 void* BaseMemory<MemoryType>::Data() const
@@ -41,6 +54,11 @@ size_t BaseMemory<MemoryType>::Size() const
     return m_BytesAllocated;
 }
 
+template<class MemoryType>
+bool BaseMemory<MemoryType>::Allocated() const
+{
+    return m_Allocated;
+}
 /*
 template<class MemoryType>
 BaseMemory<MemoryType>::Memory(Memory&& other)

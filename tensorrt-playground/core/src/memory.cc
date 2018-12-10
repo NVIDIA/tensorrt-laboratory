@@ -85,6 +85,32 @@ const std::string& SystemMallocMemory::Type() const
 
 // SystemV
 
+SystemV::SystemV(void* ptr, size_t size, bool allocated) : HostMemory(ptr, size, allocated)
+{
+    if(!Allocated())
+    {
+        m_ShmID = -1;
+    }
+}
+
+SystemV::SystemV(int shm_id) : HostMemory(Attach(shm_id), SegSize(shm_id), false), m_ShmID(shm_id)
+{
+}
+
+SystemV::SystemV(SystemV&& other) noexcept
+    : HostMemory(std::move(other)), m_ShmID{std::exchange(other.m_ShmID, -1)}
+{
+}
+
+SystemV::~SystemV()
+{
+    if(m_ShmID != -1)
+    {
+        DLOG(INFO) << "SystemV dtor detaching from sysv shmem";
+        CHECK_EQ(shmdt(Data()), 0);
+    }
+}
+
 const std::string& SystemV::Type() const
 {
     static std::string type = "SystemV";
@@ -95,6 +121,7 @@ void* SystemV::Attach(int shm_id)
 {
     auto ptr = shmat(shm_id, nullptr, 0);
     CHECK(ptr);
+    m_ShmID = shm_id;
     return ptr;
 }
 
@@ -106,33 +133,23 @@ size_t SystemV::SegSize(int shm_id)
     return size;
 }
 
-SystemV::~SystemV()
-{
-    if(Data() && Size())
-    {
-       DLOG(INFO) << "SystemV dtor detaching from sysv shmem";
-       CHECK_EQ(shmdt(Data()), 0);
-    }
-}
-
 void* SystemV::Allocate(size_t size)
 {
     m_ShmID = shmget(IPC_PRIVATE, size, IPC_CREAT | 0666);
-    m_Attachable = (bool)(m_ShmID != -1);
-    CHECK(m_Attachable);
+    CHECK_NE(m_ShmID, -1);
+    DLOG(INFO) << "Allocated SysV Shmem w/ shm_id " << m_ShmID;
     return Attach(m_ShmID);
 }
 
 void SystemV::Free()
 {
     DisableAttachment();
-    DLOG(INFO) << "SystemV::Free deleting sysv shmem segment";
-    // CHECK_EQ(shmdt(Data()), 0);
+    DLOG(INFO) << "Removing SysV shm_id " << m_ShmID;
 }
 
 void SystemV::DisableAttachment()
 {
-    if(m_Attachable)
+    if(Allocated())
     {
         struct shmid_ds buff;
         CHECK_EQ(shmctl(m_ShmID, IPC_RMID, &buff), 0);
@@ -147,11 +164,6 @@ void SystemV::DisableAttachment()
 int SystemV::ShmID() const
 {
     return m_ShmID;
-}
-
-bool SystemV::Attachable() const
-{
-    return m_Attachable;
 }
 
 } // namespace yais

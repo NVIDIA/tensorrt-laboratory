@@ -74,12 +74,12 @@ int main(int argc, char *argv[])
     std::shared_ptr<CudaHostMemory> pinned_0, pinned_1;
 
     auto future_0 = workers_0->enqueue([=, &pinned_0]{
-        pinned_0 = Allocator<CudaHostMemory>::make_shared(one_gib);
+        pinned_0 = Allocated<CudaHostMemory>::make_shared(one_gib);
         pinned_0->WriteZeros();
     });
 
     auto future_1 = workers_1->enqueue([=, &pinned_1]{
-        pinned_1 = Allocator<CudaHostMemory>::make_shared(one_gib);
+        pinned_1 = Allocated<CudaHostMemory>::make_shared(one_gib);
         pinned_1->WriteZeros();
     });
 

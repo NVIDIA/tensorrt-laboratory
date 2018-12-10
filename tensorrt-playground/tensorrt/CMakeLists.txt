@@ -16,7 +16,6 @@ add_library(tensorrt
 add_library(${PROJECT_NAME}::tensorrt ALIAS tensorrt)
 
 target_link_libraries(tensorrt
-  PRIVATE
     ${PROJECT_NAME}::core
     ${PROJECT_NAME}::cuda
     ${TensorRT_LIBRARY}
@@ -44,9 +43,9 @@ install(
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-#if(ENABLE_TESTING)
-#  add_subdirectory(tests)
-#endif()
+if(ENABLE_TESTING)
+  add_subdirectory(tests)
+endif()
 
 #if(benchmark_FOUND)
 #  add_subdirectory(benchmarks)

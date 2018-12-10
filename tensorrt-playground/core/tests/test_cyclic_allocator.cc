@@ -35,41 +35,39 @@ namespace
 
 static size_t one_mb = 1024 * 1024;
 
+template<typename T>
 class TestCyclicStacks : public ::testing::Test
 {
-  protected:
-    virtual void SetUp()
-    {
-        stack = std::make_unique<CyclicAllocator<SystemMallocMemory>>(5, one_mb);
-    }
-
-    virtual void TearDown()
-    {
-    }
-
-    std::unique_ptr<CyclicAllocator<SystemMallocMemory>> stack;
 };
 
-TEST_F(TestCyclicStacks, EmptyOnCreate)
+using MemoryTypes = ::testing::Types<SystemMallocMemory, SystemV>;
+
+TYPED_TEST_CASE(TestCyclicStacks, MemoryTypes);
+
+TYPED_TEST(TestCyclicStacks, EmptyOnCreate)
 {
+    auto stack = std::make_unique<CyclicAllocator<TypeParam>>(5, one_mb);
     EXPECT_EQ(5,stack->AvailableSegments());
     EXPECT_EQ(5*one_mb,stack->AvailableBytes());
 }
 
-TEST_F(TestCyclicStacks, AddSegment)
+TYPED_TEST(TestCyclicStacks, AddSegment)
 {
+    auto stack = std::make_unique<CyclicAllocator<TypeParam>>(5, one_mb);
     stack->AddSegment();
     EXPECT_EQ(6,stack->AvailableSegments());
 }
 
-TEST_F(TestCyclicStacks, DropSegment)
+TYPED_TEST(TestCyclicStacks, DropSegment)
 {
+    auto stack = std::make_unique<CyclicAllocator<TypeParam>>(5, one_mb);
     stack->DropSegment();
     EXPECT_EQ(4,stack->AvailableSegments());
 }
 
-TEST_F(TestCyclicStacks, Allocate)
+TYPED_TEST(TestCyclicStacks, Allocate)
 {
+    auto stack = std::make_unique<CyclicAllocator<TypeParam>>(5, one_mb);
     {
         auto seg_0_0 = stack->Allocate(1);
         EXPECT_EQ(5*one_mb - stack->Alignment(),stack->AvailableBytes());
@@ -111,16 +109,18 @@ TEST_F(TestCyclicStacks, Allocate)
     }
 }
 
-TEST_F(TestCyclicStacks, AllocateThenReleaseStack)
+TYPED_TEST(TestCyclicStacks, AllocateThenReleaseStack)
 {
+    auto stack = std::make_unique<CyclicAllocator<TypeParam>>(5, one_mb);
     auto buf = stack->Allocate(1024);
     stack.reset();
     EXPECT_EQ(buf->Size(), 1024);
     DLOG(INFO) << "Deallocation should hppen after this statement";
 }
 
-TEST_F(TestCyclicStacks, AllocateShouldFail)
+TYPED_TEST(TestCyclicStacks, AllocateShouldFail)
 {
+    auto stack = std::make_unique<CyclicAllocator<TypeParam>>(5, one_mb);
     EXPECT_DEATH(stack->Allocate(one_mb+1), "");
 }
 

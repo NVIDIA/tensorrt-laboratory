@@ -48,11 +48,11 @@ namespace TensorRT
 /**
  * @brief TensorRT Resource Manager
  */
-class ResourceManager : public ::yais::Resources
+class InferenceManager : public ::yais::Resources
 {
   public:
-    ResourceManager(int max_executions, int max_buffers);
-    virtual ~ResourceManager();
+    InferenceManager(int max_executions, int max_buffers);
+    virtual ~InferenceManager();
 
     void RegisterModel(std::string name, std::shared_ptr<Model> model);
     void RegisterModel(std::string name, std::shared_ptr<Model> model, uint32_t max_concurrency);

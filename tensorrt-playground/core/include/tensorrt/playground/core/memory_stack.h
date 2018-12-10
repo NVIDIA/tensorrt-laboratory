@@ -166,8 +166,8 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
     {
       protected:
         StackDescriptor(void* ptr, size_t size, size_t offset,
-                   std::shared_ptr<const MemoryDescriptorStack<MemoryType>> stack)
-            : MemoryType(ptr, size), m_Offset(offset), m_Stack(stack)
+                        std::shared_ptr<const MemoryDescriptorStack<MemoryType>> stack)
+            : MemoryType(ptr, size, false), m_Offset(offset), m_Stack(stack)
         {
         }
 
@@ -184,7 +184,7 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
         }
         const MemoryStack<MemoryType>& Stack() const
         {
-            return m_Stack;
+            return *m_Stack;
         }
 
       private:

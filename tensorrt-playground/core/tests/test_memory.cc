@@ -83,41 +83,12 @@ TYPED_TEST(TestMemory, move_ctor)
     EXPECT_EQ(0, memory.Size());
 }
 
-TYPED_TEST(TestMemory, move_assign)
-{
-    Allocator<TypeParam> memory(one_mb);
-    Allocator<TypeParam> host = std::move(memory);
-
-    EXPECT_TRUE(host.Data());
-    EXPECT_EQ(one_mb, host.Size());
-
-    EXPECT_FALSE(memory.Data());
-    EXPECT_EQ(0, memory.Size());
-}
-
 TYPED_TEST(TestMemory, move_to_shared_ptr)
 {
     Allocator<TypeParam> memory(one_mb);
     auto ptr = std::make_shared<Allocator<TypeParam>>(std::move(memory));
     EXPECT_TRUE(ptr);
     EXPECT_TRUE(ptr->Data());
-}
-
-TYPED_TEST(TestMemory, move_to_wrapped_deleter)
-{
-    /*
-    auto memory = std::make_shared<Allocator<TypeParam>>(one_mb);
-    std::weak_ptr<Allocator<TypeParam>> weak = memory;
-    auto base = TypeParam::UnsafeWrapRawPointer(memory->Data(), memory->Size(),
-                                                [memory](HostMemory* ptr) mutable {});
-    EXPECT_TRUE(base);
-    EXPECT_TRUE(base->Data());
-    EXPECT_EQ(2, weak.use_count());
-    memory.reset();
-    EXPECT_EQ(1, weak.use_count());
-    base.reset();
-    EXPECT_EQ(0, weak.use_count());
-    */
 }
 
 class TestSystemVMemory : public ::testing::Test
@@ -128,27 +99,24 @@ TEST_F(TestSystemVMemory, same_process)
 {
     Allocator<SystemV> master(one_mb);
     EXPECT_TRUE(master.ShmID());
-    EXPECT_TRUE(master.Attachable());
     SystemV attached(master.ShmID());
     EXPECT_EQ(master.ShmID(), attached.ShmID());
-    EXPECT_FALSE(attached.Attachable());
     EXPECT_EQ(master.Size(), attached.Size());
-    EXPECT_NE(master.Data(),
-              attached.Data()); // different virtual address pointing at the same memory
+    // different virtual address pointing at the same memory
+    EXPECT_NE(master.Data(), attached.Data());
     auto master_ptr = static_cast<long*>(master.Data());
     auto attach_ptr = static_cast<long*>(attached.Data());
     *master_ptr = 0xDEADBEEF;
     EXPECT_EQ(*master_ptr, *attach_ptr);
+    EXPECT_EQ(*attach_ptr, 0xDEADBEEF);
 }
 
 TEST_F(TestSystemVMemory, smart_ptrs)
 {
     auto master = std::make_unique<Allocator<SystemV>>(one_mb);
     EXPECT_TRUE(master->ShmID());
-    EXPECT_TRUE(master->Attachable());
     auto attached = std::make_shared<SystemV>(master->ShmID());
     EXPECT_EQ(master->ShmID(), attached->ShmID());
-    EXPECT_FALSE(attached->Attachable());
     EXPECT_EQ(master->Size(), attached->Size());
     EXPECT_NE(master->Data(),
               attached->Data()); // different virtual address pointing at the same memory
@@ -165,7 +133,6 @@ TEST_F(TestSystemVMemory, TryAttachingToDeletedSegment)
 {
     auto master = std::make_unique<Allocator<SystemV>>(one_mb);
     EXPECT_TRUE(master->ShmID());
-    EXPECT_TRUE(master->Attachable());
     auto shm_id = master->ShmID();
     master.reset();
     DLOG(INFO) << "trying to attach to a deleted segment";

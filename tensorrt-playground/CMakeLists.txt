@@ -23,10 +23,10 @@ set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 find_package(Threads)
 
 if(ENABLE_TESTING)
+  message(STATUS "Building Tests")
   find_package(GTest) #1.8.1 CONFIG REQUIRED)
   find_package(benchmark)
   enable_testing()
-  message(STATUS "nvcxx testing enabled")
 endif()
 
 # suppress warnings
@@ -38,7 +38,6 @@ add_compile_options(
 add_subdirectory(core)
 
 if(BUILD_CUDA)
-  message(STATUS "nvcxx-cuda enabled")
   add_subdirectory(cuda)
 endif()
 
