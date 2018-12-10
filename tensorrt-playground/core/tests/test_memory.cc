@@ -159,6 +159,17 @@ TEST_F(TestSystemVMemory, smart_ptrs)
     DLOG(INFO) << "released the attached segment";
 }
 
+TEST_F(TestSystemVMemory, TryAttachingToDeletedSegment)
+{
+    auto master = std::make_unique<Allocator<SystemV>>(one_mb);
+    EXPECT_TRUE(master->ShmID());
+    EXPECT_TRUE(master->Attachable());
+    auto shm_id = master->ShmID();
+    master.reset();
+    DLOG(INFO) << "trying to attach to a deleted segment";
+    EXPECT_DEATH(auto attached = std::make_shared<SystemV>(shm_id), "");
+}
+
 class TestBytesToString : public ::testing::Test
 {
 };

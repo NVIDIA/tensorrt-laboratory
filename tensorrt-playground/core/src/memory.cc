@@ -93,7 +93,7 @@ const std::string& SystemV::Type() const
 
 void* SystemV::Attach(int shm_id)
 {
-    auto ptr = shmat(shm_id, 0, 0);
+    auto ptr = shmat(shm_id, nullptr, 0);
     CHECK(ptr);
     return ptr;
 }

@@ -144,24 +144,15 @@ class SystemMallocMemory : public HostMemory, public IAllocatableMemory
 class SystemV : public HostMemory, public IAllocatableMemory
 {
   protected:
-    static void* Attach(int shm_id);
-    static size_t SegSize(int shm_id);
-
-  public:
-    SystemV(int shm_id)
-        : HostMemory(Attach(shm_id), SegSize(shm_id)), m_ShmID(shm_id), m_Attachable(false)
-    {
-    }
-
-  protected:
     SystemV(void* ptr, size_t size) : HostMemory(ptr, size) {}
 
   public:
+    SystemV(int shm_id)
+        : HostMemory(Attach(shm_id), SegSize(shm_id)), m_ShmID(shm_id), m_Attachable(false) { }
+
     SystemV(SystemV&& other) noexcept
         : HostMemory(std::move(other)), m_ShmID{std::exchange(other.m_ShmID, -1)},
-          m_Attachable{std::exchange(other.m_Attachable, false)}
-    {
-    }
+          m_Attachable{std::exchange(other.m_Attachable, false)} {}
 
     SystemV& operator=(SystemV&& other) noexcept
     {
@@ -178,13 +169,14 @@ class SystemV : public HostMemory, public IAllocatableMemory
     bool Attachable() const;
     void DisableAttachment();
 
-    // static SystemV Attach(int shm_id);
-
   protected:
     void* Allocate(size_t) final override;
     void Free() final override;
 
   private:
+    static void* Attach(int shm_id);
+    static size_t SegSize(int shm_id);
+
     int m_ShmID;
     bool m_Attachable;
 };
