@@ -37,13 +37,7 @@ class Allocator final : public MemoryType
     Allocator(size_t size);
     ~Allocator() override;
 
-    Allocator(Allocator&& other) noexcept
-        : MemoryType(std::move(other)) {}
-
-    Allocator& operator=(Allocator&& other) noexcept
-    {
-        return MemoryType::operator=(other);
-    }
+    Allocator(Allocator&& other) noexcept;
 };
 
 } // namespace yais
