@@ -29,7 +29,12 @@
 #include <chrono>
 #include <thread>
 
-#include "YAIS/YAIS.h"
+#include "nvrpc/server.h"
+#include "nvrpc/service.h"
+#include "nvrpc/executor.h"
+#include "tensorrt/playground/core/pool.h"
+#include "tensorrt/playground/core/resources.h"
+#include "tensorrt/playground/core/thread_pool.h"
 
 #include "echo.pb.h"
 #include "echo.grpc.pb.h"

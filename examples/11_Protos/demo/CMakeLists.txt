@@ -41,6 +41,11 @@ add_library(demo-protos
     ${PROTO_GRPC_SRCS}
 )
 
+target_link_libraries(demo-protos
+  PUBLIC
+  ${_PROTOBUF_LIBPROTOBUF}
+)
+
 target_include_directories(demo-protos PUBLIC
     ${CMAKE_CURRENT_BINARY_DIR}
 )

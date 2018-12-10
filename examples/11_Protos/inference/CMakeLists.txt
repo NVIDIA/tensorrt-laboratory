@@ -43,6 +43,11 @@ add_library(nv-inference-protos
     ${PROTO_GRPC_SRCS}
 )
 
+target_link_libraries(nv-inference-protos
+  PUBLIC
+  ${_PROTOBUF_LIBPROTOBUF}
+)
+
 target_include_directories(nv-inference-protos PUBLIC
     ${CMAKE_CURRENT_BINARY_DIR}
 )

@@ -28,14 +28,16 @@ add_executable(echo-grpc.x
     src/server.cpp)
 
 target_link_libraries(echo-grpc.x
-    yais
+    nvrpc
     echo-protos
+    gflags
 )
 
 add_executable(echo-client.x
     src/client.cpp)
 
 target_link_libraries(echo-client.x
-    yais
+    nvrpc
     echo-protos
+    gflags
 )

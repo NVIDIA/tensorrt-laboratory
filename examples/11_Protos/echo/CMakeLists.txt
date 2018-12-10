@@ -39,6 +39,11 @@ add_library(echo-protos
     ${PROTO_GRPC_SRCS}
 )
 
+target_link_libraries(echo-protos
+  PUBLIC
+  ${_PROTOBUF_LIBPROTOBUF}
+)
+
 target_include_directories(echo-protos PUBLIC
     ${CMAKE_CURRENT_BINARY_DIR}
 )
