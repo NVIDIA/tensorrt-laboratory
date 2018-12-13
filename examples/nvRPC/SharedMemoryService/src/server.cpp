@@ -24,28 +24,34 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <gflags/gflags.h>
-#include <glog/logging.h>
 #include <chrono>
+#include <map>
+#include <memory>
 #include <thread>
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+
+#include "nvrpc/executor.h"
 #include "nvrpc/server.h"
 #include "nvrpc/service.h"
-#include "nvrpc/executor.h"
+#include "tensorrt/playground/core/memory.h"
 #include "tensorrt/playground/core/pool.h"
 #include "tensorrt/playground/core/resources.h"
 #include "tensorrt/playground/core/thread_pool.h"
 
-#include "echo.pb.h"
 #include "echo.grpc.pb.h"
+#include "echo.pb.h"
 
-using yais::AsyncService;
 using yais::AsyncRPC;
+using yais::AsyncService;
 using yais::Context;
 using yais::Executor;
-using yais::Server;
 using yais::Resources;
+using yais::Server;
 using yais::ThreadPool;
+
+using yais::SystemV;
 
 // CLI Options
 DEFINE_int32(thread_count, 1, "Size of thread pool");
@@ -56,7 +62,7 @@ DEFINE_int32(thread_count, 1, "Size of thread pool");
  * Package Name: simple
  * Service Name: Inference
  *     RPC Name: Compute
- * 
+ *
  * Incoming Message: Input
  * Outgoing Message: Ouput
  **
@@ -83,21 +89,77 @@ message Output {
 // In this case, all simple::Inference::Compute RPCs share a threadpool in which they will
 // queue up some work on.  This essentially means, after the message as been received and
 // processed, the actual work for the RPC is pushed to a worker pool outside the scope of
-// the transaction processing system (TPS).  This is essentially async computing, we have 
+// the transaction processing system (TPS).  This is essentially async computing, we have
 // decoupled the transaction from the workers executing the implementation.  The TPS can
 // continue to queue work, while the workers process the load.
+
+class SystemVManager
+{
+  protected:
+    class SystemVDescriptor : public SystemV
+    {
+      public:
+        SystemVDescriptor(std::shared_ptr<const SystemV> memory, size_t offset, size_t size)
+            : SystemV((*memory)[offset], size, false), m_Memory(memory)
+        {
+        }
+
+        SystemVDescriptor(SystemVDescriptor&& other) : SystemV(std::move(other)) {}
+
+      private:
+        std::shared_ptr<const SystemV> m_Memory;
+    };
+
+  public:
+    using Descriptor = std::unique_ptr<SystemVDescriptor>;
+
+    SystemVManager() = default;
+
+    Descriptor Acquire(size_t shm_id, size_t offset, size_t size)
+    {
+        std::unique_lock<std::mutex> l(m_Mutex);
+        std::shared_ptr<const SystemV> memory;
+        auto search = m_AttachedSegments.find(shm_id);
+        if(search == m_AttachedSegments.end())
+        {
+            DLOG(INFO) << "SystemV Manager: attaching to shm_id: " << shm_id;
+            memory = std::make_shared<SystemV>(shm_id);
+            m_AttachedSegments[shm_id] = memory;
+        }
+        else
+        {
+            memory = search->second;
+        }
+        CHECK_LE(offset + size, memory->Size());
+        return std::make_unique<SystemVDescriptor>(memory, offset, size);
+    }
+
+  private:
+    std::map < size_t, std::shared_ptr<const SystemV>> m_AttachedSegments;
+    std::mutex m_Mutex;
+};
+
+
+
 struct SimpleResources : public Resources
 {
-    SimpleResources(int numThreadsInPool=3) : m_ThreadPool(numThreadsInPool) {}
+    SimpleResources(int numThreadsInPool = 3) : m_ThreadPool(numThreadsInPool) {}
 
     ThreadPool& GetThreadPool()
     {
         return m_ThreadPool;
     }
 
+    SystemVManager& GetSystemVManager()
+    {
+        return m_SystemVManager;
+    }
+
   private:
     ThreadPool m_ThreadPool;
+    SystemVManager m_SystemVManager;
 };
+
 
 // Contexts hold the state and provide the definition of the work to be performed by the RPC.
 // This is where you define what gets executed for a given RPC.
@@ -105,25 +167,33 @@ struct SimpleResources : public Resources
 // Outgoing Message = simple::Output (ResponseType)
 class SimpleContext final : public Context<simple::Input, simple::Output, SimpleResources>
 {
-    void ExecuteRPC(RequestType &input, ResponseType &output) final override
+    void ExecuteRPC(RequestType& input, ResponseType& output) final override
     {
-        // We could do work here, but we'd block the TPS, i.e. the threads pulling messages 
+        // We could do work here, but we'd block the TPS, i.e. the threads pulling messages
         // off the incoming recieve queue.  Very quick responses are best done here; however,
         // longer running workload should be offloaded so the TPS can avoid being blocked.
-        GetResources()->GetThreadPool().enqueue([this, &input, &output]{
-            // Now running on a worker thread of the ThreadPool defined in SimpleResources.
-            // Here we are just echoing back the incoming // batch_id; however, in later 
-            // examples, we'll show how to run an async cuda pipline.
-            LOG_FIRST_N(INFO, 20) << "Tag = " << Tag() << " Thread = " << std::this_thread::get_id();
-            output.set_batch_id(input.batch_id());
-            this->FinishResponse();
-        });
+        // GetResources()->GetThreadPool().enqueue([this, &input, &output]{
+        // Now running on a worker thread of the ThreadPool defined in SimpleResources.
+        // Here we are just echoing back the incoming // batch_id; however, in later
+        // examples, we'll show how to run an async cuda pipline.
+        LOG_FIRST_N(INFO, 20) << "Tag = " << Tag() << " Thread = " << std::this_thread::get_id();
+        SystemVManager::Descriptor mdesc;
+        if(input.has_sysv()) {
+            mdesc = GetResources()->GetSystemVManager().Acquire(
+                input.sysv().shm_id(),
+                input.sysv().offset(),
+                input.sysv().size()
+            );
+        }
+        LOG_IF(ERROR, *(static_cast<size_t*>((*mdesc)[0])) != input.batch_id());
+        output.set_batch_id(input.batch_id());
+        this->FinishResponse();
+        // });
         // The TPS thread is now free to continue processing message - async ftw!
     }
 };
 
-
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     FLAGS_alsologtostderr = 1; // Log to console
 
@@ -134,7 +204,7 @@ int main(int argc, char *argv[])
     Server server("0.0.0.0:50051");
 
     // A server can host multiple services
-    LOG(INFO) << "Register Service (simple::Inference) with Server"; 
+    LOG(INFO) << "Register Service (simple::Inference) with Server";
     auto simpleInference = server.RegisterAsyncService<simple::Inference>();
 
     // An RPC has two components that need to be specified when registering with the service:
@@ -142,11 +212,10 @@ int main(int argc, char *argv[])
     //     of the RPC, i.e. it contains the control logic for the execution of the RPC.
     //  2) The Request function (RequestCompute) which was generated by gRPC when compiling the
     //     protobuf which defined the service.  This function is responsible for queuing the
-    //     RPC's execution context to the 
+    //     RPC's execution context to the
     LOG(INFO) << "Register RPC (simple::Inference::Compute) with Service (simple::Inference)";
     auto rpcCompute = simpleInference->RegisterRPC<SimpleContext>(
-        &simple::Inference::AsyncService::RequestCompute
-    );
+        &simple::Inference::AsyncService::RequestCompute);
 
     LOG(INFO) << "Initializing Resources for RPC (simple::Inference::Compute)";
     auto rpcResources = std::make_shared<SimpleResources>();
@@ -156,7 +225,7 @@ int main(int argc, char *argv[])
     // for pulling incoming message off the receive queue and executing the associated
     // context.  By default, an executor only uses a single thread.  A typical usecase is
     // an Executor executes a context, which immediate pushes the work to a thread pool.
-    // However, for very low-latency messaging, you might want to use a multi-threaded 
+    // However, for very low-latency messaging, you might want to use a multi-threaded
     // Executor and a Blocking Context - meaning the Context performs the entire RPC function
     // on the Executor's thread.
     LOG(INFO) << "Creating Executor";
@@ -170,7 +239,7 @@ int main(int argc, char *argv[])
     executor->RegisterContexts(rpcCompute, rpcResources, 10);
 
     LOG(INFO) << "Running Server";
-    server.Run(std::chrono::milliseconds(2000), []{
+    server.Run(std::chrono::milliseconds(2000), [] {
         // This is a timeout loop executed every 2seconds
         // Run() with no arguments will run an empty timeout loop every 5 seconds.
         // RunAsync() will return immediately, its your responsibility to ensure the

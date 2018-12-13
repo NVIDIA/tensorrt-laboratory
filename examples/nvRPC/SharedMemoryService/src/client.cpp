@@ -57,11 +57,18 @@ class SimpleClient {
   // from the server.
   int Compute(const int batch_id) {
     // Data we are sending to the server.
+
     CyclicAllocator<SystemV>::Descriptor mem(std::move(RandomAllocation()));
     DLOG(INFO) << "SysV Info - ShmID: " << mem->Stack().Memory().ShmID();
+    auto data = mem->cast_to_array<size_t>();
+    data[0] = batch_id;
 
     Input request;
     request.set_batch_id(batch_id);
+    auto sysv = request.mutable_sysv();
+    sysv->set_shm_id(mem->Stack().Memory().ShmID());
+    sysv->set_offset(mem->Offset());
+    sysv->set_size(mem->Size());
 
     // Container for the data we expect from the server.
     Output reply;
@@ -85,7 +92,7 @@ class SimpleClient {
 
  private:
   typename CyclicAllocator<SystemV>::Descriptor RandomAllocation() {
-    size_t bytes = rand() % one_mb;
+    size_t bytes = rand() % one_mb/4;
     DLOG(INFO) << "RandomAllocation: " << bytes << " bytes";
     return m_Memory.Allocate(bytes);
   }
@@ -95,7 +102,7 @@ class SimpleClient {
   CyclicAllocator<SystemV> m_Memory;
 };
 
-DEFINE_int32(count, 100, "number of grpc messages to send");
+DEFINE_int32(count, 1, "number of grpc messages to send");
 
 int main(int argc, char** argv) {
   // Instantiate the client. It requires a channel, out of which the actual RPCs

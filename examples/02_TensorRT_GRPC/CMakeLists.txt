@@ -28,7 +28,7 @@ add_executable(inference-grpc.x
     src/server.cc
 )
 target_link_libraries(inference-grpc.x
-    yais-tensorrt
+    nvrpc::nvrpc
     demo-protos
 )
 
@@ -36,7 +36,7 @@ add_executable(client-sync.x
     src/sync-client.cc
 )
 target_link_libraries(client-sync.x
-    yais
+    nvrpc::nvrpc
     demo-protos
 )
 
@@ -44,7 +44,7 @@ add_executable(client-async.x
     src/async-client.cc
 )
 target_link_libraries(client-async.x
-    yais
+    nvrpc::nvrpc
     demo-protos
 )
 
@@ -52,6 +52,6 @@ add_executable(siege.x
     src/siege.cc
 )
 target_link_libraries(siege.x
-    yais
+    nvrpc::nvrpc
     demo-protos
 )

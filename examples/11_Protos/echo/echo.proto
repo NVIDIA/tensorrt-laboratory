@@ -34,8 +34,18 @@ service Inference {
    rpc BatchedCompute (stream Input) returns (stream Output) {}
 }
 
+message SystemV {
+    uint64 shm_id = 1;
+    uint64 offset = 2;
+    uint64 size = 3;
+}
+
 message Input {
     uint64 batch_id = 1;
+    oneof data {
+        bytes raw_bytes = 2;
+        SystemV sysv = 3;
+    }
 }
 
 message Output {
