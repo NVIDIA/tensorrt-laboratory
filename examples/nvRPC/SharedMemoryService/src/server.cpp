@@ -185,7 +185,8 @@ class SimpleContext final : public Context<simple::Input, simple::Output, Simple
                 input.sysv().size()
             );
         }
-        LOG_IF(ERROR, *(static_cast<size_t*>((*mdesc)[0])) != input.batch_id());
+        mdesc->cast_to_array<size_t>()[0];
+        LOG_IF(ERROR, mdesc->cast_to_array<size_t>()[0] != input.batch_id());
         output.set_batch_id(input.batch_id());
         this->FinishResponse();
         // });
