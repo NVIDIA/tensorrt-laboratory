@@ -60,17 +60,20 @@ class SimpleClient {
   int Compute(const int batch_id) {
     // Data we are sending to the server.
 
-    CyclicAllocator<SystemV>::Descriptor mem = RandomAllocation();
-    DLOG(INFO) << "SysV Info - ShmID: " << mem->Stack().Memory().ShmID();
-    auto data = mem->cast_to_array<size_t>();
-    data[0] = batch_id;
-
     Input request;
+    CyclicAllocator<SystemV>::Descriptor mdesc = RandomAllocation();
+
+    // Populate the request object
     request.set_batch_id(batch_id);
     auto sysv = request.mutable_sysv();
-    sysv->set_shm_id(mem->Stack().Memory().ShmID());
-    sysv->set_offset(mem->Offset());
-    sysv->set_size(mem->Size());
+    sysv->set_shm_id(mdesc->Stack().Memory().ShmID());
+    sysv->set_offset(mdesc->Offset());
+    sysv->set_size(mdesc->Size());
+
+    // Write the batch_id to the shared memory segment
+    // This will validated against the batch_id in the message body on the server
+    auto data = mdesc->cast_to_array<size_t>();
+    data[0] = batch_id;
 
     // Container for the data we expect from the server.
     Output reply;
@@ -86,14 +89,13 @@ class SimpleClient {
     if (status.ok()) {
       return reply.batch_id();
     } else {
-      std::cout << status.error_code() << ": " << status.error_message()
-                << std::endl;
+      LOG(ERROR) << status.error_code() << ": " << status.error_message();
       return -1;
     }
   }
 
  private:
-  typename CyclicAllocator<SystemV>::Descriptor RandomAllocation() {
+  CyclicAllocator<SystemV>::Descriptor RandomAllocation() {
     size_t bytes = rand() % (m_Memory.MaxAllocationSize() / 4);
     DLOG(INFO) << "RandomAllocation: " << bytes << " bytes";
     return m_Memory.Allocate(bytes);
