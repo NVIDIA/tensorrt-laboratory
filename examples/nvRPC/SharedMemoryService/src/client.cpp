@@ -48,6 +48,8 @@ using simple::Inference;
 using yais::CyclicAllocator;
 using yais::SystemV;
 
+static constexpr size_t one_mb = 1024*1024;
+
 class SimpleClient {
  public:
   SimpleClient(std::shared_ptr<Channel> channel)
@@ -58,7 +60,7 @@ class SimpleClient {
   int Compute(const int batch_id) {
     // Data we are sending to the server.
 
-    CyclicAllocator<SystemV>::Descriptor mem(std::move(RandomAllocation()));
+    CyclicAllocator<SystemV>::Descriptor mem = RandomAllocation();
     DLOG(INFO) << "SysV Info - ShmID: " << mem->Stack().Memory().ShmID();
     auto data = mem->cast_to_array<size_t>();
     data[0] = batch_id;
@@ -92,12 +94,11 @@ class SimpleClient {
 
  private:
   typename CyclicAllocator<SystemV>::Descriptor RandomAllocation() {
-    size_t bytes = rand() % one_mb/4;
+    size_t bytes = rand() % (m_Memory.MaxAllocationSize() / 4);
     DLOG(INFO) << "RandomAllocation: " << bytes << " bytes";
     return m_Memory.Allocate(bytes);
   }
 
-  static constexpr size_t one_mb = 1024*1024;
   std::unique_ptr<Inference::Stub> stub_;
   CyclicAllocator<SystemV> m_Memory;
 };
