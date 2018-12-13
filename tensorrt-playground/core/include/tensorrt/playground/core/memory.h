@@ -57,6 +57,7 @@ struct IMemory
 
     virtual void* Data() const = 0;
     virtual size_t Size() const = 0;
+
     virtual bool Allocated() const = 0;
 
     virtual void Fill(char) = 0;
@@ -85,7 +86,14 @@ class BaseMemory : public IMemory
 
     inline void* Data() const final override;
     inline size_t Size() const final override;
+
     inline bool Allocated() const final override;
+
+    void* operator[](size_t offset) const;
+
+    template <typename T>
+    T* cast_to_array() { return static_cast<T*>(Data()); }
+    // auto array_cast() { return dynamic_cast<T[Size()/sizeof(T)]>(Data()); }
 
   private:
     void* m_MemoryAddress;

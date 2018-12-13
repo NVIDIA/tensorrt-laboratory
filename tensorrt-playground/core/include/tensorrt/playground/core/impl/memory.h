@@ -59,6 +59,14 @@ bool BaseMemory<MemoryType>::Allocated() const
 {
     return m_Allocated;
 }
+
+template<class MemoryType>
+void* BaseMemory<MemoryType>::operator[](size_t offset) const
+{
+    CHECK_LE(offset, Size());
+    return static_cast<void*>(static_cast<char*>(Data()) + offset);
+}
+
 /*
 template<class MemoryType>
 BaseMemory<MemoryType>::Memory(Memory&& other)
