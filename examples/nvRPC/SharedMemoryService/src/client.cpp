@@ -50,20 +50,21 @@ using yais::SystemV;
 
 static constexpr size_t one_mb = 1024*1024;
 
-class SimpleClient {
+DEFINE_int32(count, 1, "number of grpc messages to send");
+
+class SimpleClient final {
  public:
   SimpleClient(std::shared_ptr<Channel> channel)
-      : stub_(Inference::NewStub(channel)), m_Memory(5, one_mb) {}
+      : m_Stub(Inference::NewStub(channel)), m_Memory(5, one_mb) {}
 
-  // Assembles the client's payload, sends it and presents the response back
-  // from the server.
+  // Generate and send RPC message
   int Compute(const int batch_id) {
-    // Data we are sending to the server.
 
-    Input request;
+    // Allocate some SysV shared memory from the CyclicAllocator
     CyclicAllocator<SystemV>::Descriptor mdesc = RandomAllocation();
 
     // Populate the request object
+    Input request;
     request.set_batch_id(batch_id);
     auto sysv = request.mutable_sysv();
     sysv->set_shm_id(mdesc->Stack().Memory().ShmID());
@@ -83,9 +84,8 @@ class SimpleClient {
     ClientContext context;
 
     // The actual RPC.
-    Status status = stub_->Compute(&context, request, &reply);
+    Status status = m_Stub->Compute(&context, request, &reply);
 
-    // Act upon its status.
     if (status.ok()) {
       return reply.batch_id();
     } else {
@@ -101,26 +101,22 @@ class SimpleClient {
     return m_Memory.Allocate(bytes);
   }
 
-  std::unique_ptr<Inference::Stub> stub_;
+  std::unique_ptr<Inference::Stub> m_Stub;
   CyclicAllocator<SystemV> m_Memory;
 };
 
-DEFINE_int32(count, 1, "number of grpc messages to send");
-
-int main(int argc, char** argv) {
-  // Instantiate the client. It requires a channel, out of which the actual RPCs
-  // are created. This channel models a connection to an endpoint (in this case,
-  // localhost at port 50051). We indicate that the channel isn't authenticated
-  // (use of InsecureChannelCredentials()).
+int main(int argc, char** argv) 
+{
   FLAGS_alsologtostderr = 1; // It will dump to console
-   ::google::ParseCommandLineFlags(&argc, &argv, true);
+  ::google::ParseCommandLineFlags(&argc, &argv, true);
 
   SimpleClient client(grpc::CreateChannel(
       "localhost:50051", grpc::InsecureChannelCredentials()));
+
   auto start = std::chrono::steady_clock::now();
   for(int i=0; i<FLAGS_count; i++) {
       auto reply = client.Compute(i);
-      if(reply == -1 || reply != i) std::cout << "BatchId received: " << reply << std::endl;
+      LOG_IF(INFO, reply == -1) << "BatchId received: " << reply;
   }
   auto end = std::chrono::steady_clock::now();
   float elapsed = std::chrono::duration<float>(end - start).count();
