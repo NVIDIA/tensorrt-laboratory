@@ -127,6 +127,11 @@ class CyclicAllocator
         return InternalAllocate(size);
     }
 
+    size_t MaxAllocationSize() const
+    {
+        return m_MaximumAllocationSize:
+    }
+
 /*
     std::shared_ptr<MemoryStack<BaseType>> AllocateStack(size_t size)
     {
