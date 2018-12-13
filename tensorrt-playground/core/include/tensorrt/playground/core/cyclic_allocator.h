@@ -129,7 +129,7 @@ class CyclicAllocator
 
     size_t MaxAllocationSize() const
     {
-        return m_MaximumAllocationSize:
+        return m_MaximumAllocationSize;
     }
 
 /*
