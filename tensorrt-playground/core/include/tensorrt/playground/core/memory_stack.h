@@ -165,9 +165,9 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
     class StackDescriptor : public MemoryType
     {
       protected:
-        StackDescriptor(void* ptr, size_t size, size_t offset,
+        StackDescriptor(void* ptr, size_t size,
                         std::shared_ptr<const MemoryDescriptorStack<MemoryType>> stack)
-            : MemoryType(ptr, size, false), m_Offset(offset), m_Stack(stack)
+            : MemoryType(ptr, size, false), m_Stack(stack), m_Offset(Stack().Offset(this->Data()))
         {
         }
 
@@ -188,8 +188,8 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
         }
 
       private:
-        size_t m_Offset;
         std::shared_ptr<const MemoryDescriptorStack<MemoryType>> m_Stack;
+        size_t m_Offset;
 
         friend class MemoryDescriptorStack<MemoryType>;
     };
@@ -217,7 +217,7 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
         // Special Descriptor derived from MemoryType that hold a reference to the MemoryStack,
         // and who's destructor does not try to free the MemoryType memory.
         auto ret = std::make_unique<StackDescriptor>(
-            std::move(StackDescriptor(ptr, size, this->Offset(ptr), segment)));
+            std::move(StackDescriptor(ptr, size, segment)));
 
         DLOG(INFO) << "Allocated " << ret->Size() << " starting at " << ret->Data()
                    << " on segment " << segment.get();

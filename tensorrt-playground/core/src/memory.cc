@@ -106,7 +106,7 @@ SystemV::~SystemV()
 {
     if(m_ShmID != -1)
     {
-        DLOG(INFO) << "SystemV dtor detaching from sysv shmem";
+        DLOG(INFO) << "Detaching from SystemV shm_id: " << m_ShmID;
         CHECK_EQ(shmdt(Data()), 0);
     }
 }

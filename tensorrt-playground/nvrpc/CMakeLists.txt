@@ -30,8 +30,9 @@ add_library(nvrpc
 add_library(${PROJECT_NAME}::nvrpc ALIAS nvrpc)
 
 target_link_libraries(nvrpc
-  PRIVATE
+  PUBLIC
     ${PROJECT_NAME}::core
+    ${_GRPC_GRPCPP_UNSECURE}
 )
 
 target_include_directories(nvrpc
