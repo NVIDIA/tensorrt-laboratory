@@ -30,15 +30,7 @@
 
 namespace yais
 {
-template<class MemoryType>
-class Allocator final : public MemoryType
-{
-  public:
-    Allocator(size_t size);
-    ~Allocator() override;
 
-    Allocator(Allocator&& other) noexcept;
-};
 
 } // namespace yais
 

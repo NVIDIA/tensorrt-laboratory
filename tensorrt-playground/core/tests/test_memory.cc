@@ -99,13 +99,13 @@ TEST_F(TestSystemVMemory, same_process)
 {
     Allocator<SystemV> master(one_mb);
     EXPECT_TRUE(master.ShmID());
-    SystemV attached(master.ShmID());
-    EXPECT_EQ(master.ShmID(), attached.ShmID());
-    EXPECT_EQ(master.Size(), attached.Size());
+    auto attached = SystemV::Attach(master.ShmID());
+    EXPECT_EQ(master.ShmID(), attached->ShmID());
+    EXPECT_EQ(master.Size(), attached->Size());
     // different virtual address pointing at the same memory
-    EXPECT_NE(master.Data(), attached.Data());
+    EXPECT_NE(master.Data(), attached->Data());
     auto master_ptr = static_cast<long*>(master.Data());
-    auto attach_ptr = static_cast<long*>(attached.Data());
+    auto attach_ptr = static_cast<long*>(attached->Data());
     *master_ptr = 0xDEADBEEF;
     EXPECT_EQ(*master_ptr, *attach_ptr);
     EXPECT_EQ(*attach_ptr, 0xDEADBEEF);
@@ -115,7 +115,7 @@ TEST_F(TestSystemVMemory, smart_ptrs)
 {
     auto master = std::make_unique<Allocator<SystemV>>(one_mb);
     EXPECT_TRUE(master->ShmID());
-    auto attached = std::make_shared<SystemV>(master->ShmID());
+    auto attached = SystemV::Attach(master->ShmID());
     EXPECT_EQ(master->ShmID(), attached->ShmID());
     EXPECT_EQ(master->Size(), attached->Size());
     EXPECT_NE(master->Data(),
@@ -136,7 +136,7 @@ TEST_F(TestSystemVMemory, TryAttachingToDeletedSegment)
     auto shm_id = master->ShmID();
     master.reset();
     DLOG(INFO) << "trying to attach to a deleted segment";
-    EXPECT_DEATH(auto attached = std::make_shared<SystemV>(shm_id), "");
+    EXPECT_DEATH(auto attached = SystemV::Attach(shm_id), "");
 }
 
 class TestBytesToString : public ::testing::Test

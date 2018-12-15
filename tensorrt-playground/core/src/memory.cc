@@ -40,6 +40,7 @@ void* ShmAt(int shm_id)
 {
     auto ptr = shmat(shm_id, nullptr, 0);
     CHECK(ptr);
+    DLOG(INFO) << "Attaching SystemV shm_id: " << shm_id;
     return ptr;
 }
 
@@ -52,6 +53,28 @@ size_t SegSize(int shm_id)
 } // namespace
 
 namespace yais {
+
+CoreMemory::CoreMemory(void* ptr, size_t size, bool allocated)
+    : m_MemoryAddress(ptr), m_BytesAllocated(size), m_Allocated(allocated)
+{
+}
+
+CoreMemory::CoreMemory(CoreMemory&& other) noexcept
+    : m_MemoryAddress{std::exchange(other.m_MemoryAddress, nullptr)},
+      m_BytesAllocated{std::exchange(other.m_BytesAllocated, 0)}, m_Allocated{std::exchange(
+                                                                      other.m_Allocated, false)}
+{
+}
+
+CoreMemory& CoreMemory::operator=(CoreMemory&& other) noexcept
+{
+    m_MemoryAddress = std::exchange(other.m_MemoryAddress, nullptr);
+    m_BytesAllocated = std::exchange(other.m_BytesAllocated, 0);
+    m_Allocated = std::exchange(other.m_Allocated, false);
+}
+
+CoreMemory::~CoreMemory() {}
+
 // HostMemory
 
 size_t HostMemory::DefaultAlignment() const
@@ -121,7 +144,7 @@ SystemV::~SystemV()
 {
     if(m_ShmID != -1)
     {
-        DLOG(INFO) << "Detaching from SystemV shm_id: " << m_ShmID;
+        DLOG(INFO) << "Detaching SystemV shm_id: " << m_ShmID;
         CHECK_EQ(shmdt(Data()), 0);
     }
 }
@@ -136,25 +159,34 @@ void* SystemV::Allocate(size_t size)
 {
     m_ShmID = shmget(IPC_PRIVATE, size, IPC_CREAT | 0666);
     CHECK_NE(m_ShmID, -1);
-    DLOG(INFO) << "Allocated SysV Shmem w/ shm_id " << m_ShmID;
+    DLOG(INFO) << "Created SystemV shm_id: " << m_ShmID;
     return ShmAt(m_ShmID);
 }
 
 void SystemV::Free()
 {
     DisableAttachment();
-    DLOG(INFO) << "Removing SysV shm_id " << m_ShmID;
 }
 
 MemoryDescriptor<SystemV> SystemV::Attach(int shm_id)
 {
-    return std::make_unique<SystemV>(shm_id);
+    class DescriptorImpl final : public Descriptor<SystemV>
+    {
+      public:
+        explicit DescriptorImpl(int shm_id) : Descriptor<SystemV>(std::move(SystemV(shm_id))) {}
+        DescriptorImpl(DescriptorImpl&& other) : Descriptor<SystemV>(std::move(other)) {}
+        virtual ~DescriptorImpl() override {}
+
+        DELETE_COPYABILITY(DescriptorImpl);
+    };
+    return std::make_unique<DescriptorImpl>(shm_id);
 }
 
 void SystemV::DisableAttachment()
 {
     if(Allocated())
     {
+        DLOG(INFO) << "Removing SystemV shm_id: " << m_ShmID;
         struct shmid_ds buff;
         CHECK_EQ(shmctl(m_ShmID, IPC_RMID, &buff), 0);
     }

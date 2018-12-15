@@ -29,7 +29,6 @@
 
 #include <glog/logging.h>
 
-#include "tensorrt/playground/core/allocator.h"
 #include "tensorrt/playground/core/memory.h"
 
 namespace yais
@@ -161,29 +160,28 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
     using MemoryStack<MemoryType>::MemoryStack;
     using MemoryStack<MemoryType>::Allocate;
 
-  public:
-    class StackDescriptor : protected MemoryType
+    class StackDescriptorImpl : protected Descriptor<MemoryType>
     {
-      protected:
-        StackDescriptor(void* ptr, size_t size,
+      public:
+        StackDescriptorImpl(void* ptr, size_t size,
                         std::shared_ptr<const MemoryDescriptorStack<MemoryType>> stack)
-            : MemoryType(ptr, size, false), m_Stack(stack), m_Offset(Stack().Offset(this->Data()))
+            : Descriptor<MemoryType>(ptr, size), m_Stack(stack), m_Offset(Stack().Offset(this->Data()))
         {
         }
 
-      public:
-        StackDescriptor(StackDescriptor&& other)
+        StackDescriptorImpl(StackDescriptorImpl&& other)
             : MemoryType(std::move(other)), m_Offset{std::exchange(other.m_Offset, 0)},
               m_Stack{std::exchange(other.m_Stack, nullptr)}
         {
         }
 
-        virtual ~StackDescriptor() override {}
+        virtual ~StackDescriptorImpl() override {}
 
         using MemoryType::Data;
         using MemoryType::Size;
         using MemoryType::Type;
-        using MemoryType::cast_to_array;
+        using MemoryType::CastToArray;
+        using MemoryType::operator[];
 
         size_t Offset() const
         {
@@ -203,7 +201,7 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
 
   public:
     using StackType = std::shared_ptr<MemoryDescriptorStack<MemoryType>>;
-    using Descriptor = MemoryDescriptor<StackDescriptor>;
+    using StackDescriptor = std::unique_ptr<StackDescriptorImpl>;
 
     static StackType Create(size_t size)
     {
@@ -214,7 +212,7 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
         return StackType(new MemoryDescriptorStack(memory));
     }
 
-    Descriptor Allocate(size_t size)
+    StackDescriptor Allocate(size_t size)
     {
         CHECK_LE(size, this->Available());
 
@@ -223,8 +221,7 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
 
         // Special Descriptor derived from MemoryType that hold a reference to the MemoryStack,
         // and who's destructor does not try to free the MemoryType memory.
-        auto ret = std::make_unique<StackDescriptor>(
-            std::move(StackDescriptor(ptr, size, segment)));
+        auto ret = std::make_unique<StackDescriptorImpl>(ptr, size, segment);
 
         DLOG(INFO) << "Allocated " << ret->Size() << " starting at " << ret->Data()
                    << " on segment " << segment.get();

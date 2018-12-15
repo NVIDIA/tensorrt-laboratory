@@ -26,65 +26,70 @@
  */
 #pragma once
 
-namespace yais
+namespace yais {
+
+// Allocator
+
+template<typename MemoryType>
+Allocator<MemoryType>::Allocator(size_t size) : MemoryType(this->Allocate(size), size, true)
 {
+    DLOG(INFO) << "Allocator<" << this->Type() << "> [" << this << "]: ptr=" << this->Data()
+               << "; size=" << this->Size();
+}
+
+template<typename MemoryType>
+Allocator<MemoryType>::Allocator(Allocator&& other) noexcept : MemoryType(std::move(other))
+{
+}
+
+template<typename MemoryType>
+Allocator<MemoryType>& Allocator<MemoryType>::operator=(Allocator<MemoryType>&& other) noexcept
+{
+    MemoryType::operator=(std::move(other));
+    return *this;
+}
+
+template<typename MemoryType>
+Allocator<MemoryType>::~Allocator()
+{
+    if(this->Data() && this->Size())
+    {
+        DLOG(INFO) << "~Allocator<" << this->Type() << "> [" << this << "]: ptr=" << this->Data()
+                   << "; size=" << this->Size();
+        this->Free();
+    }
+}
+
+// Descriptor
+
+template <typename MemoryType>
+Descriptor<MemoryType>::Descriptor(MemoryType&& other) : MemoryType(std::move(other)) {}
+
 template<class MemoryType>
-BaseMemory<MemoryType>::BaseMemory(void* ptr, size_t size, bool allocated)
-    : m_MemoryAddress(ptr), m_BytesAllocated(size), m_Allocated(allocated)
+Descriptor<MemoryType>::Descriptor(void* ptr, size_t size) : MemoryType(ptr, size, false)
+{
+    DLOG(INFO) << "Descriptor<" << this->Type() << "> [" << this << "]: ptr=" << this->Data()
+               << "; size=" << this->Size();
+}
+
+template<class MemoryType>
+Descriptor<MemoryType>::Descriptor(Descriptor&& other) noexcept : MemoryType(std::move(other))
 {
 }
 
 template<class MemoryType>
-BaseMemory<MemoryType>::BaseMemory(BaseMemory&& other) noexcept
-    : m_MemoryAddress{std::exchange(other.m_MemoryAddress, nullptr)},
-      m_BytesAllocated{std::exchange(other.m_BytesAllocated, 0)}, 
-      m_Allocated{std::exchange(other.m_Allocated, false)} 
+Descriptor<MemoryType>& Descriptor<MemoryType>::operator=(Descriptor<MemoryType>&& other) noexcept
 {
+    MemoryType::operator=(std::move(other));
+    return *this;
 }
 
-template<class MemoryType>
-void* BaseMemory<MemoryType>::Data() const
-{
-    return m_MemoryAddress;
-}
 
 template<class MemoryType>
-size_t BaseMemory<MemoryType>::Size() const
+Descriptor<MemoryType>::~Descriptor()
 {
-    return m_BytesAllocated;
+    DLOG(INFO) << "~Descriptor<" << this->Type() << "> [" << this << "]: ptr=" << this->Data()
+               << "; size=" << this->Size();
 }
-
-template<class MemoryType>
-bool BaseMemory<MemoryType>::Allocated() const
-{
-    return m_Allocated;
-}
-
-template<class MemoryType>
-void* BaseMemory<MemoryType>::operator[](size_t offset) const
-{
-    CHECK_LE(offset, Size());
-    return static_cast<void*>(static_cast<char*>(Data()) + offset);
-}
-
-/*
-template<class MemoryType>
-BaseMemory<MemoryType>::Memory(Memory&& other)
-{
-    m_MemoryAddress = other.m_MemoryAddress;
-    m_BytesAllocated = other.m_BytesAllocated;
-    other.m_BasePointer = nullptr;
-    other.m_BytesAllocated = 0;
-}
-
-template<class MemoryType>
-Memory& BaseMemory<MemoryType>::operator=(Memory&& other)
-{
-    m_MemoryAddress = other.m_MemoryAddress;
-    m_BytesAllocated = other.m_BytesAllocated;
-    other.m_BasePointer = nullptr;
-    other.m_BytesAllocated = 0;
-}
-*/
 
 } // namespace yais

@@ -30,27 +30,6 @@
 
 namespace yais
 {
-template<class MemoryType>
-Allocator<MemoryType>::Allocator(size_t size) : MemoryType(this->Allocate(size), size, true)
-{
-    DLOG(INFO) << "Allocated " << this->Type() << ": ptr=" << this->Data()
-               << "; size=" << this->Size();
-}
 
-template<class MemoryType>
-Allocator<MemoryType>::~Allocator()
-{
-    if(this->Data() && this->Size())
-    {
-        this->Free();
-        DLOG(INFO) << "Deallocated " << this->Type() << ": ptr=" << this->Data()
-                   << "; size=" << this->Size();
-    }
-}
-
-template<class MemoryType>
-Allocator<MemoryType>::Allocator(Allocator&& other) noexcept : MemoryType(std::move(other))
-{
-}
 
 } // namespace yais

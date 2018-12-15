@@ -120,7 +120,7 @@ class CyclicAllocator
     }
 
     using BaseType = typename MemoryType::BaseType;
-    using Descriptor = typename MemoryDescriptorStack<MemoryType>::Descriptor;
+    using Descriptor = typename MemoryDescriptorStack<MemoryType>::StackDescriptor;
 
     Descriptor Allocate(size_t size)
     {

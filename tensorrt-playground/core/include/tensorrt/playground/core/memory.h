@@ -52,15 +52,17 @@ struct IMemory
 {
     virtual ~IMemory() = default;
 
-    virtual const std::string& Type() const = 0;
-
+    // Implemented by CoreMemory
     virtual void* Data() const = 0;
     virtual size_t Size() const = 0;
-
     virtual bool Allocated() const = 0;
 
+    // Implemented by a BaseMemory derivative, e.g. HostMemory
     virtual void Fill(char) = 0;
     virtual size_t DefaultAlignment() const = 0;
+
+    // Implemented by every derivative class
+    virtual const std::string& Type() const = 0;
 };
 
 struct IAllocatableMemory
@@ -69,32 +71,39 @@ struct IAllocatableMemory
     virtual void Free() = 0;
 };
 
-template<typename MemoryType>
-using MemoryDescriptor = std::unique_ptr<MemoryType>;
-
-template<class MemoryType>
-class BaseMemory : public IMemory
+class CoreMemory : public virtual IMemory
 {
   protected:
-    BaseMemory(void* ptr, size_t size, bool allocated);
-    BaseMemory(BaseMemory&& other) noexcept;
-    BaseMemory& operator=(BaseMemory&&) noexcept = delete;
-    DELETE_COPYABILITY(BaseMemory);
+    CoreMemory(void* ptr, size_t size, bool allocated);
+    CoreMemory(CoreMemory&& other) noexcept;
+    CoreMemory& operator=(CoreMemory&&) noexcept;
+
+    DELETE_COPYABILITY(CoreMemory);
 
   public:
-    virtual ~BaseMemory() {}
+    virtual ~CoreMemory() override;
 
-    using BaseType = MemoryType;
+    inline void* Data() const final override
+    {
+        return m_MemoryAddress;
+    }
+    inline size_t Size() const final override
+    {
+        return m_BytesAllocated;
+    }
+    inline bool Allocated() const final override
+    {
+        return m_Allocated;
+    }
 
-    inline void* Data() const final override;
-    inline size_t Size() const final override;
-
-    inline bool Allocated() const final override;
-
-    void* operator[](size_t offset) const;
+    void* operator[](size_t offset) const
+    {
+        CHECK_LE(offset, Size());
+        return static_cast<void*>(static_cast<char*>(Data()) + offset);
+    }
 
     template<typename T>
-    T* cast_to_array()
+    T* CastToArray()
     {
         return static_cast<T*>(Data());
     }
@@ -104,6 +113,44 @@ class BaseMemory : public IMemory
     size_t m_BytesAllocated;
     bool m_Allocated;
 };
+
+template<class MemoryType>
+class BaseMemory : public CoreMemory
+{
+  public:
+    using CoreMemory::CoreMemory;
+    using BaseType = MemoryType;
+};
+
+template<class MemoryType>
+class Allocator final : public MemoryType
+{
+  public:
+    Allocator(size_t size);
+    Allocator(Allocator&& other) noexcept;
+    Allocator& operator=(Allocator&& other) noexcept;
+    ~Allocator() override;
+
+    DELETE_COPYABILITY(Allocator);
+};
+
+template<typename MemoryType>
+class Descriptor : public MemoryType
+{
+  protected:
+    Descriptor(MemoryType&&);
+    Descriptor(void* ptr, size_t size);
+    Descriptor(Descriptor&& other) noexcept;
+    Descriptor& operator=(Descriptor&& other) noexcept;
+
+    DELETE_COPYABILITY(Descriptor);
+
+  public:
+    virtual ~Descriptor() override;
+};
+
+template<typename MemoryType>
+using MemoryDescriptor = std::unique_ptr<Descriptor<MemoryType>>;
 
 class HostMemory : public BaseMemory<HostMemory>
 {
@@ -129,15 +176,18 @@ class SystemMallocMemory : public HostMemory, public IAllocatableMemory
 class SystemV : public HostMemory, public IAllocatableMemory
 {
   protected:
+    SystemV(int shm_id);
     SystemV(void* ptr, size_t size, bool allocated);
     SystemV(SystemV&& other) noexcept;
+    SystemV& operator=(SystemV&& other) noexcept;
+
+    DELETE_COPYABILITY(SystemV);
 
   public:
-    SystemV(int shm_id);
-    static MemoryDescriptor<SystemV> Attach(int shm_id);
-
     virtual ~SystemV() override;
     const std::string& Type() const final override;
+
+    static MemoryDescriptor<SystemV> Attach(int shm_id);
 
     int ShmID() const;
     void DisableAttachment();
