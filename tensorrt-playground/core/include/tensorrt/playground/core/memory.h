@@ -31,8 +31,7 @@
 
 #include "tensorrt/playground/core/utils.h"
 
-namespace yais
-{
+namespace yais {
 /**
  * @brief Abstract base Memory class
  *
@@ -70,11 +69,14 @@ struct IAllocatableMemory
     virtual void Free() = 0;
 };
 
+template<typename MemoryType>
+using MemoryDescriptor = std::unique_ptr<MemoryType>;
+
 template<class MemoryType>
 class BaseMemory : public IMemory
 {
   protected:
-    BaseMemory(void* ptr, size_t size, bool allocated); 
+    BaseMemory(void* ptr, size_t size, bool allocated);
     BaseMemory(BaseMemory&& other) noexcept;
     BaseMemory& operator=(BaseMemory&&) noexcept = delete;
     DELETE_COPYABILITY(BaseMemory);
@@ -91,9 +93,11 @@ class BaseMemory : public IMemory
 
     void* operator[](size_t offset) const;
 
-    template <typename T>
-    T* cast_to_array() { return static_cast<T*>(Data()); }
-    // auto array_cast() { return dynamic_cast<T[Size()/sizeof(T)]>(Data()); }
+    template<typename T>
+    T* cast_to_array()
+    {
+        return static_cast<T*>(Data());
+    }
 
   private:
     void* m_MemoryAddress;
@@ -126,14 +130,13 @@ class SystemV : public HostMemory, public IAllocatableMemory
 {
   protected:
     SystemV(void* ptr, size_t size, bool allocated);
-
-  public:
-    SystemV(int shm_id);
     SystemV(SystemV&& other) noexcept;
 
   public:
-    virtual ~SystemV() override;
+    SystemV(int shm_id);
+    static MemoryDescriptor<SystemV> Attach(int shm_id);
 
+    virtual ~SystemV() override;
     const std::string& Type() const final override;
 
     int ShmID() const;
@@ -144,9 +147,6 @@ class SystemV : public HostMemory, public IAllocatableMemory
     void Free() final override;
 
   private:
-    void* Attach(int shm_id);
-    static size_t SegSize(int shm_id);
-
     int m_ShmID;
 };
 

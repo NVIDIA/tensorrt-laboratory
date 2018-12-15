@@ -35,8 +35,23 @@
 
 #include <glog/logging.h>
 
-namespace yais
+namespace {
+void* ShmAt(int shm_id)
 {
+    auto ptr = shmat(shm_id, nullptr, 0);
+    CHECK(ptr);
+    return ptr;
+}
+
+size_t SegSize(int shm_id)
+{
+    struct shmid_ds stats;
+    CHECK_EQ(shmctl(shm_id, IPC_STAT, &stats), 0);
+    return stats.shm_segsz;
+}
+} // namespace
+
+namespace yais {
 // HostMemory
 
 size_t HostMemory::DefaultAlignment() const
@@ -93,7 +108,7 @@ SystemV::SystemV(void* ptr, size_t size, bool allocated) : HostMemory(ptr, size,
     }
 }
 
-SystemV::SystemV(int shm_id) : HostMemory(Attach(shm_id), SegSize(shm_id), false), m_ShmID(shm_id)
+SystemV::SystemV(int shm_id) : HostMemory(ShmAt(shm_id), SegSize(shm_id), false), m_ShmID(shm_id)
 {
 }
 
@@ -117,34 +132,23 @@ const std::string& SystemV::Type() const
     return type;
 }
 
-void* SystemV::Attach(int shm_id)
-{
-    auto ptr = shmat(shm_id, nullptr, 0);
-    CHECK(ptr);
-    m_ShmID = shm_id;
-    return ptr;
-}
-
-size_t SystemV::SegSize(int shm_id)
-{
-    struct shmid_ds stats;
-    CHECK_EQ(shmctl(shm_id, IPC_STAT, &stats), 0);
-    auto size = stats.shm_segsz;
-    return size;
-}
-
 void* SystemV::Allocate(size_t size)
 {
     m_ShmID = shmget(IPC_PRIVATE, size, IPC_CREAT | 0666);
     CHECK_NE(m_ShmID, -1);
     DLOG(INFO) << "Allocated SysV Shmem w/ shm_id " << m_ShmID;
-    return Attach(m_ShmID);
+    return ShmAt(m_ShmID);
 }
 
 void SystemV::Free()
 {
     DisableAttachment();
     DLOG(INFO) << "Removing SysV shm_id " << m_ShmID;
+}
+
+MemoryDescriptor<SystemV> SystemV::Attach(int shm_id)
+{
+    return std::make_unique<SystemV>(shm_id);
 }
 
 void SystemV::DisableAttachment()

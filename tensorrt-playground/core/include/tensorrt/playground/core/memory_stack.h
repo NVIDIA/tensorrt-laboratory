@@ -162,7 +162,7 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
     using MemoryStack<MemoryType>::Allocate;
 
   public:
-    class StackDescriptor : public MemoryType
+    class StackDescriptor : protected MemoryType
     {
       protected:
         StackDescriptor(void* ptr, size_t size,
@@ -177,6 +177,13 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
               m_Stack{std::exchange(other.m_Stack, nullptr)}
         {
         }
+
+        virtual ~StackDescriptor() override {}
+
+        using MemoryType::Data;
+        using MemoryType::Size;
+        using MemoryType::Type;
+        using MemoryType::cast_to_array;
 
         size_t Offset() const
         {
@@ -196,7 +203,7 @@ class MemoryDescriptorStack : public MemoryStack<MemoryType>,
 
   public:
     using StackType = std::shared_ptr<MemoryDescriptorStack<MemoryType>>;
-    using Descriptor = std::unique_ptr<StackDescriptor>;
+    using Descriptor = MemoryDescriptor<StackDescriptor>;
 
     static StackType Create(size_t size)
     {

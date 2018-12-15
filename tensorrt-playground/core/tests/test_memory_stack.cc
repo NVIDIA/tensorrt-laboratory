@@ -146,7 +146,7 @@ TEST_F(TestMemoryDescriptorStack, Unaligned)
     EXPECT_EQ(stack->Memory().Type(), "SystemV");
 
     EXPECT_GE(p0->Stack().Memory().ShmID(), 0);
-    EXPECT_EQ(p0->ShmID(), -1);
+    // EXPECT_EQ(p0->ShmID(), -1);
 
     DLOG(INFO) << "delete descriptors";
 
