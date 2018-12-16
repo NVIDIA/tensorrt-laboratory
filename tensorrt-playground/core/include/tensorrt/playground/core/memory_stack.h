@@ -31,8 +31,9 @@
 
 #include "tensorrt/playground/core/memory.h"
 
-namespace yais
-{
+namespace yais {
+namespace Memory {
+
 /**
  * @brief General MemoryStack
  *
@@ -261,4 +262,5 @@ void MemoryStack<MemoryType>::Reset(bool writeZeros)
     }
 }
 
+} // end namespace Memory
 } // end namespace yais

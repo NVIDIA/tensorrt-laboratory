@@ -32,6 +32,7 @@
 #include <gtest/gtest.h>
 
 using namespace yais;
+using namespace yais::Memory;
 
 namespace
 {

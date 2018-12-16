@@ -53,6 +53,7 @@ size_t SegSize(int shm_id)
 } // namespace
 
 namespace yais {
+namespace Memory {
 
 CoreMemory::CoreMemory(void* ptr, size_t size, bool allocated)
     : m_MemoryAddress(ptr), m_BytesAllocated(size), m_Allocated(allocated)
@@ -202,4 +203,5 @@ int SystemV::ShmID() const
     return m_ShmID;
 }
 
+} // namespace Memory
 } // namespace yais

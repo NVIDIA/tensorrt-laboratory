@@ -34,8 +34,9 @@
 
 #include <glog/logging.h>
 
-namespace yais
-{
+namespace yais {
+namespace Memory {
+
 /**
  * @brief CyclicAllocator
  *
@@ -223,4 +224,5 @@ class CyclicAllocator
     size_t m_Alignment;
 };
 
+} // end namespace Memory
 } // end namespace yais

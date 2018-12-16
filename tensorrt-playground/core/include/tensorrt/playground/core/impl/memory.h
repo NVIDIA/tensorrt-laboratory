@@ -27,6 +27,7 @@
 #pragma once
 
 namespace yais {
+namespace Memory {
 
 // Allocator
 
@@ -92,4 +93,5 @@ Descriptor<MemoryType>::~Descriptor()
                << "; size=" << this->Size();
 }
 
+} // namespace Memory
 } // namespace yais

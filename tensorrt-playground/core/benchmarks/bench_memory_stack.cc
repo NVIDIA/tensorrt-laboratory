@@ -31,6 +31,7 @@
 #include "tensorrt/playground/core/cyclic_allocator.h"
 
 using namespace yais;
+using namespace yais::Memory;
 
 static void BM_MemoryStack_Allocate(benchmark::State &state)
 {

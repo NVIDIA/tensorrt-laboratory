@@ -32,6 +32,7 @@
 #include "tensorrt/playground/core/utils.h"
 
 namespace yais {
+namespace Memory {
 /**
  * @brief Abstract base Memory class
  *
@@ -200,6 +201,7 @@ class SystemV : public HostMemory, public IAllocatableMemory
     int m_ShmID;
 };
 
+} // end namespace Memory
 } // end namespace yais
 
 #include "tensorrt/playground/core/impl/memory.h"

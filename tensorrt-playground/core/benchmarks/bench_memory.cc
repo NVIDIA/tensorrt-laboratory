@@ -29,6 +29,7 @@
 #include "tensorrt/playground/core/memory.h"
 
 using namespace yais;
+using namespace yais::Memory;
 
 static void BM_Memory_SystemMalloc(benchmark::State &state)
 {
