@@ -68,8 +68,8 @@ class ExternalSharedMemoryManager final
     class PartialSegmentDescriptor final : public ::yais::Descriptor<SystemV>
     {
       public:
-        PartialSegmentDescriptor(std::shared_ptr<const Descriptor<SystemV>> memory,
-                                       size_t offset, size_t size)
+        PartialSegmentDescriptor(std::shared_ptr<const Descriptor<SystemV>> memory, size_t offset,
+                                 size_t size)
             : Descriptor<SystemV>((*memory)[offset], size), m_Memory(memory)
         {
         }
@@ -78,6 +78,8 @@ class ExternalSharedMemoryManager final
             : Descriptor<SystemV>(std::move(other))
         {
         }
+
+        virtual ~PartialSegmentDescriptor() override {}
 
       private:
         std::shared_ptr<const Descriptor<SystemV>> m_Memory;
