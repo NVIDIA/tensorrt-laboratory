@@ -25,7 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 add_executable(sysv-nvrpc.x
-    src/server.cpp)
+    server.cc)
 
 target_link_libraries(sysv-nvrpc.x
     nvrpc
@@ -34,7 +34,7 @@ target_link_libraries(sysv-nvrpc.x
 )
 
 add_executable(sysv-client.x
-    src/client.cpp)
+    client.cc)
 
 target_link_libraries(sysv-client.x
     nvrpc

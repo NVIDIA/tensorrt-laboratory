@@ -73,7 +73,7 @@ class SimpleClient final {
 
     // Write the batch_id to the shared memory segment
     // This will validated against the batch_id in the message body on the server
-    auto data = mdesc->cast_to_array<size_t>();
+    auto data = mdesc->CastToArray<size_t>();
     data[0] = batch_id;
 
     // Container for the data we expect from the server.

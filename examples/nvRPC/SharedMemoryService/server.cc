@@ -51,6 +51,7 @@ using yais::Resources;
 using yais::Server;
 using yais::ThreadPool;
 
+using yais::MemoryDescriptor;
 using yais::SystemV;
 
 // CLI Options
@@ -58,104 +59,93 @@ DEFINE_int32(thread_count, 1, "Size of thread pool");
 
 /**
  * @brief SystemV Memory Manager
- * 
+ *
  * This object does not allocate system v shared memory segments.  Instead, it attaches and manages
  * descriptors into shared memory segments allocated by an external source.
  */
-class SystemVManager
+class ExternalSharedMemoryManager final
 {
-  protected:
-    class SystemVDescriptor : public SystemV
+    class PartialSegmentDescriptor final : public ::yais::Descriptor<SystemV>
     {
       public:
-        SystemVDescriptor(std::shared_ptr<const SystemV> memory, size_t offset, size_t size)
-            : SystemV((*memory)[offset], size, false), m_Memory(memory)
+        PartialSegmentDescriptor(std::shared_ptr<const Descriptor<SystemV>> memory,
+                                       size_t offset, size_t size)
+            : Descriptor<SystemV>((*memory)[offset], size), m_Memory(memory)
         {
         }
 
-        SystemVDescriptor(SystemVDescriptor&& other) : SystemV(std::move(other)) {}
+        PartialSegmentDescriptor(PartialSegmentDescriptor&& other)
+            : Descriptor<SystemV>(std::move(other))
+        {
+        }
 
       private:
-        std::shared_ptr<const SystemV> m_Memory;
+        std::shared_ptr<const Descriptor<SystemV>> m_Memory;
     };
 
   public:
-    using Descriptor = std::unique_ptr<SystemVDescriptor>;
-
-    SystemVManager() = default;
+    ExternalSharedMemoryManager() = default;
+    using Descriptor = std::unique_ptr<PartialSegmentDescriptor>;
 
     Descriptor Acquire(size_t shm_id, size_t offset, size_t size)
     {
-        std::unique_lock<std::mutex> l(m_Mutex);
-        std::shared_ptr<const SystemV> memory;
+        std::lock_guard<std::mutex> l(m_Mutex);
+        std::shared_ptr<const ::yais::Descriptor<SystemV>> segment;
         auto search = m_AttachedSegments.find(shm_id);
         if(search == m_AttachedSegments.end())
         {
             DLOG(INFO) << "SystemV Manager: attaching to shm_id: " << shm_id;
-            memory = std::make_shared<SystemV>(shm_id);
-            m_AttachedSegments[shm_id] = memory;
+            segment = SystemV::Attach(shm_id);
+            m_AttachedSegments[shm_id] = segment;
         }
         else
         {
-            memory = search->second;
+            segment = search->second;
         }
-        CHECK_LE(offset + size, memory->Size());
-        return std::make_unique<SystemVDescriptor>(memory, offset, size);
+        CHECK_LE(offset + size, segment->Size());
+        return std::make_unique<PartialSegmentDescriptor>(segment, offset, size);
+    }
+
+    void Release(size_t shm_id)
+    {
+        std::lock_guard<std::mutex> l(m_Mutex);
+        auto count = m_AttachedSegments.erase(shm_id);
+        DLOG_IF(WARNING, count == 0) << "Attempting to Release an unmapped shm_id";
     }
 
   private:
-    std::map < size_t, std::shared_ptr<const SystemV>> m_AttachedSegments;
+    std::map<size_t, std::shared_ptr<const ::yais::Descriptor<SystemV>>> m_AttachedSegments;
     std::mutex m_Mutex;
 };
 
-
-
 struct SimpleResources : public Resources
 {
-    SimpleResources(int numThreadsInPool = 3) : m_ThreadPool(numThreadsInPool) {}
+    SimpleResources() = default;
 
-    ThreadPool& GetThreadPool()
+    ExternalSharedMemoryManager& GetExternalSharedMemoryManager()
     {
-        return m_ThreadPool;
-    }
-
-    SystemVManager& GetSystemVManager()
-    {
-        return m_SystemVManager;
+        return m_ExternalSharedMemoryManager;
     }
 
   private:
-    ThreadPool m_ThreadPool;
-    SystemVManager m_SystemVManager;
+    ExternalSharedMemoryManager m_ExternalSharedMemoryManager;
 };
-
 
 class SimpleContext final : public Context<simple::Input, simple::Output, SimpleResources>
 {
     void ExecuteRPC(RequestType& input, ResponseType& output) final override
     {
-        // We could do work here, but we'd block the TPS, i.e. the threads pulling messages
-        // off the incoming recieve queue.  Very quick responses are best done here; however,
-        // longer running workload should be offloaded so the TPS can avoid being blocked.
-        // GetResources()->GetThreadPool().enqueue([this, &input, &output]{
-        // Now running on a worker thread of the ThreadPool defined in SimpleResources.
-        // Here we are just echoing back the incoming // batch_id; however, in later
-        // examples, we'll show how to run an async cuda pipline.
-        LOG_FIRST_N(INFO, 20) << "Tag = " << Tag() << " Thread = " << std::this_thread::get_id();
-        SystemVManager::Descriptor mdesc;
-        if(input.has_sysv()) {
-            mdesc = GetResources()->GetSystemVManager().Acquire(
-                input.sysv().shm_id(),
-                input.sysv().offset(),
-                input.sysv().size()
-            );
+        ExternalSharedMemoryManager::Descriptor mdesc;
+        if(input.has_sysv())
+        {
+            mdesc = GetResources()->GetExternalSharedMemoryManager().Acquire(
+                input.sysv().shm_id(), input.sysv().offset(), input.sysv().size());
         }
-        mdesc->cast_to_array<size_t>()[0];
-        LOG_IF(ERROR, mdesc->cast_to_array<size_t>()[0] != input.batch_id());
+        CHECK(mdesc);
+        CHECK_EQ(mdesc->CastToArray<size_t>()[0], input.batch_id());
+
         output.set_batch_id(input.batch_id());
         this->FinishResponse();
-        // });
-        // The TPS thread is now free to continue processing message - async ftw!
     }
 };
 
