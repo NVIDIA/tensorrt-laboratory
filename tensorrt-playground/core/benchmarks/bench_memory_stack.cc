@@ -52,7 +52,7 @@ static void BM_MemoryDescriptorStack_Allocate(benchmark::State &state)
     }
 }
 
-static void BM_CyclicAllocator_Allocate(benchmark::State &state)
+static void BM_CyclicAllocator_Malloc_Allocate(benchmark::State &state)
 {
     auto stack = std::make_unique<CyclicAllocator<SystemMallocMemory>>(10, 1024*1024);
     for (auto _ : state)
@@ -61,6 +61,16 @@ static void BM_CyclicAllocator_Allocate(benchmark::State &state)
     }
 }
 
+static void BM_CyclicAllocator_SystemV_Allocate(benchmark::State &state)
+{
+    auto stack = std::make_unique<CyclicAllocator<SystemV>>(10, 1024*1024);
+    for (auto _ : state)
+    {
+        auto ptr = stack->Allocate(1024);
+    }
+}
+
 BENCHMARK(BM_MemoryStack_Allocate);
 BENCHMARK(BM_MemoryDescriptorStack_Allocate);
-BENCHMARK(BM_CyclicAllocator_Allocate);
+BENCHMARK(BM_CyclicAllocator_Malloc_Allocate);
+BENCHMARK(BM_CyclicAllocator_SystemV_Allocate);

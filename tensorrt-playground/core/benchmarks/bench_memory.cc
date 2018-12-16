@@ -40,24 +40,14 @@ static void BM_Memory_SystemMalloc(benchmark::State &state)
     }
 }
 
-static void BM_Memory_SystemMalloc_ctor(benchmark::State &state)
+static void BM_Memory_SystemV_descriptor(benchmark::State &state)
 {
+    auto master = std::make_unique<Allocator<SystemV>>(1024*1024);
     for (auto _ : state)
     {
-        Allocator<SystemMallocMemory> memory(1024*1024);
-        Allocator<SystemMallocMemory> memory1(1024*1024);
-        Allocator<SystemMallocMemory> memory2(1024*1024);
+        auto mdesc = SystemV::Attach(master->ShmID());
     }
 }
-
-static void BM_Memory_SystemMalloc_shared(benchmark::State &state)
-{
-    for (auto _ : state)
-    {
-        auto shared = std::make_shared<Allocator<SystemMallocMemory>>(1024*1024);
-    }
-}
-
 
 /*
 static void BM_Memory_UnsafeWrapRawPointer(benchmark::State &state)
@@ -71,6 +61,5 @@ static void BM_Memory_UnsafeWrapRawPointer(benchmark::State &state)
 */
 
 BENCHMARK(BM_Memory_SystemMalloc);
-BENCHMARK(BM_Memory_SystemMalloc_ctor);
-BENCHMARK(BM_Memory_SystemMalloc_shared);
+BENCHMARK(BM_Memory_SystemV_descriptor);
 // BENCHMARK(BM_Memory_UnsafeWrapRawPointer);
