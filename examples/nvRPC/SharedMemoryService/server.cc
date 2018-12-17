@@ -40,6 +40,7 @@
 #include "tensorrt/playground/core/pool.h"
 #include "tensorrt/playground/core/resources.h"
 #include "tensorrt/playground/core/thread_pool.h"
+#include "tensorrt/playground/core/utils.h"
 
 #include "echo.grpc.pb.h"
 #include "echo.pb.h"
@@ -75,9 +76,13 @@ class ExternalSharedMemoryManager final
         }
 
         PartialSegmentDescriptor(PartialSegmentDescriptor&& other)
-            : Memory::Descriptor<SystemV>(std::move(other))
+            : Memory::Descriptor<SystemV>(std::move(other)),
+              m_Segment{std::exchange(other.m_Segment, nullptr)}
         {
         }
+
+        PartialSegmentDescriptor& operator=(PartialSegmentDescriptor&&) = delete;
+        DELETE_COPYABILITY(PartialSegmentDescriptor);
 
         virtual ~PartialSegmentDescriptor() override {}
 
