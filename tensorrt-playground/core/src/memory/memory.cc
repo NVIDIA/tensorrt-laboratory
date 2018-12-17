@@ -54,10 +54,16 @@ CoreMemory& CoreMemory::operator=(CoreMemory&& other) noexcept
 
 CoreMemory::~CoreMemory() {}
 
-void* CoreMemory::operator[](size_t offset) const
+void* CoreMemory::operator[](size_t offset)
 {
     CHECK_LE(offset, Size());
     return static_cast<void*>(static_cast<char*>(Data()) + offset);
+}
+
+const void* CoreMemory::operator[](size_t offset) const
+{
+    CHECK_LE(offset, Size());
+    return static_cast<const void*>(static_cast<const char*>(Data()) + offset);
 }
 
 } // namespace Memory

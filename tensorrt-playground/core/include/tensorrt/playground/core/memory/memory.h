@@ -67,9 +67,13 @@ struct IMemory
     virtual ~IMemory() = default;
 
     // Implemented by CoreMemory
-    virtual void* Data() const = 0;
+    virtual void* Data() = 0;
+    virtual const void* Data() const = 0;
     virtual size_t Size() const = 0;
     virtual bool Allocated() const = 0;
+
+    virtual void* operator[](size_t) = 0;
+    virtual const void* operator[](size_t) const = 0;
 
     // Implemented by a BaseMemory derivative, e.g. HostMemory
     virtual void Fill(char) = 0;
@@ -99,20 +103,29 @@ class CoreMemory : public virtual IMemory
   public:
     virtual ~CoreMemory() override;
 
-    inline void* Data() const final override
+
+    inline void* Data() final override
     {
         return m_MemoryAddress;
     }
+
+    inline const void* Data() const final override
+    {
+        return m_MemoryAddress;
+    }
+
     inline size_t Size() const final override
     {
         return m_BytesAllocated;
     }
+
     inline bool Allocated() const final override
     {
         return m_Allocated;
     }
 
-    void* operator[](size_t offset) const;
+    void* operator[](size_t offset) final override;
+    const void* operator[](size_t offset) const final override;
 
     template<typename T>
     T* CastToArray()
