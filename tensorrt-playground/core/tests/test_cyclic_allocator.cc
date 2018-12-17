@@ -42,7 +42,7 @@ class TestCyclicStacks : public ::testing::Test
 {
 };
 
-using MemoryTypes = ::testing::Types<SystemMallocMemory, SystemV>;
+using MemoryTypes = ::testing::Types<Malloc, SystemV>;
 
 TYPED_TEST_CASE(TestCyclicStacks, MemoryTypes);
 

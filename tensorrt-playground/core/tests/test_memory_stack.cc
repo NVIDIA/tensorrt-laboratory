@@ -46,7 +46,7 @@ class TestMemoryStack : public ::testing::Test
   protected:
     virtual void SetUp()
     {
-        stack = std::make_shared<MemoryStack<SystemMallocMemory>>(one_mb);
+        stack = std::make_shared<MemoryStack<Malloc>>(one_mb);
     }
 
     virtual void TearDown()
@@ -54,7 +54,7 @@ class TestMemoryStack : public ::testing::Test
         stack->Reset();
     }
 
-    std::shared_ptr<MemoryStack<SystemMallocMemory>> stack;
+    std::shared_ptr<MemoryStack<Malloc>> stack;
 };
 
 class TestSmartStack : public ::testing::Test
@@ -73,7 +73,7 @@ class TestSmartStack : public ::testing::Test
     std::shared_ptr<SmartStack<SystemV>> stack;
 };
 
-//using MemoryTypes = ::testing::Types<SystemMallocMemory>;
+//using MemoryTypes = ::testing::Types<Malloc>;
 //TYPED_TEST_CASE(TestMemoryStack, MemoryTypes);
 
 TEST_F(TestMemoryStack, EmptyOnCreate)

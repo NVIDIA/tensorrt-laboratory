@@ -37,9 +37,9 @@ static void BM_Memory_SystemMalloc(benchmark::State &state)
 {
     for (auto _ : state)
     {
-        auto unique = std::make_unique<Allocator<SystemMallocMemory>>(1024*1024);
-        auto shared = std::make_shared<Allocator<SystemMallocMemory>>(1024*1024);
-        Allocator<SystemMallocMemory> memory(1024*1024);
+        auto unique = std::make_unique<Allocator<Malloc>>(1024*1024);
+        auto shared = std::make_shared<Allocator<Malloc>>(1024*1024);
+        Allocator<Malloc> memory(1024*1024);
     }
 }
 

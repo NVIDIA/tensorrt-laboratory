@@ -163,7 +163,7 @@ class HostMemory : public BaseMemory<HostMemory>
     size_t DefaultAlignment() const override;
 };
 
-class SystemMallocMemory : public HostMemory, public IAllocatable
+class Malloc : public HostMemory, public IAllocatable
 {
   public:
     using HostMemory::HostMemory;

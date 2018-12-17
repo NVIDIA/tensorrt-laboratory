@@ -37,7 +37,7 @@ using namespace yais::Memory;
 
 static void BM_MemoryStack_Allocate(benchmark::State &state)
 {
-    auto stack = std::make_shared<MemoryStack<SystemMallocMemory>>(1024*1024);
+    auto stack = std::make_shared<MemoryStack<Malloc>>(1024*1024);
     for (auto _ : state)
     {
         auto ptr = stack->Allocate(1024);
@@ -47,7 +47,7 @@ static void BM_MemoryStack_Allocate(benchmark::State &state)
 
 static void BM_SmartStack_Allocate(benchmark::State &state)
 {
-    auto stack = std::make_shared<SmartStack<SystemMallocMemory>>(1024*1024);
+    auto stack = std::make_shared<SmartStack<Malloc>>(1024*1024);
     for (auto _ : state)
     {
         auto ptr = stack->Allocate(1024);
@@ -57,7 +57,7 @@ static void BM_SmartStack_Allocate(benchmark::State &state)
 
 static void BM_CyclicAllocator_Malloc_Allocate(benchmark::State &state)
 {
-    auto stack = std::make_unique<CyclicAllocator<SystemMallocMemory>>(10, 1024*1024);
+    auto stack = std::make_unique<CyclicAllocator<Malloc>>(10, 1024*1024);
     for (auto _ : state)
     {
         auto ptr = stack->Allocate(1024);

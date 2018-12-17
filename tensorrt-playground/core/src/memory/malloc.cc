@@ -31,23 +31,23 @@
 namespace yais {
 namespace Memory {
 
-// SystemMallocMemory
+// Malloc
 
-void* SystemMallocMemory::Allocate(size_t size)
+void* Malloc::Allocate(size_t size)
 {
     void* ptr = malloc(size);
     CHECK(ptr) << "malloc(" << size << ") failed";
     return ptr;
 }
 
-void SystemMallocMemory::Free()
+void Malloc::Free()
 {
     free(Data());
 }
 
-const std::string& SystemMallocMemory::Type() const
+const std::string& Malloc::Type() const
 {
-    static std::string type = "SystemMallocMemory";
+    static std::string type = "Malloc";
     return type;
 }
 

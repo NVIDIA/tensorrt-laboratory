@@ -29,13 +29,13 @@
 #include <glog/logging.h>
 #include <memory>
 
-#include "tensorrt/playground/core/memory/host_memory.h"
 #include "tensorrt/playground/core/memory/memory.h"
+#include "tensorrt/playground/core/memory/host_memory.h"
 
 namespace yais {
 namespace Memory {
 
-class SystemMallocMemory : public HostMemory, public IAllocatable
+class Malloc : public HostMemory, public IAllocatable
 {
   public:
     using HostMemory::HostMemory;
