@@ -69,7 +69,7 @@ class ExternalSharedMemoryManager final
     class PartialSegmentDescriptor final : public Memory::Descriptor<SystemV>
     {
       public:
-        PartialSegmentDescriptor(std::shared_ptr<const SystemV> segment, size_t offset, size_t size)
+        PartialSegmentDescriptor(std::shared_ptr<SystemV> segment, size_t offset, size_t size)
             : Memory::Descriptor<SystemV>((*segment)[offset], size), m_Segment(segment)
         {
         }
@@ -82,7 +82,7 @@ class ExternalSharedMemoryManager final
         virtual ~PartialSegmentDescriptor() override {}
 
       private:
-        std::shared_ptr<const SystemV> m_Segment;
+        std::shared_ptr<SystemV> m_Segment;
     };
 
   public:
@@ -91,19 +91,7 @@ class ExternalSharedMemoryManager final
 
     Descriptor Acquire(size_t shm_id, size_t offset, size_t size)
     {
-        std::lock_guard<std::mutex> l(m_Mutex);
-        std::shared_ptr<const SystemV> segment;
-        auto search = m_AttachedSegments.find(shm_id);
-        if(search == m_AttachedSegments.end())
-        {
-            DLOG(INFO) << "SystemV Manager: attaching to shm_id: " << shm_id;
-            segment = SystemV::Attach(shm_id);
-            m_AttachedSegments[shm_id] = segment;
-        }
-        else
-        {
-            segment = search->second;
-        }
+        const auto& segment = GetOrAttachToShmID(shm_id);
         CHECK_LE(offset + size, segment->Size());
         return std::make_unique<PartialSegmentDescriptor>(segment, offset, size);
     }
@@ -115,8 +103,27 @@ class ExternalSharedMemoryManager final
         DLOG_IF(WARNING, count == 0) << "Attempting to Release an unmapped shm_id";
     }
 
+  protected:
+    std::shared_ptr<SystemV> GetOrAttachToShmID(size_t shm_id)
+    {
+        std::shared_ptr<SystemV> segment;
+        std::lock_guard<std::mutex> l(m_Mutex);
+        auto search = m_AttachedSegments.find(shm_id);
+        if(search == m_AttachedSegments.end())
+        {
+            DLOG(INFO) << "SystemV Manager: attaching to shm_id: " << shm_id;
+            segment = SystemV::Attach(shm_id);
+            m_AttachedSegments[shm_id] = segment;
+        }
+        else
+        {
+            segment = search->second;
+        }
+        return segment;
+    }
+
   private:
-    std::map<size_t, std::shared_ptr<const SystemV>> m_AttachedSegments;
+    std::map<size_t, std::shared_ptr<SystemV>> m_AttachedSegments;
     std::mutex m_Mutex;
 };
 
