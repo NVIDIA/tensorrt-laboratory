@@ -33,8 +33,8 @@
 #include <glog/logging.h>
 #include <grpcpp/grpcpp.h>
 
-#include "tensorrt/playground/core/cyclic_allocator.h"
-#include "tensorrt/playground/core/memory.h"
+#include "tensorrt/playground/core/memory/cyclic_allocator.h"
+#include "tensorrt/playground/core/memory/system_v.h"
 
 #include "echo.grpc.pb.h"
 
@@ -45,8 +45,8 @@ using simple::Input;
 using simple::Output;
 using simple::Inference;
 
-using yais::CyclicAllocator;
-using yais::SystemV;
+using yais::Memory::CyclicAllocator;
+using yais::Memory::SystemV;
 
 static constexpr size_t one_mb = 1024*1024;
 

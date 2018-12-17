@@ -35,7 +35,8 @@
 #include "nvrpc/executor.h"
 #include "nvrpc/server.h"
 #include "nvrpc/service.h"
-#include "tensorrt/playground/core/memory.h"
+#include "tensorrt/playground/core/memory/descriptor.h"
+#include "tensorrt/playground/core/memory/system_v.h"
 #include "tensorrt/playground/core/pool.h"
 #include "tensorrt/playground/core/resources.h"
 #include "tensorrt/playground/core/thread_pool.h"
@@ -51,8 +52,8 @@ using yais::Resources;
 using yais::Server;
 using yais::ThreadPool;
 
-using yais::MemoryDescriptor;
-using yais::SystemV;
+using yais::Memory::SystemV;
+namespace Memory = yais::Memory;
 
 // CLI Options
 DEFINE_int32(thread_count, 1, "Size of thread pool");
@@ -65,24 +66,23 @@ DEFINE_int32(thread_count, 1, "Size of thread pool");
  */
 class ExternalSharedMemoryManager final
 {
-    class PartialSegmentDescriptor final : public ::yais::Descriptor<SystemV>
+    class PartialSegmentDescriptor final : public Memory::Descriptor<SystemV>
     {
       public:
-        PartialSegmentDescriptor(std::shared_ptr<const Descriptor<SystemV>> memory, size_t offset,
-                                 size_t size)
-            : Descriptor<SystemV>((*memory)[offset], size), m_Memory(memory)
+        PartialSegmentDescriptor(std::shared_ptr<const SystemV> segment, size_t offset, size_t size)
+            : Memory::Descriptor<SystemV>((*segment)[offset], size), m_Segment(segment)
         {
         }
 
         PartialSegmentDescriptor(PartialSegmentDescriptor&& other)
-            : Descriptor<SystemV>(std::move(other))
+            : Memory::Descriptor<SystemV>(std::move(other))
         {
         }
 
         virtual ~PartialSegmentDescriptor() override {}
 
       private:
-        std::shared_ptr<const Descriptor<SystemV>> m_Memory;
+        std::shared_ptr<const SystemV> m_Segment;
     };
 
   public:
@@ -92,7 +92,7 @@ class ExternalSharedMemoryManager final
     Descriptor Acquire(size_t shm_id, size_t offset, size_t size)
     {
         std::lock_guard<std::mutex> l(m_Mutex);
-        std::shared_ptr<const ::yais::Descriptor<SystemV>> segment;
+        std::shared_ptr<const SystemV> segment;
         auto search = m_AttachedSegments.find(shm_id);
         if(search == m_AttachedSegments.end())
         {
@@ -116,7 +116,7 @@ class ExternalSharedMemoryManager final
     }
 
   private:
-    std::map<size_t, std::shared_ptr<const ::yais::Descriptor<SystemV>>> m_AttachedSegments;
+    std::map<size_t, std::shared_ptr<const SystemV>> m_AttachedSegments;
     std::mutex m_Mutex;
 };
 
