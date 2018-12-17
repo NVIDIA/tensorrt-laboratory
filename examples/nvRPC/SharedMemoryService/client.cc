@@ -24,6 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -75,6 +76,7 @@ class SimpleClient final {
     // This will validated against the batch_id in the message body on the server
     auto data = mdesc->CastToArray<size_t>();
     data[0] = batch_id;
+    data[1] = 0xDEADBEEF;
 
     // Container for the data we expect from the server.
     Output reply;
@@ -87,6 +89,7 @@ class SimpleClient final {
     Status status = m_Stub->Compute(&context, request, &reply);
 
     if (status.ok()) {
+      CHECK_EQ(data[1], batch_id);
       return reply.batch_id();
     } else {
       LOG(ERROR) << status.error_code() << ": " << status.error_message();
@@ -97,6 +100,7 @@ class SimpleClient final {
  private:
   CyclicAllocator<SystemV>::Descriptor RandomAllocation() {
     size_t bytes = rand() % (m_Memory.MaxAllocationSize() / 4);
+    bytes = std::max(bytes, 16UL); // guarantee at least 16 bytes (2x size_t)
     DLOG(INFO) << "RandomAllocation: " << bytes << " bytes";
     return m_Memory.Allocate(bytes);
   }

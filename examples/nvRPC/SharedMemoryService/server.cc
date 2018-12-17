@@ -70,7 +70,7 @@ class ExternalSharedMemoryManager final
     class PartialSegmentDescriptor final : public Memory::Descriptor<SystemV>
     {
       public:
-        PartialSegmentDescriptor(std::shared_ptr<SystemV> segment, size_t offset, size_t size)
+        PartialSegmentDescriptor(const std::shared_ptr<SystemV>& segment, size_t offset, size_t size)
             : Memory::Descriptor<SystemV>((*segment)[offset], size), m_Segment(segment)
         {
         }
@@ -156,7 +156,10 @@ class SimpleContext final : public Context<simple::Input, simple::Output, Simple
                 input.sysv().shm_id(), input.sysv().offset(), input.sysv().size());
         }
         CHECK(mdesc);
-        CHECK_EQ(mdesc->CastToArray<size_t>()[0], input.batch_id());
+        auto array = mdesc->CastToArray<size_t>();
+        CHECK_EQ(array[0], input.batch_id());
+        CHECK_EQ(array[1], 0xDEADBEEF);
+        array[1] = input.batch_id();
 
         output.set_batch_id(input.batch_id());
         this->FinishResponse();
