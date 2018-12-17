@@ -30,7 +30,6 @@
 #include <glog/logging.h>
 
 #include "tensorrt/playground/core/memory/allocator.h"
-#include "tensorrt/playground/core/memory/memory.h"
 
 namespace yais {
 namespace Memory {
