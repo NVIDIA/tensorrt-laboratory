@@ -48,7 +48,7 @@ class Descriptor : public MemoryType
 };
 
 template<typename MemoryType>
-using DescriptorHandle = std::unique_ptr<Descriptor<MemoryType>>;
+using DescriptorHandle = std::unique_ptr<MemoryType>;
 
 } // end namespace Memory
 } // end namespace yais
