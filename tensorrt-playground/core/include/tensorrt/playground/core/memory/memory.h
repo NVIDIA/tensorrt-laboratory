@@ -62,34 +62,7 @@ namespace Memory {
  * (shared_ptr) to the stack ensuring the stack cannot deallocated be until all
  * StackDescriptors are released.
  */
-struct IMemory
-{
-    virtual ~IMemory() = default;
-
-    // Implemented by CoreMemory
-    virtual void* Data() = 0;
-    virtual const void* Data() const = 0;
-    virtual size_t Size() const = 0;
-    virtual bool Allocated() const = 0;
-
-    virtual void* operator[](size_t) = 0;
-    virtual const void* operator[](size_t) const = 0;
-
-    // Implemented by a BaseMemory derivative, e.g. HostMemory
-    virtual void Fill(char) = 0;
-    virtual size_t DefaultAlignment() const = 0;
-
-    // Implemented by every derivative class
-    virtual const std::string& Type() const = 0;
-};
-
-struct IAllocatable
-{
-    virtual void* Allocate(size_t) = 0;
-    virtual void Free() = 0;
-};
-
-class CoreMemory : public virtual IMemory
+class CoreMemory
 {
   protected:
     CoreMemory(void* ptr, size_t size, bool allocated);
@@ -101,37 +74,49 @@ class CoreMemory : public virtual IMemory
     CoreMemory& operator=(const CoreMemory&) = delete;
 
   public:
-    virtual ~CoreMemory() override;
+    virtual ~CoreMemory();
 
-
-    inline void* Data() final override
+    inline void* Data()
     {
         return m_MemoryAddress;
     }
 
-    inline const void* Data() const final override
+    inline const void* Data() const
     {
         return m_MemoryAddress;
     }
 
-    inline size_t Size() const final override
+    inline size_t Size() const
     {
         return m_BytesAllocated;
     }
 
-    inline bool Allocated() const final override
+    inline bool Allocated() const
     {
         return m_Allocated;
     }
 
-    void* operator[](size_t offset) final override;
-    const void* operator[](size_t offset) const final override;
+    void* operator[](size_t offset);
+    const void* operator[](size_t offset) const;
 
     template<typename T>
     T* CastToArray()
     {
         return static_cast<T*>(Data());
     }
+
+    template<typename T>
+    const T* CastToArray() const
+    {
+        return static_cast<const T*>(Data());
+    }
+
+    // Implemented by every unique derived class
+    virtual const std::string& Type() const = 0;
+
+    // Implemented by BaseMemory classes, e.g. HostMemory or DeviceMemory
+    virtual void Fill(char) = 0;
+    virtual size_t DefaultAlignment() const = 0;
 
   private:
     void* m_MemoryAddress;
@@ -145,7 +130,15 @@ class BaseMemory : public CoreMemory
   public:
     using CoreMemory::CoreMemory;
     using BaseType = MemoryType;
+
 };
+
+class IAllocatable
+{
+    virtual void* Allocate(size_t) = 0;
+    virtual void Free() = 0;
+};
+
 
 } // end namespace Memory
 } // end namespace yais

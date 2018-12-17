@@ -45,11 +45,5 @@ void HostMemory::Fill(char fill_value)
     std::memset(Data(), 0, Size());
 }
 
-const std::string& HostMemory::Type() const
-{
-    static std::string type = "HostMemory";
-    return type;
-}
-
 } // namespace Memory
 } // namespace yais

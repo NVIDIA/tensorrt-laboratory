@@ -36,7 +36,6 @@ class HostMemory : public BaseMemory<HostMemory>
 {
   public:
     using BaseMemory<HostMemory>::BaseMemory;
-    const std::string& Type() const override;
 
     void Fill(char) override;
     size_t DefaultAlignment() const override;
