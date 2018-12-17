@@ -26,11 +26,11 @@
  */
 #pragma once
 
-#include <vector>
+#include <memory>
 
-#include "tensorrt/playground/core/memory.h"
-#include "tensorrt/playground/core/memory_stack.h"
+#include "tensorrt/playground/core/memory/smart_stack.h"
 #include "tensorrt/playground/core/pool.h"
+#include "tensorrt/playground/core/utils.h"
 
 #include <glog/logging.h>
 
@@ -98,7 +98,9 @@ template<class MemoryType>
 class CyclicAllocator
 {
   public:
-    using RotatingSegment = MemoryDescriptorStack<MemoryType>;
+    using RotatingSegment = SmartStack<MemoryType>;
+    using Descriptor = typename RotatingSegment::StackDescriptor;
+
 
     CyclicAllocator(size_t segments, size_t bytes_per_segment)
         : m_Segments(Pool<RotatingSegment>::Create()), m_MaximumAllocationSize(bytes_per_segment)
@@ -119,9 +121,6 @@ class CyclicAllocator
     { 
         m_CurrentSegment.reset();
     }
-
-    using BaseType = typename MemoryType::BaseType;
-    using Descriptor = typename MemoryDescriptorStack<MemoryType>::StackDescriptor;
 
     Descriptor Allocate(size_t size)
     {

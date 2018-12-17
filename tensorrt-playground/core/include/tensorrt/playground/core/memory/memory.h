@@ -25,29 +25,42 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
-
-#include <glog/logging.h>
-#include <memory>
-
-#include "tensorrt/playground/core/utils.h"
+#include <string>
 
 namespace yais {
 namespace Memory {
+
 /**
  * @brief Abstract base Memory class
  *
  * Abstract base class that tracks the base pointer and size of a memory allocation.
- * Derived classes are expected to allocate memory and initialize the base pointer
- * ink their protected/private constructor.  Derived classes are also expected to
- * implement a static Deleter method responsible for freeing the memory allocation.
  *
- * Derived classes are expected to use protected or private constructors.  Memory
- * objects will only be created by Allocator factory functions which return either a
- * `shared_ptr` or `unique_ptr` of an Allocator object of MemoryType.
+ * Methods exposed by IMemory shall be implemented and available to all memory types.
+ * Methods that do not depend on the specific type of memory should be implemented in
+ * CoreMemory, while those that depend on the specialization, e.g. CUDA, should be
+ * implemented in a class derived from BaseMemory.
  *
- * Recommended alignment values are not directly used by the Memory or the Allocator
- * object; however, subsequent specializations like MemoryStacks can use the DefaultAlignment
- * to specialize their function specific to the MemoryType used.
+ * Two BaseMemory types are defined:
+ * - HostMemory
+ * - DeviceMemory (available in the cuda extension)
+ *
+ * Specific memory types are derived from these base classes and must implement the
+ * IAllocatable interface and are expected to implement protected constructor, move
+ * construstors and the move assignment operator.
+ *
+ * In order to allocate specific memory one should use the templated Allocator class.
+ *
+ * ```
+ * auto allocated = std::make_unique<Allocator<Malloc>>(one_mb);
+ * ```
+ *
+ * To expose memory own by another object, the object should create a descriptor object
+ * derived from the templated Descriptor class. It is the responsibility of the object
+ * providing the memory descriptor to ensure the lifecycle of the descriptor and
+ * the object owning the memory is enforced.  See SmartStack for details on how
+ * the SmartStack::Allocate methods returns a StackDescriptor which own a reference
+ * (shared_ptr) to the stack ensuring the stack cannot deallocated be until all
+ * StackDescriptors are released.
  */
 struct IMemory
 {
@@ -66,7 +79,7 @@ struct IMemory
     virtual const std::string& Type() const = 0;
 };
 
-struct IAllocatableMemory
+struct IAllocatable
 {
     virtual void* Allocate(size_t) = 0;
     virtual void Free() = 0;
@@ -76,10 +89,12 @@ class CoreMemory : public virtual IMemory
 {
   protected:
     CoreMemory(void* ptr, size_t size, bool allocated);
+
     CoreMemory(CoreMemory&& other) noexcept;
     CoreMemory& operator=(CoreMemory&&) noexcept;
 
-    DELETE_COPYABILITY(CoreMemory);
+    CoreMemory(const CoreMemory&) = delete;
+    CoreMemory& operator=(const CoreMemory&) = delete;
 
   public:
     virtual ~CoreMemory() override;
@@ -97,11 +112,7 @@ class CoreMemory : public virtual IMemory
         return m_Allocated;
     }
 
-    void* operator[](size_t offset) const
-    {
-        CHECK_LE(offset, Size());
-        return static_cast<void*>(static_cast<char*>(Data()) + offset);
-    }
+    void* operator[](size_t offset) const;
 
     template<typename T>
     T* CastToArray()
@@ -123,85 +134,5 @@ class BaseMemory : public CoreMemory
     using BaseType = MemoryType;
 };
 
-template<class MemoryType>
-class Allocator final : public MemoryType
-{
-  public:
-    Allocator(size_t size);
-    Allocator(Allocator&& other) noexcept;
-    Allocator& operator=(Allocator&& other) noexcept;
-    ~Allocator() override;
-
-    DELETE_COPYABILITY(Allocator);
-};
-
-template<typename MemoryType>
-class Descriptor : public MemoryType
-{
-  protected:
-    Descriptor(MemoryType&&);
-    Descriptor(void* ptr, size_t size);
-    Descriptor(Descriptor&& other) noexcept;
-    Descriptor& operator=(Descriptor&& other) noexcept;
-
-    DELETE_COPYABILITY(Descriptor);
-
-  public:
-    virtual ~Descriptor() override;
-};
-
-template<typename MemoryType>
-using MemoryDescriptor = std::unique_ptr<Descriptor<MemoryType>>;
-
-class HostMemory : public BaseMemory<HostMemory>
-{
-  public:
-    using BaseMemory<HostMemory>::BaseMemory;
-    const std::string& Type() const override;
-
-    void Fill(char) override;
-    size_t DefaultAlignment() const override;
-};
-
-class SystemMallocMemory : public HostMemory, public IAllocatableMemory
-{
-  public:
-    using HostMemory::HostMemory;
-    const std::string& Type() const final override;
-
-  protected:
-    void* Allocate(size_t) final override;
-    void Free() final override;
-};
-
-class SystemV : public HostMemory, public IAllocatableMemory
-{
-  protected:
-    SystemV(int shm_id);
-    SystemV(void* ptr, size_t size, bool allocated);
-    SystemV(SystemV&& other) noexcept;
-    SystemV& operator=(SystemV&& other) noexcept;
-
-    DELETE_COPYABILITY(SystemV);
-
-  public:
-    virtual ~SystemV() override;
-    const std::string& Type() const final override;
-
-    static MemoryDescriptor<SystemV> Attach(int shm_id);
-
-    int ShmID() const;
-    void DisableAttachment();
-
-  protected:
-    void* Allocate(size_t) final override;
-    void Free() final override;
-
-  private:
-    int m_ShmID;
-};
-
 } // end namespace Memory
 } // end namespace yais
-
-#include "tensorrt/playground/core/impl/memory.h"

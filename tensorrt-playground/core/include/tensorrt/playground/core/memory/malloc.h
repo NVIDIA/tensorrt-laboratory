@@ -24,33 +24,27 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <benchmark/benchmark.h>
+#pragma once
 
-#include "tensorrt/playground/core/memory/allocator.h"
-#include "tensorrt/playground/core/memory/malloc.h"
-#include "tensorrt/playground/core/memory/system_v.h"
+#include <glog/logging.h>
+#include <memory>
 
-using namespace yais;
-using namespace yais::Memory;
+#include "tensorrt/playground/core/memory/host_memory.h"
+#include "tensorrt/playground/core/memory/memory.h"
 
-static void BM_Memory_SystemMalloc(benchmark::State &state)
+namespace yais {
+namespace Memory {
+
+class SystemMallocMemory : public HostMemory, public IAllocatable
 {
-    for (auto _ : state)
-    {
-        auto unique = std::make_unique<Allocator<SystemMallocMemory>>(1024*1024);
-        auto shared = std::make_shared<Allocator<SystemMallocMemory>>(1024*1024);
-        Allocator<SystemMallocMemory> memory(1024*1024);
-    }
-}
+  public:
+    using HostMemory::HostMemory;
+    const std::string& Type() const final override;
 
-static void BM_Memory_SystemV_descriptor(benchmark::State &state)
-{
-    auto master = std::make_unique<Allocator<SystemV>>(1024*1024);
-    for (auto _ : state)
-    {
-        auto mdesc = SystemV::Attach(master->ShmID());
-    }
-}
+  protected:
+    void* Allocate(size_t) final override;
+    void Free() final override;
+};
 
-BENCHMARK(BM_Memory_SystemMalloc);
-BENCHMARK(BM_Memory_SystemV_descriptor);
+} // end namespace Memory
+} // end namespace yais

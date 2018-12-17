@@ -24,14 +24,41 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#pragma once
+#include "tensorrt/playground/core/memory/memory.h"
 
-#include "tensorrt/playground/core/memory.h"
+#include <algorithm>
 
-namespace yais
+#include <glog/logging.h>
+
+namespace yais {
+namespace Memory {
+
+CoreMemory::CoreMemory(void* ptr, size_t size, bool allocated)
+    : m_MemoryAddress(ptr), m_BytesAllocated(size), m_Allocated(allocated)
 {
+}
 
+CoreMemory::CoreMemory(CoreMemory&& other) noexcept
+    : m_MemoryAddress{std::exchange(other.m_MemoryAddress, nullptr)},
+      m_BytesAllocated{std::exchange(other.m_BytesAllocated, 0)}, m_Allocated{std::exchange(
+                                                                      other.m_Allocated, false)}
+{
+}
 
+CoreMemory& CoreMemory::operator=(CoreMemory&& other) noexcept
+{
+    m_MemoryAddress = std::exchange(other.m_MemoryAddress, nullptr);
+    m_BytesAllocated = std::exchange(other.m_BytesAllocated, 0);
+    m_Allocated = std::exchange(other.m_Allocated, false);
+}
+
+CoreMemory::~CoreMemory() {}
+
+void* CoreMemory::operator[](size_t offset) const
+{
+    CHECK_LE(offset, Size());
+    return static_cast<void*>(static_cast<char*>(Data()) + offset);
+}
+
+} // namespace Memory
 } // namespace yais
-
-#include "tensorrt/playground/core/impl/allocator.h"

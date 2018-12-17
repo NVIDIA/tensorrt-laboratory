@@ -24,33 +24,46 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <benchmark/benchmark.h>
+#pragma once
 
-#include "tensorrt/playground/core/memory/allocator.h"
-#include "tensorrt/playground/core/memory/malloc.h"
-#include "tensorrt/playground/core/memory/system_v.h"
+#include <glog/logging.h>
 
-using namespace yais;
-using namespace yais::Memory;
+namespace yais {
+namespace Memory {
 
-static void BM_Memory_SystemMalloc(benchmark::State &state)
+// Allocator
+
+template<typename MemoryType>
+Allocator<MemoryType>::Allocator(size_t size) : MemoryType(this->Allocate(size), size, true)
 {
-    for (auto _ : state)
+    DLOG(INFO) << "Allocator<" << this->Type() << "> size_ctor [" << this << "]: ptr=" << this->Data()
+               << "; size=" << this->Size();
+}
+
+template<typename MemoryType>
+Allocator<MemoryType>::Allocator(Allocator&& other) noexcept : MemoryType(std::move(other))
+{
+    DLOG(INFO) << "Allocator<" << this->Type() << "> mv_ctor [" << this << "]: ptr=" << this->Data()
+               << "; size=" << this->Size();
+}
+
+template<typename MemoryType>
+Allocator<MemoryType>& Allocator<MemoryType>::operator=(Allocator<MemoryType>&& other) noexcept
+{
+    MemoryType::operator=(std::move(other));
+    return *this;
+}
+
+template<typename MemoryType>
+Allocator<MemoryType>::~Allocator()
+{
+    if(this->Data() && this->Size())
     {
-        auto unique = std::make_unique<Allocator<SystemMallocMemory>>(1024*1024);
-        auto shared = std::make_shared<Allocator<SystemMallocMemory>>(1024*1024);
-        Allocator<SystemMallocMemory> memory(1024*1024);
+        DLOG(INFO) << "~Allocator<" << this->Type() << "> [" << this << "]: ptr=" << this->Data()
+                   << "; size=" << this->Size();
+        this->Free();
     }
 }
 
-static void BM_Memory_SystemV_descriptor(benchmark::State &state)
-{
-    auto master = std::make_unique<Allocator<SystemV>>(1024*1024);
-    for (auto _ : state)
-    {
-        auto mdesc = SystemV::Attach(master->ShmID());
-    }
-}
-
-BENCHMARK(BM_Memory_SystemMalloc);
-BENCHMARK(BM_Memory_SystemV_descriptor);
+} // namespace Memory
+} // namespace yais

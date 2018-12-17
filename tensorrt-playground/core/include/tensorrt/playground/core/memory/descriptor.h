@@ -24,33 +24,33 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <benchmark/benchmark.h>
+#pragma once
+#include <memory>
 
-#include "tensorrt/playground/core/memory/allocator.h"
-#include "tensorrt/playground/core/memory/malloc.h"
-#include "tensorrt/playground/core/memory/system_v.h"
+namespace yais {
+namespace Memory {
 
-using namespace yais;
-using namespace yais::Memory;
-
-static void BM_Memory_SystemMalloc(benchmark::State &state)
+template<typename MemoryType>
+class Descriptor : public MemoryType
 {
-    for (auto _ : state)
-    {
-        auto unique = std::make_unique<Allocator<SystemMallocMemory>>(1024*1024);
-        auto shared = std::make_shared<Allocator<SystemMallocMemory>>(1024*1024);
-        Allocator<SystemMallocMemory> memory(1024*1024);
-    }
-}
+  protected:
+    Descriptor(MemoryType&&);
+    Descriptor(void*, size_t);
 
-static void BM_Memory_SystemV_descriptor(benchmark::State &state)
-{
-    auto master = std::make_unique<Allocator<SystemV>>(1024*1024);
-    for (auto _ : state)
-    {
-        auto mdesc = SystemV::Attach(master->ShmID());
-    }
-}
+    Descriptor(Descriptor&&) noexcept;
+    Descriptor& operator=(Descriptor&&) noexcept;
 
-BENCHMARK(BM_Memory_SystemMalloc);
-BENCHMARK(BM_Memory_SystemV_descriptor);
+    Descriptor(const Descriptor&) = delete;
+    Descriptor& operator=(const Descriptor&) = delete;
+
+  public:
+    virtual ~Descriptor() override;
+};
+
+template<typename MemoryType>
+using DescriptorHandle = std::unique_ptr<Descriptor<MemoryType>>;
+
+} // end namespace Memory
+} // end namespace yais
+
+#include "tensorrt/playground/core/impl/memory/descriptor.h"

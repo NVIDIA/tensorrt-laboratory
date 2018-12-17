@@ -24,8 +24,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/playground/core/allocator.h"
-#include "tensorrt/playground/core/memory.h"
+#include "tensorrt/playground/core/memory/allocator.h"
+#include "tensorrt/playground/core/memory/malloc.h"
+#include "tensorrt/playground/core/memory/system_v.h"
+#include "tensorrt/playground/core/utils.h"
 
 #include <list>
 
@@ -46,6 +48,13 @@ class TestMemory : public ::testing::Test
 using MemoryTypes = ::testing::Types<SystemMallocMemory, SystemV>;
 
 TYPED_TEST_CASE(TestMemory, MemoryTypes);
+
+/*
+TYPED_TEST(TestMemory, should_not_compile)
+{
+    TypeParam memory(one_mb);
+}
+*/
 
 TYPED_TEST(TestMemory, make_shared)
 {
@@ -119,12 +128,16 @@ TEST_F(TestSystemVMemory, smart_ptrs)
     auto attached = SystemV::Attach(master->ShmID());
     EXPECT_EQ(master->ShmID(), attached->ShmID());
     EXPECT_EQ(master->Size(), attached->Size());
-    EXPECT_NE(master->Data(),
-              attached->Data()); // different virtual address pointing at the same memory
+
+    // different virtual address pointing at the same memory
+    EXPECT_NE(master->Data(), attached->Data()); 
+
+    // ensure both segments point to the same data
     auto master_ptr = static_cast<long*>(master->Data());
     auto attach_ptr = static_cast<long*>(attached->Data());
     *master_ptr = 0xDEADBEEF;
     EXPECT_EQ(*master_ptr, *attach_ptr);
+
     DLOG(INFO) << "releasing the attached segment";
     attached.reset();
     DLOG(INFO) << "released the attached segment";

@@ -24,33 +24,32 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <benchmark/benchmark.h>
-
-#include "tensorrt/playground/core/memory/allocator.h"
 #include "tensorrt/playground/core/memory/malloc.h"
-#include "tensorrt/playground/core/memory/system_v.h"
 
-using namespace yais;
-using namespace yais::Memory;
+#include <glog/logging.h>
 
-static void BM_Memory_SystemMalloc(benchmark::State &state)
+namespace yais {
+namespace Memory {
+
+// SystemMallocMemory
+
+void* SystemMallocMemory::Allocate(size_t size)
 {
-    for (auto _ : state)
-    {
-        auto unique = std::make_unique<Allocator<SystemMallocMemory>>(1024*1024);
-        auto shared = std::make_shared<Allocator<SystemMallocMemory>>(1024*1024);
-        Allocator<SystemMallocMemory> memory(1024*1024);
-    }
+    void* ptr = malloc(size);
+    CHECK(ptr) << "malloc(" << size << ") failed";
+    return ptr;
 }
 
-static void BM_Memory_SystemV_descriptor(benchmark::State &state)
+void SystemMallocMemory::Free()
 {
-    auto master = std::make_unique<Allocator<SystemV>>(1024*1024);
-    for (auto _ : state)
-    {
-        auto mdesc = SystemV::Attach(master->ShmID());
-    }
+    free(Data());
 }
 
-BENCHMARK(BM_Memory_SystemMalloc);
-BENCHMARK(BM_Memory_SystemV_descriptor);
+const std::string& SystemMallocMemory::Type() const
+{
+    static std::string type = "SystemMallocMemory";
+    return type;
+}
+
+} // namespace Memory
+} // namespace yais

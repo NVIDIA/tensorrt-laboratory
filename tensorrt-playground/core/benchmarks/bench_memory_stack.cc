@@ -25,10 +25,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <benchmark/benchmark.h>
-#include "tensorrt/playground/core/allocator.h"
-#include "tensorrt/playground/core/memory.h"
-#include "tensorrt/playground/core/memory_stack.h"
-#include "tensorrt/playground/core/cyclic_allocator.h"
+
+#include "tensorrt/playground/core/memory/malloc.h"
+#include "tensorrt/playground/core/memory/system_v.h"
+#include "tensorrt/playground/core/memory/memory_stack.h"
+#include "tensorrt/playground/core/memory/smart_stack.h"
+#include "tensorrt/playground/core/memory/cyclic_allocator.h"
 
 using namespace yais;
 using namespace yais::Memory;
@@ -43,9 +45,9 @@ static void BM_MemoryStack_Allocate(benchmark::State &state)
     }
 }
 
-static void BM_MemoryDescriptorStack_Allocate(benchmark::State &state)
+static void BM_SmartStack_Allocate(benchmark::State &state)
 {
-    auto stack = std::make_shared<MemoryDescriptorStack<SystemMallocMemory>>(1024*1024);
+    auto stack = std::make_shared<SmartStack<SystemMallocMemory>>(1024*1024);
     for (auto _ : state)
     {
         auto ptr = stack->Allocate(1024);
@@ -72,6 +74,6 @@ static void BM_CyclicAllocator_SystemV_Allocate(benchmark::State &state)
 }
 
 BENCHMARK(BM_MemoryStack_Allocate);
-BENCHMARK(BM_MemoryDescriptorStack_Allocate);
+BENCHMARK(BM_SmartStack_Allocate);
 BENCHMARK(BM_CyclicAllocator_Malloc_Allocate);
 BENCHMARK(BM_CyclicAllocator_SystemV_Allocate);

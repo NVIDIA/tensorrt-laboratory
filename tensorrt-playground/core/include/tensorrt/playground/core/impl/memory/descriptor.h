@@ -26,56 +26,32 @@
  */
 #pragma once
 
+#include <glog/logging.h>
+
 namespace yais {
 namespace Memory {
-
-// Allocator
-
-template<typename MemoryType>
-Allocator<MemoryType>::Allocator(size_t size) : MemoryType(this->Allocate(size), size, true)
-{
-    DLOG(INFO) << "Allocator<" << this->Type() << "> [" << this << "]: ptr=" << this->Data()
-               << "; size=" << this->Size();
-}
-
-template<typename MemoryType>
-Allocator<MemoryType>::Allocator(Allocator&& other) noexcept : MemoryType(std::move(other))
-{
-}
-
-template<typename MemoryType>
-Allocator<MemoryType>& Allocator<MemoryType>::operator=(Allocator<MemoryType>&& other) noexcept
-{
-    MemoryType::operator=(std::move(other));
-    return *this;
-}
-
-template<typename MemoryType>
-Allocator<MemoryType>::~Allocator()
-{
-    if(this->Data() && this->Size())
-    {
-        DLOG(INFO) << "~Allocator<" << this->Type() << "> [" << this << "]: ptr=" << this->Data()
-                   << "; size=" << this->Size();
-        this->Free();
-    }
-}
 
 // Descriptor
 
 template <typename MemoryType>
-Descriptor<MemoryType>::Descriptor(MemoryType&& other) : MemoryType(std::move(other)) {}
+Descriptor<MemoryType>::Descriptor(MemoryType&& other) : MemoryType(std::move(other)) 
+{
+    DLOG(INFO) << "Descriptor<" << this->Type() << "> mem_ctor [" << this << "]: ptr=" << this->Data()
+               << "; size=" << this->Size();
+}
 
 template<class MemoryType>
 Descriptor<MemoryType>::Descriptor(void* ptr, size_t size) : MemoryType(ptr, size, false)
 {
-    DLOG(INFO) << "Descriptor<" << this->Type() << "> [" << this << "]: ptr=" << this->Data()
+    DLOG(INFO) << "Descriptor<" << this->Type() << "> ptr_size_ctor [" << this << "]: ptr=" << this->Data()
                << "; size=" << this->Size();
 }
 
 template<class MemoryType>
 Descriptor<MemoryType>::Descriptor(Descriptor&& other) noexcept : MemoryType(std::move(other))
 {
+    DLOG(INFO) << "Descriptor<" << this->Type() << "> mv_ctor [" << this << "]: ptr=" << this->Data()
+               << "; size=" << this->Size();
 }
 
 template<class MemoryType>

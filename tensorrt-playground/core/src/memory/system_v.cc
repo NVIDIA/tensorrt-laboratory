@@ -24,10 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/playground/core/memory.h"
-
-#include <algorithm>
-#include <cstring>
+#include "tensorrt/playground/core/memory/system_v.h"
 
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -55,73 +52,6 @@ size_t SegSize(int shm_id)
 namespace yais {
 namespace Memory {
 
-CoreMemory::CoreMemory(void* ptr, size_t size, bool allocated)
-    : m_MemoryAddress(ptr), m_BytesAllocated(size), m_Allocated(allocated)
-{
-}
-
-CoreMemory::CoreMemory(CoreMemory&& other) noexcept
-    : m_MemoryAddress{std::exchange(other.m_MemoryAddress, nullptr)},
-      m_BytesAllocated{std::exchange(other.m_BytesAllocated, 0)}, m_Allocated{std::exchange(
-                                                                      other.m_Allocated, false)}
-{
-}
-
-CoreMemory& CoreMemory::operator=(CoreMemory&& other) noexcept
-{
-    m_MemoryAddress = std::exchange(other.m_MemoryAddress, nullptr);
-    m_BytesAllocated = std::exchange(other.m_BytesAllocated, 0);
-    m_Allocated = std::exchange(other.m_Allocated, false);
-}
-
-CoreMemory::~CoreMemory() {}
-
-// HostMemory
-
-size_t HostMemory::DefaultAlignment() const
-{
-    return 64;
-}
-
-void HostMemory::Fill(char fill_value)
-{
-    std::memset(Data(), 0, Size());
-}
-
-const std::string& HostMemory::Type() const
-{
-    static std::string type = "HostMemory";
-    return type;
-}
-
-/*
-std::shared_ptr<HostMemory> HostMemory::UnsafeWrapRawPointer(
-    void* ptr, size_t size, std::function<void(HostMemory*)> deleter)
-{
-    return std::shared_ptr<HostMemory>(new HostMemory(ptr, size), deleter);
-}
-*/
-
-// SystemMallocMemory
-
-void* SystemMallocMemory::Allocate(size_t size)
-{
-    void* ptr = malloc(size);
-    CHECK(ptr) << "malloc(" << size << ") failed";
-    return ptr;
-}
-
-void SystemMallocMemory::Free()
-{
-    free(Data());
-}
-
-const std::string& SystemMallocMemory::Type() const
-{
-    static std::string type = "SystemMallocMemory";
-    return type;
-}
-
 // SystemV
 
 SystemV::SystemV(void* ptr, size_t size, bool allocated) : HostMemory(ptr, size, allocated)
@@ -132,9 +62,7 @@ SystemV::SystemV(void* ptr, size_t size, bool allocated) : HostMemory(ptr, size,
     }
 }
 
-SystemV::SystemV(int shm_id) : HostMemory(ShmAt(shm_id), SegSize(shm_id), false), m_ShmID(shm_id)
-{
-}
+SystemV::SystemV(int shm_id) : HostMemory(ShmAt(shm_id), SegSize(shm_id), false), m_ShmID(shm_id) {}
 
 SystemV::SystemV(SystemV&& other) noexcept
     : HostMemory(std::move(other)), m_ShmID{std::exchange(other.m_ShmID, -1)}
@@ -169,16 +97,23 @@ void SystemV::Free()
     DisableAttachment();
 }
 
-MemoryDescriptor<SystemV> SystemV::Attach(int shm_id)
+DescriptorHandle<SystemV> SystemV::Attach(int shm_id)
 {
     class DescriptorImpl final : public Descriptor<SystemV>
     {
       public:
         explicit DescriptorImpl(int shm_id) : Descriptor<SystemV>(std::move(SystemV(shm_id))) {}
-        DescriptorImpl(DescriptorImpl&& other) : Descriptor<SystemV>(std::move(other)) {}
         virtual ~DescriptorImpl() override {}
 
-        DELETE_COPYABILITY(DescriptorImpl);
+        DescriptorImpl(DescriptorImpl&& other) : Descriptor<SystemV>(std::move(other)) {}
+        DescriptorImpl& operator=(DescriptorImpl&& other)
+        {
+            Descriptor<SystemV>::operator=(std::move(other));
+            return *this;
+        }
+
+        DescriptorImpl(const DescriptorImpl&) = delete;
+        DescriptorImpl& operator=(const Descriptor&) = delete;
     };
     return std::make_unique<DescriptorImpl>(shm_id);
 }

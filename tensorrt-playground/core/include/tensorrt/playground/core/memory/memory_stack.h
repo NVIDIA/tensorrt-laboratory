@@ -25,11 +25,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
-#include <vector>
+#include <memory>
 
 #include <glog/logging.h>
 
-#include "tensorrt/playground/core/memory.h"
+#include "tensorrt/playground/core/memory/allocator.h"
+#include "tensorrt/playground/core/memory/memory.h"
 
 namespace yais {
 namespace Memory {
@@ -38,8 +39,8 @@ namespace Memory {
  * @brief General MemoryStack
  *
  * Memory stack using a single memory allocation of MemoryType.  The stack pointer is advanced
- * by the Allocate function.  Each new stack pointer is aligned to either the DefaultAlignment of
- * the MemoryType or customized when the MemoryStack is instantiated.
+ * by the Allocate function.  Each new stack pointer is aligned to either the DefaultAlignment
+ * of the MemoryType or customized when the MemoryStack is instantiated.
  *
  * @tparam MemoryType
  */
@@ -50,8 +51,8 @@ class MemoryStack
     /**
      * @brief Construct a new MemoryStack object
      *
-     * A stack using a single allocation of MemoryType.  The stack can only be advanced or reset.
-     * Popping is not supported.
+     * A stack using a single allocation of MemoryType.  The stack can only be advanced or
+     * reset. Popping is not supported.
      *
      * @param size Size of the memory allocation
      * @param alignment Byte alignment for all pointer pushed on the stack
@@ -151,84 +152,6 @@ class MemoryStack
     void* m_CurrentPointer;
     size_t m_CurrentSize;
     size_t m_Alignment;
-};
-
-template<typename MemoryType>
-class MemoryDescriptorStack : public MemoryStack<MemoryType>,
-                              public std::enable_shared_from_this<MemoryDescriptorStack<MemoryType>>
-{
-  protected:
-    using MemoryStack<MemoryType>::MemoryStack;
-    using MemoryStack<MemoryType>::Allocate;
-
-    class StackDescriptorImpl : protected Descriptor<MemoryType>
-    {
-      public:
-        StackDescriptorImpl(void* ptr, size_t size,
-                        std::shared_ptr<const MemoryDescriptorStack<MemoryType>> stack)
-            : Descriptor<MemoryType>(ptr, size), m_Stack(stack), m_Offset(Stack().Offset(this->Data()))
-        {
-        }
-
-        StackDescriptorImpl(StackDescriptorImpl&& other)
-            : MemoryType(std::move(other)), m_Offset{std::exchange(other.m_Offset, 0)},
-              m_Stack{std::exchange(other.m_Stack, nullptr)}
-        {
-        }
-
-        virtual ~StackDescriptorImpl() override {}
-
-        using MemoryType::Data;
-        using MemoryType::Size;
-        using MemoryType::Type;
-        using MemoryType::CastToArray;
-        using MemoryType::operator[];
-
-        size_t Offset() const
-        {
-            return m_Offset;
-        }
-        const MemoryStack<MemoryType>& Stack() const
-        {
-            return *m_Stack;
-        }
-
-      private:
-        std::shared_ptr<const MemoryDescriptorStack<MemoryType>> m_Stack;
-        size_t m_Offset;
-
-        friend class MemoryDescriptorStack<MemoryType>;
-    };
-
-  public:
-    using StackType = std::shared_ptr<MemoryDescriptorStack<MemoryType>>;
-    using StackDescriptor = std::unique_ptr<StackDescriptorImpl>;
-
-    static StackType Create(size_t size)
-    {
-        return StackType(new MemoryDescriptorStack(size));
-    }
-    static StackType Create(std::unique_ptr<MemoryType> memory)
-    {
-        return StackType(new MemoryDescriptorStack(memory));
-    }
-
-    StackDescriptor Allocate(size_t size)
-    {
-        CHECK_LE(size, this->Available());
-
-        auto ptr = MemoryStack<MemoryType>::Allocate(size);
-        auto segment = this->shared_from_this();
-
-        // Special Descriptor derived from MemoryType that hold a reference to the MemoryStack,
-        // and who's destructor does not try to free the MemoryType memory.
-        auto ret = std::make_unique<StackDescriptorImpl>(ptr, size, segment);
-
-        DLOG(INFO) << "Allocated " << ret->Size() << " starting at " << ret->Data()
-                   << " on segment " << segment.get();
-
-        return ret;
-    }
 };
 
 // Template Implementations

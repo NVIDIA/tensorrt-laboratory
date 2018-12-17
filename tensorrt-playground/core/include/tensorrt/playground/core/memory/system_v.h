@@ -24,33 +24,44 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <benchmark/benchmark.h>
+#pragma once
+#include <string>
 
-#include "tensorrt/playground/core/memory/allocator.h"
-#include "tensorrt/playground/core/memory/malloc.h"
-#include "tensorrt/playground/core/memory/system_v.h"
+#include "tensorrt/playground/core/memory/descriptor.h"
+#include "tensorrt/playground/core/memory/host_memory.h"
+#include "tensorrt/playground/core/memory/memory.h"
 
-using namespace yais;
-using namespace yais::Memory;
+namespace yais {
+namespace Memory {
 
-static void BM_Memory_SystemMalloc(benchmark::State &state)
+class SystemV : public HostMemory, public IAllocatable
 {
-    for (auto _ : state)
-    {
-        auto unique = std::make_unique<Allocator<SystemMallocMemory>>(1024*1024);
-        auto shared = std::make_shared<Allocator<SystemMallocMemory>>(1024*1024);
-        Allocator<SystemMallocMemory> memory(1024*1024);
-    }
-}
+  protected:
+    SystemV(int shm_id);
+    SystemV(void* ptr, size_t size, bool allocated);
 
-static void BM_Memory_SystemV_descriptor(benchmark::State &state)
-{
-    auto master = std::make_unique<Allocator<SystemV>>(1024*1024);
-    for (auto _ : state)
-    {
-        auto mdesc = SystemV::Attach(master->ShmID());
-    }
-}
+    SystemV(SystemV&& other) noexcept;
+    SystemV& operator=(SystemV&& other) noexcept;
 
-BENCHMARK(BM_Memory_SystemMalloc);
-BENCHMARK(BM_Memory_SystemV_descriptor);
+    SystemV(const SystemV&) = delete;
+    SystemV& operator=(const SystemV&) = delete;
+
+  public:
+    virtual ~SystemV() override;
+    const std::string& Type() const final override;
+
+    static DescriptorHandle<SystemV> Attach(int shm_id);
+
+    int ShmID() const;
+    void DisableAttachment();
+
+  protected:
+    void* Allocate(size_t) final override;
+    void Free() final override;
+
+  private:
+    int m_ShmID;
+};
+
+} // end namespace Memory
+} // end namespace yais

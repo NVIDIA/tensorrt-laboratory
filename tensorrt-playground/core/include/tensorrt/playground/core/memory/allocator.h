@@ -25,11 +25,26 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
+#include <cstddef>
 
-#include <glog/logging.h>
+namespace yais {
+namespace Memory {
 
-namespace yais
+template<class MemoryType>
+class Allocator final : public MemoryType
 {
+  public:
+    Allocator(size_t size);
+    virtual ~Allocator() override;
 
+    Allocator(Allocator&& other) noexcept;
+    Allocator& operator=(Allocator&& other) noexcept;
 
-} // namespace yais
+    Allocator(const Allocator&) = delete;
+    Allocator& operator=(const Allocator&) = delete;
+};
+
+} // end namespace Memory
+} // end namespace yais
+
+#include "tensorrt/playground/core/impl/memory/allocator.h"

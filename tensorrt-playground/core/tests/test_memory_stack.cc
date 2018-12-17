@@ -24,8 +24,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/playground/core/memory.h"
-#include "tensorrt/playground/core/memory_stack.h"
+#include "tensorrt/playground/core/memory/malloc.h"
+#include "tensorrt/playground/core/memory/system_v.h"
+#include "tensorrt/playground/core/memory/cyclic_allocator.h"
+#include "tensorrt/playground/core/memory/memory_stack.h"
+#include "tensorrt/playground/core/memory/smart_stack.h"
+
 #include "gtest/gtest.h"
 
 using namespace yais;
@@ -53,12 +57,12 @@ class TestMemoryStack : public ::testing::Test
     std::shared_ptr<MemoryStack<SystemMallocMemory>> stack;
 };
 
-class TestMemoryDescriptorStack : public ::testing::Test
+class TestSmartStack : public ::testing::Test
 {
   protected:
     virtual void SetUp()
     {
-        stack = MemoryDescriptorStack<SystemV>::Create(one_mb);
+        stack = SmartStack<SystemV>::Create(one_mb);
     }
 
     virtual void TearDown()
@@ -66,7 +70,7 @@ class TestMemoryDescriptorStack : public ::testing::Test
         if(stack) stack->Reset();
     }
 
-    std::shared_ptr<MemoryDescriptorStack<SystemV>> stack;
+    std::shared_ptr<SmartStack<SystemV>> stack;
 };
 
 //using MemoryTypes = ::testing::Types<SystemMallocMemory>;
@@ -107,14 +111,14 @@ TEST_F(TestMemoryStack, Unaligned)
     EXPECT_EQ(stack->Offset(p1), stack->Alignment());
 }
 
-TEST_F(TestMemoryDescriptorStack, EmptyOnCreate)
+TEST_F(TestSmartStack, EmptyOnCreate)
 {
     ASSERT_EQ(one_mb, stack->Size());
     ASSERT_EQ(one_mb, stack->Available());
     ASSERT_EQ(0, stack->Allocated());
 }
 
-TEST_F(TestMemoryDescriptorStack, AllocateAndReset)
+TEST_F(TestSmartStack, AllocateAndReset)
 {
     auto p0 = stack->Allocate(128 * 1024);
     ASSERT_TRUE(p0);
@@ -125,7 +129,7 @@ TEST_F(TestMemoryDescriptorStack, AllocateAndReset)
     EXPECT_EQ(p0->Data(), p1->Data());
 }
 
-TEST_F(TestMemoryDescriptorStack, Unaligned)
+TEST_F(TestSmartStack, Unaligned)
 {
     auto p0 = stack->Allocate(1);
     ASSERT_TRUE(p0->Data());
