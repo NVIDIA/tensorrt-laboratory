@@ -27,6 +27,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <mutex>
 // #include <shared_mutex> /* C++17 - not found in g++ 5.4 */
 

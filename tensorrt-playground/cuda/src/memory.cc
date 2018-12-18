@@ -32,8 +32,9 @@
 
 #include <glog/logging.h>
 
-namespace yais
-{
+namespace yais {
+namespace Memory {
+
 size_t DeviceMemory::DefaultAlignment() const
 {
     return DeviceInfo::Alignment();
@@ -89,24 +90,25 @@ const std::string& CudaDeviceMemory::Type() const
     return type;
 }
 
-// CudaHostMemory
+// CudaPinnedHostMemory
 
-void* CudaHostMemory::Allocate(size_t size)
+void* CudaPinnedHostMemory::Allocate(size_t size)
 {
     void* ptr;
     CHECK_EQ(cudaMallocHost((void**)&ptr, size), CUDA_SUCCESS);
     return ptr;
 }
 
-void CudaHostMemory::Free()
+void CudaPinnedHostMemory::Free()
 {
     CHECK_EQ(cudaFreeHost(Data()), CUDA_SUCCESS);
 }
 
-const std::string& CudaHostMemory::Type() const
+const std::string& CudaPinnedHostMemory::Type() const
 {
     static std::string type = "CudaMallocHost";
     return type;
 }
 
+} // namespace Memory
 } // namespace yais

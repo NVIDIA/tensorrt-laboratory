@@ -31,18 +31,16 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "tensorrt/playground/cuda/memory.h"
-#include "tensorrt/playground/core/memory_stack.h"
 #include "tensorrt/playground/common.h"
+#include "tensorrt/playground/core/memory/memory_stack.h"
+#include "tensorrt/playground/cuda/memory.h"
 
-namespace yais
-{
-namespace TensorRT
-{
+namespace yais {
+namespace TensorRT {
 
 /**
  * @brief Manages inpu/output buffers and CudaStream
- * 
+ *
  * Primary TensorRT resource class used to manage both a host and a device memory stacks
  * and owns the cudaStream_t that should be used for transfers or compute on these
  * resources.
@@ -52,15 +50,19 @@ class Buffers : public std::enable_shared_from_this<Buffers>
   public:
     Buffers();
     virtual ~Buffers();
-    
+
     auto CreateBindings(const std::shared_ptr<Model>&) -> std::shared_ptr<Bindings>;
 
-    inline cudaStream_t Stream() { return m_Stream; }
+    inline cudaStream_t Stream()
+    {
+        return m_Stream;
+    }
     void Synchronize();
 
   protected:
-    virtual void Reset(bool writeZeros = false) {};
-    virtual void ConfigureBindings(const std::shared_ptr<Model> &model, std::shared_ptr<Bindings>) = 0;
+    virtual void Reset(bool writeZeros = false){};
+    virtual void ConfigureBindings(const std::shared_ptr<Model>& model,
+                                   std::shared_ptr<Bindings>) = 0;
 
   private:
     cudaStream_t m_Stream;
@@ -75,14 +77,20 @@ class FixedBuffers : public Buffers
 
   protected:
     void Reset(bool writeZeros = false) final override;
-    void ConfigureBindings(const std::shared_ptr<Model> &model, std::shared_ptr<Bindings>) override;
+    void ConfigureBindings(const std::shared_ptr<Model>& model, std::shared_ptr<Bindings>) override;
 
-    void *AllocateHost(size_t size) { return m_HostStack->Allocate(size); }
-    void *AllocateDevice(size_t size) { return m_DeviceStack->Allocate(size); }
+    void* AllocateHost(size_t size)
+    {
+        return m_HostStack->Allocate(size);
+    }
+    void* AllocateDevice(size_t size)
+    {
+        return m_DeviceStack->Allocate(size);
+    }
 
   private:
-    std::unique_ptr<MemoryStack<CudaHostMemory>> m_HostStack;
-    std::unique_ptr<MemoryStack<CudaDeviceMemory>> m_DeviceStack;
+    std::unique_ptr<Memory::MemoryStack<Memory::CudaPinnedHostMemory>> m_HostStack;
+    std::unique_ptr<Memory::MemoryStack<Memory::CudaDeviceMemory>> m_DeviceStack;
 };
 
 } // namespace TensorRT

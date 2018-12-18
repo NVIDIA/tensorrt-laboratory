@@ -33,6 +33,12 @@
 
 #include <glog/logging.h>
 
+#include "tensorrt/playground/core/memory/allocator.h"
+#include "tensorrt/playground/cuda/memory.h"
+
+using yais::Memory::Allocator;
+using yais::Memory::CudaDeviceMemory;
+
 namespace yais
 {
 namespace TensorRT
@@ -53,7 +59,7 @@ namespace TensorRT
  * timings, they are simply a nice-to-have, so a reasonable approximation on the host is sufficient.
  */
 ExecutionContext::ExecutionContext(size_t workspace_size) 
-  : m_Context{nullptr}, m_Workspace{Allocator<CudaDeviceMemory>::make_unique(workspace_size)}
+  : m_Context{nullptr}, m_Workspace{std::make_unique<Allocator<CudaDeviceMemory>>(workspace_size)}
 {
     CHECK_EQ(cudaEventCreateWithFlags(&m_ExecutionContextFinished, cudaEventDisableTiming), CUDA_SUCCESS)
         << "Failed to Create Execution Context Finished Event";

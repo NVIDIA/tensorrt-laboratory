@@ -25,11 +25,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
+#include <memory>
 
-#include "tensorrt/playground/core/memory.h"
+#include "tensorrt/playground/core/memory/memory.h"
+#include "tensorrt/playground/core/memory/host_memory.h"
 
-namespace yais
-{
+namespace yais {
+namespace Memory {
 
 class DeviceMemory : public BaseMemory<DeviceMemory>
 {
@@ -46,7 +48,7 @@ class DeviceMemory : public BaseMemory<DeviceMemory>
  *
  * Derived Memory class for GPU memory management using cudaMalloc and cudaFree.
  */
-class CudaDeviceMemory : public DeviceMemory, public IAllocatableMemory
+class CudaDeviceMemory : public DeviceMemory, public IAllocatable
 {
   public:
     using DeviceMemory::DeviceMemory;
@@ -62,7 +64,7 @@ class CudaDeviceMemory : public DeviceMemory, public IAllocatableMemory
  *
  * Allocates memory that will be automatically managed by the Unified Memory system.
  */
-class CudaManagedMemory : public DeviceMemory, public IAllocatableMemory
+class CudaManagedMemory : public DeviceMemory, public IAllocatable
 {
   public:
     using DeviceMemory::DeviceMemory;
@@ -79,7 +81,7 @@ class CudaManagedMemory : public DeviceMemory, public IAllocatableMemory
  * Allocated page locked host memory using cudaMallocHost.  Pinned memory can provided better
  * performance, but should be used sparingly for staging areas for H2D and D2H transfers.
  */
-class CudaHostMemory : public HostMemory, public IAllocatableMemory
+class CudaPinnedHostMemory : public HostMemory, public IAllocatable
 {
   public:
     using HostMemory::HostMemory;
@@ -90,4 +92,5 @@ class CudaHostMemory : public HostMemory, public IAllocatableMemory
     void Free() final override;
 };
 
+} // namespace Memory
 } // namespace yais

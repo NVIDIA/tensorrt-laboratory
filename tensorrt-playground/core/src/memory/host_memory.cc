@@ -35,6 +35,12 @@ namespace Memory {
 
 // HostMemory
 
+const std::string& HostMemory::Type() const
+{
+    static std::string type = "Generic HostMemory";
+    return type;
+}
+
 size_t HostMemory::DefaultAlignment() const
 {
     return 64;

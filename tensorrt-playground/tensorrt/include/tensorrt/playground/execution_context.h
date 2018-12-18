@@ -30,7 +30,8 @@
 #include <memory>
 
 #include "tensorrt/playground/bindings.h"
-#include "tensorrt/playground/core/memory.h"
+#include "tensorrt/playground/core/utils.h"
+#include "tensorrt/playground/cuda/memory.h"
 
 #include "NvInfer.h"
 
@@ -67,7 +68,7 @@ namespace TensorRT
         cudaEvent_t m_ExecutionContextFinished;
         std::shared_ptr<::nvinfer1::IExecutionContext> m_Context;
 
-        std::unique_ptr<CudaDeviceMemory> m_Workspace;
+        std::unique_ptr<Memory::CudaDeviceMemory> m_Workspace;
 
         friend class InferenceManager;
     };

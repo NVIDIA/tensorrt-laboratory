@@ -24,13 +24,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "tensorrt/playground/core/memory/allocator.h"
 #include "tensorrt/playground/cuda/memory.h"
-#include "tensorrt/playground/core/allocator.h"
 #include "gtest/gtest.h"
 
 #include <list>
 
 using namespace yais;
+using namespace yais::Memory;
 
 namespace
 {
@@ -42,7 +43,7 @@ class TestMemory : public ::testing::Test
 {
 };
 
-using MemoryTypes = ::testing::Types<CudaDeviceMemory, CudaManagedMemory, CudaHostMemory>;
+using MemoryTypes = ::testing::Types<CudaDeviceMemory, CudaManagedMemory, CudaPinnedHostMemory>;
 
 
 TYPED_TEST_CASE(TestMemory, MemoryTypes);
