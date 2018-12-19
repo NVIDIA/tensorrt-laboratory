@@ -24,50 +24,30 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "nvrpc/server.h"
+#pragma once
 
-#include <thread>
-#include <glog/logging.h>
+#include <prometheus/exposer.h>
+#include <prometheus/registry.h>
 
-namespace yais
+using prometheus::Exposer;
+using prometheus::Registry;
+
+namespace yais {
+
+class Metrics
 {
+  public:
+    static void Initialize(uint32_t port);
+    static auto GetRegistry() -> Registry&;
 
-Server::Server(std::string server_address)
-    : m_ServerAddress(server_address), m_Running(false)
-{
-    LOG(INFO) << "gRPC listening on: " << m_ServerAddress;
-    m_Builder.AddListeningPort(m_ServerAddress, ::grpc::InsecureServerCredentials());
-}
+  protected:
+    Metrics();
+    virtual ~Metrics();
+    static Metrics* GetSingleton();
 
-::grpc::ServerBuilder &
-Server::Builder()
-{
-    LOG_IF(FATAL, m_Running) << "Unable to access Builder after the Server is running.";
-    return m_Builder;
-}
+  private:
+    std::unique_ptr<Exposer> m_Exposer;
+    std::shared_ptr<Registry> m_Registry;
+};
 
-void 
-Server::Run()
-{
-    Run(std::chrono::milliseconds(5000), [] {});
-}
-
-void
-Server::Run(std::chrono::milliseconds timeout, std::function<void()> control_fn)
-{
-    m_Running = true;
-    auto server = m_Builder.BuildAndStart();
-    for (int i = 0; i < m_Executors.size(); i++)
-    {
-        m_Executors[i]->Run();
-    }
-    for (;;)
-    {
-        control_fn();
-        std::this_thread::sleep_for(timeout);
-    }
-    // TODO: gracefully shutdown each service and join threads
-
-}
-
-} // end namespace yais
+} // namespace yais

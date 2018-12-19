@@ -43,7 +43,7 @@
 using yais::Affinity;
 using yais::CpuSet;
 using yais::ThreadPool;
-using yais::CudaHostMemory;
+using yais::CudaPinnedHostMemory;
 using yais::CudaDeviceMemory;
 using yais::MemoryStack;
 using yais::Pool;
@@ -71,15 +71,15 @@ int main(int argc, char *argv[])
     auto workers_0 = std::make_shared<ThreadPool>(socket_0);
     auto workers_1 = std::make_shared<ThreadPool>(socket_1);
 
-    std::shared_ptr<CudaHostMemory> pinned_0, pinned_1;
+    std::shared_ptr<CudaPinnedHostMemory> pinned_0, pinned_1;
 
     auto future_0 = workers_0->enqueue([=, &pinned_0]{
-        pinned_0 = Allocated<CudaHostMemory>::make_shared(one_gib);
+        pinned_0 = Allocated<CudaPinnedHostMemory>::make_shared(one_gib);
         pinned_0->WriteZeros();
     });
 
     auto future_1 = workers_1->enqueue([=, &pinned_1]{
-        pinned_1 = Allocated<CudaHostMemory>::make_shared(one_gib);
+        pinned_1 = Allocated<CudaPinnedHostMemory>::make_shared(one_gib);
         pinned_1->WriteZeros();
     });
 
@@ -124,12 +124,12 @@ int main(int argc, char *argv[])
     struct Buffer
     {
         Buffer(
-            std::shared_ptr<CudaHostMemory> pinned_,
+            std::shared_ptr<CudaPinnedHostMemory> pinned_,
             std::shared_ptr<MemoryStack<CudaDeviceMemory>> gpu_stack_,
             std::shared_ptr<ThreadPool> workers_
         ) : pinned(pinned_), gpu_stack(gpu_stack_), workers(workers_) {}
 
-        std::shared_ptr<CudaHostMemory> pinned;
+        std::shared_ptr<CudaPinnedHostMemory> pinned;
         std::shared_ptr<MemoryStack<CudaDeviceMemory>> gpu_stack;
         std::shared_ptr<ThreadPool> workers;
 

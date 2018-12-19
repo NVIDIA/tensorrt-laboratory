@@ -44,7 +44,7 @@ class SmartStack : public MemoryStack<MemoryType>,
     using MemoryStack<MemoryType>::MemoryStack;
     using MemoryStack<MemoryType>::Allocate;
 
-    class StackDescriptorImpl : protected Descriptor<MemoryType>
+    class StackDescriptorImpl : public Descriptor<MemoryType>
     {
       public:
         StackDescriptorImpl(std::shared_ptr<const SmartStack<MemoryType>> stack, void* ptr,
@@ -61,12 +61,6 @@ class SmartStack : public MemoryStack<MemoryType>,
         }
 
         virtual ~StackDescriptorImpl() override {}
-
-        using MemoryType::CastToArray;
-        using MemoryType::Data;
-        using MemoryType::Size;
-        using MemoryType::Type;
-        using MemoryType::operator[];
 
         size_t Offset() const
         {

@@ -46,6 +46,51 @@ namespace yais
 namespace TensorRT
 {
 
+template<typename HostMemoryType, typename DeviceMemoryType>
+class CyclicBuffers : public Buffers
+{
+  public:
+    using HostAllocatorType = std::unique_ptr<Memory::CyclicAllocator<HostMemoryType>>;
+    using DeviceAllocatorType = std::unique_ptr<Memory::CyclicAllocator<DeviceMemoryType>>;
+
+    using HostDescriptor = typename Memory::CyclicAllocator<HostMemoryType>::Descriptor;
+    using DeviceDescriptor = typename Memory::CyclicAllocator<DeviceMemoryType>::Descriptor;
+
+    CyclicBuffers(HostAllocatorType host, DeviceAllocatorType device)
+        : m_HostAllocator{std::move(host)}, m_DeviceAllocator{std::move(device)}
+    {
+    }
+    ~CyclicBuffers() override {}
+
+    HostDescriptor AllocateHost(size_t size)
+    {
+        return m_HostAllocator->Allocate(size);
+    }
+
+    DeviceDescriptor AllocateDevice(size_t size)
+    {
+        return m_DeviceAllocator->Allocate(size);
+    }
+
+    void Reset(bool writeZeros = false) final override {}
+    void ConfigureBindings(const std::shared_ptr<Model>& model, std::shared_ptr<Bindings> bindings) override
+    {
+        for(uint32_t i = 0; i < model->GetBindingsCount(); i++)
+        {
+            auto binding_size = model->GetBinding(i).bytesPerBatchItem * model->GetMaxBatchSize();
+            DLOG(INFO) << "Configuring Binding " << i << ": pushing " << binding_size
+                       << " to host/device stacks";
+            bindings->SetHostAddress(i, m_HostAllocator->Allocate(binding_size));
+            bindings->SetDeviceAddress(i, m_DeviceAllocator->Allocate(binding_size));
+        }
+    }
+
+  private:
+    HostAllocatorType m_HostAllocator;
+    DeviceAllocatorType m_DeviceAllocator;
+};
+
+
 /**
  * @brief TensorRT Resource Manager
  */

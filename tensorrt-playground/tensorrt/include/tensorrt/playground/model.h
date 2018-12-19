@@ -31,14 +31,12 @@
 
 #include <NvInfer.h>
 
-namespace yais
-{
-namespace TensorRT
-{
+namespace yais {
+namespace TensorRT {
 
 /**
  * @brief Wrapper class for nvinfer1::ICudaEngine.
- * 
+ *
  * A Model object holds an instance of ICudaEngine and extracts some basic meta data
  * from the engine to simplify pushing the input/output bindings to a memory stack.
  */
@@ -47,33 +45,60 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
   public:
     /**
      * @brief Construct a new Model object
-     * 
-     * @param engine 
+     *
+     * @param engine
      */
     Model(std::shared_ptr<::nvinfer1::ICudaEngine> engine); // TODO: Move to protected/private
     virtual ~Model() {}
 
-    auto Name() const -> const std::string { return m_Name; }
-    void SetName(std::string name) { m_Name = name; }
+    auto Name() const -> const std::string
+    {
+        return m_Name;
+    }
+    void SetName(std::string name)
+    {
+        m_Name = name;
+    }
 
-    void AddWeights(void *, size_t); // TODO: Move to protected/private
+    void AddWeights(void*, size_t); // TODO: Move to protected/private
     void PrefetchWeights(cudaStream_t) const;
 
     auto CreateExecutionContext() const -> std::shared_ptr<::nvinfer1::IExecutionContext>;
 
-    auto GetMaxBatchSize() const { return m_Engine->getMaxBatchSize(); }
-    auto GetActivationsMemorySize() const { return m_Engine->getDeviceMemorySize(); }
+    auto GetMaxBatchSize() const
+    {
+        return m_Engine->getMaxBatchSize();
+    }
+    auto GetActivationsMemorySize() const
+    {
+        return m_Engine->getDeviceMemorySize();
+    }
     auto GetBindingMemorySize() const -> const size_t;
     auto GetWeightsMemorySize() const -> const size_t;
 
     struct TensorBindingInfo;
 
-    auto GetBinding(uint32_t) const -> const TensorBindingInfo &;
-    auto GetBindingsCount() const { return m_Bindings.size(); }
-    auto GetInputBindingCount() const { return m_InputBindings.size(); }
-    auto GetOutputBindingCount() const { return m_OutputBindings.size(); }
-    auto GetInputBindingIds() const -> const std::vector<uint32_t> { return m_InputBindings; }
-    auto GetOutputBindingIds() const -> const std::vector<uint32_t> { return m_OutputBindings; }
+    auto GetBinding(uint32_t) const -> const TensorBindingInfo&;
+    auto GetBindingsCount() const
+    {
+        return m_Bindings.size();
+    }
+    auto GetInputBindingCount() const
+    {
+        return m_InputBindings.size();
+    }
+    auto GetOutputBindingCount() const
+    {
+        return m_OutputBindings.size();
+    }
+    auto GetInputBindingIds() const -> const std::vector<uint32_t>
+    {
+        return m_InputBindings;
+    }
+    auto GetOutputBindingIds() const -> const std::vector<uint32_t>
+    {
+        return m_OutputBindings;
+    }
 
     struct TensorBindingInfo
     {
@@ -92,7 +117,7 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
   private:
     struct Weights
     {
-        void *addr;
+        void* addr;
         size_t size;
     };
 

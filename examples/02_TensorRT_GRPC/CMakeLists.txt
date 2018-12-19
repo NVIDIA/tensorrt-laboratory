@@ -24,34 +24,51 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+find_package(prometheus-cpp CONFIG REQUIRED)
+if(prometheus-cpp_FOUND)
+  message(STATUS "Prometheus Metics Enabled")
+endif(prometheus-cpp_FOUND)
+
+
 add_executable(inference-grpc.x
+    src/metrics.cc
     src/server.cc
 )
+target_include_directories(inference-grpc.x
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
 target_link_libraries(inference-grpc.x
-    nvrpc::nvrpc
+    tensorrt-playground::nvrpc
+    tensorrt-playground::tensorrt
+    prometheus-cpp::prometheus-cpp
     demo-protos
+    gflags
 )
 
 add_executable(client-sync.x
     src/sync-client.cc
 )
 target_link_libraries(client-sync.x
-    nvrpc::nvrpc
+    nvrpc
     demo-protos
+    gflags
 )
 
 add_executable(client-async.x
     src/async-client.cc
 )
 target_link_libraries(client-async.x
-    nvrpc::nvrpc
+    nvrpc
     demo-protos
+    gflags
 )
 
 add_executable(siege.x
     src/siege.cc
 )
 target_link_libraries(siege.x
-    nvrpc::nvrpc
+    nvrpc
     demo-protos
+    gflags
 )

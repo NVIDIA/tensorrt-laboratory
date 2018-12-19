@@ -58,7 +58,7 @@
 
 #include "inference.grpc.pb.h"
 
-#include "tensorrt/playground/core/memory.h"
+#include "tensorrt/playground/core/utils.h"
 
 using grpc::Channel;
 using grpc::ClientAsyncResponseReader;

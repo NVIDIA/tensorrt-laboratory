@@ -22,7 +22,7 @@ change the following lines to a range that works with your CPU.
       are allocated and first-touched on the threads on the NUMA node for which it will be used.
       This is important for keeping threads and memory pool separate on NUMA systems.
   * `Memory`
-    * `Memory` and the derived classes (`MallocMemory`, `CudaHostMemory`, `CudaDeviceMemory`) are not
+    * `Memory` and the derived classes (`MallocMemory`, `CudaPinnedHostMemory`, `CudaDeviceMemory`) are not
       used directly; however they provided the implmentation details used by the generic `Allocator`.
   * `Allocator<MemoryType>`
     * Generic Templated Class used to create `std::shared_ptr` and `std::unique_ptr` to instances of
@@ -43,7 +43,7 @@ change the following lines to a range that works with your CPU.
   * `Model` 
     * Wrapper around `nvinfer1::ICudaEngine`
   * `Buffers` 
-    * `MemoryStackWithTracking<CudaHostMemory>` and `MemoryStackWithTracking<CudaDeviceMemory>` used
+    * `MemoryStackWithTracking<CudaPinnedHostMemory>` and `MemoryStackWithTracking<CudaDeviceMemory>` used
       to manage Input/Output Tensor Bindings.
     * Owns a `cudaStream_t` to be used with Async Copies and Kernel Executions on the data held by the Buffers.
     * Convenience H2D and D2H copy functions
@@ -144,8 +144,8 @@ their respective classes is to be allocated, freed, and page-aligned.  For detai
 in the source code.
 
 Derived `Memory` Classes:
-  * `SystemMallocMemory`
-  * `CudaHostMemory`
+  * `Malloc`
+  * `CudaPinnedHostMemory`
   * `CudaDeviceMemory`
   * `CudaManagedMemory`
 
@@ -162,15 +162,15 @@ An allocated memory segments is of type `Allocator<MemoryType>` which inherits f
 The base `Memory` class provides three functions, `GetPointer()`, `GetSize()`, and `WriteZeros()`.
 
 ```
-    std::shared_ptr<CudaHostMemory> pinned_0, pinned_1;
+    std::shared_ptr<CudaPinnedHostMemory> pinned_0, pinned_1;
 
     auto future_0 = workers_0->enqueue([&pinned_0]{
-        pinned_0 = Allocator<CudaHostMemory>::make_shared(1024*1024*1024);
+        pinned_0 = Allocator<CudaPinnedHostMemory>::make_shared(1024*1024*1024);
         pinned_0->WriteZeros();
     });
 
     auto future_1 = workers_1->enqueue([&pinned_1]{
-        pinned_1 = Allocator<CudaHostMemory>::make_shared(1024*1024*1024);
+        pinned_1 = Allocator<CudaPinnedHostMemory>::make_shared(1024*1024*1024);
         pinned_1->WriteZeros();
     });
 
@@ -248,14 +248,14 @@ chance to clear the state and prepare it for the next use.
     struct Buffer
     {
         Buffer(
-            std::shared_ptr<CudaHostMemory> pinned_,
+            std::shared_ptr<CudaPinnedHostMemory> pinned_,
             std::shared_ptr<MemoryStackWithTracking<CudaDeviceMemory>> gpu_stack_,
             std::shared_ptr<ThreadPool> workers_
         ) : pinned(pinned_), gpu_stack(gpu_stack_), workers(workers_) {}
 
         // a real example probably includes a deviceID and a stream as part of the buffer
 
-        std::shared_ptr<CudaHostMemory> pinned;
+        std::shared_ptr<CudaPinnedHostMemory> pinned;
         std::shared_ptr<MemoryStackWithTracking<CudaDeviceMemory>> gpu_stack;
         std::shared_ptr<ThreadPool> workers;
     };

@@ -28,10 +28,12 @@
 
 #include <glog/logging.h>
 
-namespace yais
-{
-namespace TensorRT
-{
+using yais::Memory::HostMemory;
+using yais::Memory::DeviceMemory;
+using yais::Memory::DescriptorHandle;
+
+namespace yais {
+namespace TensorRT {
 
 Bindings::Bindings(const std::shared_ptr<Model> model, const std::shared_ptr<Buffers> buffers)
     : m_Model(model), m_Buffers(buffers), m_BatchSize(0)
@@ -49,29 +51,41 @@ Bindings::~Bindings() {}
 
 void Bindings::SetHostAddress(int binding_id, void *addr)
 {
-    CHECK_LT(binding_id, m_HostAddresses.size())
-        << "Invalid binding_id (" << binding_id << ") must be < " << m_HostAddresses.size();
+    CHECK_LT(binding_id, m_HostAddresses.size());
+    m_HostDescriptors.erase(binding_id);
     m_HostAddresses[binding_id] = addr;
 }
 
 void Bindings::SetDeviceAddress(int binding_id, void *addr)
 {
-    CHECK_LT(binding_id, m_DeviceAddresses.size())
-        << "Invalid binding_id (" << binding_id << ") must be < " << m_DeviceAddresses.size();
+    CHECK_LT(binding_id, m_DeviceAddresses.size());
+    m_DeviceDescriptors.erase(binding_id);
     m_DeviceAddresses[binding_id] = addr;
+}
+
+void Bindings::SetHostAddress(int binding_id, DescriptorHandle<HostMemory> mdesc)
+{
+    CHECK_LT(binding_id, m_HostAddresses.size());
+    m_HostAddresses[binding_id] = mdesc->Data();
+    m_HostDescriptors[binding_id] = std::move(mdesc);
+}
+
+void Bindings::SetDeviceAddress(int binding_id, DescriptorHandle<DeviceMemory> mdesc)
+{
+    CHECK_LT(binding_id, m_DeviceAddresses.size());
+    m_DeviceAddresses[binding_id] = mdesc->Data();
+    m_DeviceDescriptors[binding_id] = std::move(mdesc);
 }
 
 void *Bindings::HostAddress(uint32_t binding_id)
 {
-    CHECK_LT(binding_id, m_HostAddresses.size())
-        << "Invalid binding_id (" << binding_id << ") must be < " << m_HostAddresses.size();
+    CHECK_LT(binding_id, m_HostAddresses.size());
     return m_HostAddresses[binding_id];
 }
 
 void *Bindings::DeviceAddress(uint32_t binding_id)
 {
-    CHECK_LT(binding_id, m_DeviceAddresses.size())
-        << "Invalid binding_id (" << binding_id << ") must be < " << m_DeviceAddresses.size();
+    CHECK_LT(binding_id, m_DeviceAddresses.size());
     return m_DeviceAddresses[binding_id];
 }
 

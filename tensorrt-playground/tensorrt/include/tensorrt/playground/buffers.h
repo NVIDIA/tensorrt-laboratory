@@ -32,6 +32,7 @@
 #include <cuda_runtime.h>
 
 #include "tensorrt/playground/common.h"
+#include "tensorrt/playground/core/memory/cyclic_allocator.h"
 #include "tensorrt/playground/core/memory/memory_stack.h"
 #include "tensorrt/playground/cuda/memory.h"
 
@@ -92,6 +93,7 @@ class FixedBuffers : public Buffers
     std::unique_ptr<Memory::MemoryStack<Memory::CudaPinnedHostMemory>> m_HostStack;
     std::unique_ptr<Memory::MemoryStack<Memory::CudaDeviceMemory>> m_DeviceStack;
 };
+
 
 } // namespace TensorRT
 } // namespace yais

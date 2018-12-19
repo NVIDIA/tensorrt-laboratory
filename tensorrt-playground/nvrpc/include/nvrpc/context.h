@@ -53,8 +53,8 @@ class BaseContext : public LifeCycle
     using ResponseType = typename LifeCycle::ResponseType;
     using ResourcesType = std::shared_ptr<Resources>;
     using QueueFuncType = typename LifeCycle::ExecutorQueueFuncType;
-    using LifeCycleType = LifeCycle;
 
+    using LifeCycleType = LifeCycle;
     virtual ~BaseContext() override {}
 
   protected:

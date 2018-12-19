@@ -24,50 +24,41 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "nvrpc/server.h"
+#include "metrics.h"
 
-#include <thread>
 #include <glog/logging.h>
+#include <ostream>
 
-namespace yais
-{
+namespace yais {
 
-Server::Server(std::string server_address)
-    : m_ServerAddress(server_address), m_Running(false)
+void Metrics::Initialize(uint32_t port)
 {
-    LOG(INFO) << "gRPC listening on: " << m_ServerAddress;
-    m_Builder.AddListeningPort(m_ServerAddress, ::grpc::InsecureServerCredentials());
-}
-
-::grpc::ServerBuilder &
-Server::Builder()
-{
-    LOG_IF(FATAL, m_Running) << "Unable to access Builder after the Server is running.";
-    return m_Builder;
-}
-
-void 
-Server::Run()
-{
-    Run(std::chrono::milliseconds(5000), [] {});
-}
-
-void
-Server::Run(std::chrono::milliseconds timeout, std::function<void()> control_fn)
-{
-    m_Running = true;
-    auto server = m_Builder.BuildAndStart();
-    for (int i = 0; i < m_Executors.size(); i++)
+    auto singleton = GetSingleton();
+    if(singleton->m_Exposer)
     {
-        m_Executors[i]->Run();
+        LOG(WARNING) << "Metrics already initialized.  This call is ignored";
+        return;
     }
-    for (;;)
-    {
-        control_fn();
-        std::this_thread::sleep_for(timeout);
-    }
-    // TODO: gracefully shutdown each service and join threads
-
+    std::ostringstream stream;
+    stream << "0.0.0.0:" << port;
+    singleton->m_Exposer = std::make_unique<Exposer>(stream.str());
+    singleton->m_Exposer->RegisterCollectable(singleton->m_Registry);
 }
 
-} // end namespace yais
+auto Metrics::GetRegistry() -> Registry&
+{
+    auto singleton = Metrics::GetSingleton();
+    return *(singleton->m_Registry);
+}
+
+Metrics* Metrics::GetSingleton()
+{
+    static Metrics singleton;
+    return &singleton;
+}
+
+Metrics::Metrics() : m_Registry(std::make_shared<Registry>()) {}
+
+Metrics::~Metrics() {}
+
+} // namespace yais

@@ -30,8 +30,9 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "YAIS/YAIS.h"
-#include "YAIS/TensorRT/TensorRT.h"
+#include "tensorrt/playground/core/thread_pool.h"
+#include "tensorrt/playground/inference_manager.h"
+#include "tensorrt/playground/runtime.h"
 
 #ifdef YAIS_USE_MPI
 #include "mpi.h"
@@ -105,7 +106,7 @@ class Inference final
             // This thread only async copies buffers H2D
             auto model = GetResources()->GetModel(ModelName(replica++));
             auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
-            auto bindings = buffers->CreateAndConfigureBindings(model);
+            auto bindings = buffers->CreateBindings(model);
             bindings->SetBatchSize(batch_size);
             bindings->CopyToDevice(bindings->InputBindings());
 

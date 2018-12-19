@@ -33,8 +33,9 @@ add_executable(inference.x
     ${PROTO_GRPC_SRCS})
 
 target_link_libraries(inference.x
-    yais
-    yais-tensorrt
+    tensorrt-playground::nvrpc
+    tensorrt-playground::tensorrt
+    gflags
 )
 
 if(YAIS_ENABLE_MPI)

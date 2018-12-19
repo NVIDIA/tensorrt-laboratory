@@ -153,6 +153,10 @@ TEST_F(TestSystemVMemory, TryAttachingToDeletedSegment)
     EXPECT_DEATH(auto attached = SystemV::Attach(shm_id), "");
 }
 
+class TestAllocator : public ::testing::Test
+{
+};
+
 class TestBytesToString : public ::testing::Test
 {
 };

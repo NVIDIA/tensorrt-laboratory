@@ -25,10 +25,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
+#include <map>
 
 #include "tensorrt/playground/common.h"
 #include "tensorrt/playground/model.h"
 #include "tensorrt/playground/buffers.h"
+
+#include "tensorrt/playground/core/memory/descriptor.h"
+#include "tensorrt/playground/core/memory/host_memory.h"
+#include "tensorrt/playground/cuda/memory.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -53,13 +58,20 @@ class Buffers;
 class Bindings
 {
   public:
+    using HostDescriptor = Memory::DescriptorHandle<Memory::HostMemory>;
+    using DeviceDescriptor = Memory::DescriptorHandle<Memory::DeviceMemory>;
+
     virtual ~Bindings();
 
     void *HostAddress(uint32_t binding_id);
     void *DeviceAddress(uint32_t binding_id);
     void **DeviceAddresses();
+
     void SetHostAddress(int binding_id, void *addr);
     void SetDeviceAddress(int binding_id, void *addr);
+
+    void SetHostAddress(int binding_id, HostDescriptor);
+    void SetDeviceAddress(int binding_id, DeviceDescriptor);
 
     void *ActivationsAddress() { return m_ActivationsAddress; }
     void SetActivationsAddress(void *addr) { m_ActivationsAddress = addr; }
@@ -92,6 +104,10 @@ class Bindings
 
     std::vector<void *> m_HostAddresses;
     std::vector<void *> m_DeviceAddresses;
+
+    std::map<int, HostDescriptor> m_HostDescriptors;
+    std::map<int, DeviceDescriptor> m_DeviceDescriptors;
+
     void *m_ActivationsAddress;
 
     friend class Buffers;

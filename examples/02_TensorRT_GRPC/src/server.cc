@@ -34,19 +34,31 @@
 #include <unistd.h>
 #include "nvml.h"
 
-#include "YAIS/YAIS.h"
 #include "tensorrt/playground/core/affinity.h"
-#include "YAIS/TensorRT/TensorRT.h"
-#include "YAIS/Metrics.h"
+#include "tensorrt/playground/core/memory/allocator.h"
+#include "tensorrt/playground/cuda/device_info.h"
+#include "tensorrt/playground/cuda/memory.h"
+#include "tensorrt/playground/runtime.h"
+#include "tensorrt/playground/inference_manager.h"
+
+#include "nvrpc/context.h"
+#include "nvrpc/executor.h"
+#include "nvrpc/service.h"
+#include "nvrpc/server.h"
+
+#include "metrics.h"
 
 using yais::Affinity;
 using yais::AsyncRPC;
 using yais::AsyncService;
 using yais::Context;
+using yais::DeviceInfo;
 using yais::Executor;
 using yais::Metrics;
 using yais::Server;
 using yais::ThreadPool;
+using yais::Memory::Allocator;
+using yais::Memory::CudaPinnedHostMemory;
 using yais::TensorRT::Model;
 using yais::TensorRT::InferenceManager;
 using yais::TensorRT::Runtime;
@@ -141,7 +153,7 @@ class FlowersContext final : public Context<BatchInput, BatchPredictions, Flower
             // Executed on a thread from CudaThreadPool
             auto model = GetResources()->GetModel("flowers");
             auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
-            auto bindings = buffers->CreateAndConfigureBindings(model);
+            auto bindings = buffers->CreateBindings(model);
             bindings->SetBatchSize(input.batch_size());
             bindings->SetHostAddress(0, GetResources()->GetSysvOffset(input.sysv_offset()));
             bindings->CopyToDevice(bindings->InputBindings());
@@ -230,7 +242,7 @@ int main(int argc, char *argv[])
     ::google::ParseCommandLineFlags(&argc, &argv, true);
 
     // Set CPU Affinity to be near the GPU
-    auto cpus = Affinity::GetDeviceAffinity(0);
+    auto cpus = DeviceInfo::Affinity(0);
     Affinity::SetAffinity(cpus);
 
     // Enable metrics on port
@@ -243,7 +255,7 @@ int main(int argc, char *argv[])
 
     // Modify MaxReceiveMessageSize
     auto bytes = yais::StringToBytes(FLAGS_max_recv_bytes);
-    server.GetBuilder().SetMaxReceiveMessageSize(bytes);
+    server.Builder().SetMaxReceiveMessageSize(bytes);
     LOG(INFO) << "gRPC MaxReceiveMessageSize = " << yais::BytesToString(bytes);
 
     // A server can host multiple services
@@ -299,12 +311,12 @@ int main(int argc, char *argv[])
     });
 }
 
-static auto pinned_memory = yais::Allocated<CudaHostMemory>::make_unique(1024 * 1024 * 1024);
+static auto pinned_memory = std::make_unique<Allocator<CudaPinnedHostMemory>>(1024 * 1024 * 1024);
 
 float *GetSharedMemory(const std::string &address)
 {
     /* data in shared memory should go here - for the sake of quick examples just use and emptry array */
-    pinned_memory->WriteZeros();
+    pinned_memory->Fill((char)0);
     return (float *)pinned_memory->Data();
     // the following code connects to a shared memory service to allow for non-serialized transfers
     // between microservices

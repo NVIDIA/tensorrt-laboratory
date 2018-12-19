@@ -120,6 +120,18 @@ TYPED_TEST(TestCyclicStacks, AllocateThenReleaseStack)
     DLOG(INFO) << "Deallocation should hppen after this statement";
 }
 
+/*
+TYPED_TEST(TestCyclicStacks, CastToMemoryType)
+{
+    auto stack = std::make_unique<CyclicAllocator<TypeParam>>(5, one_mb);
+    std::unique_ptr<TypeParam> buf = std::move(stack->Allocate(1024));
+    EXPECT_EQ(buf->Size(), 1024);
+    stack.reset();
+    EXPECT_EQ(buf->Size(), 1024);
+    DLOG(INFO) << "Deallocation should hppen after this statement";
+}
+*/
+
 TYPED_TEST(TestCyclicStacks, AllocateShouldFail)
 {
     auto stack = std::make_unique<CyclicAllocator<TypeParam>>(5, one_mb);

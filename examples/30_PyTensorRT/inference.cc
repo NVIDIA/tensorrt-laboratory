@@ -366,7 +366,7 @@ void Serve(std::shared_ptr<InferenceManager> resources)
 
     // Modify MaxReceiveMessageSize
     auto bytes = yais::StringToBytes("10MiB");
-    server.GetBuilder().SetMaxReceiveMessageSize(bytes);
+    server.Builder().SetMaxReceiveMessageSize(bytes);
     LOG(INFO) << "gRPC MaxReceiveMessageSize = " << yais::BytesToString(bytes);
 
     // A server can host multiple services
