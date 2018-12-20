@@ -27,8 +27,14 @@
 #pragma once
 #include <cstddef>
 
+namespace yais {
+namespace Memory {
+
 class IAllocatable
 {
     virtual void* Allocate(size_t) = 0;
     virtual void Free() = 0;
 };
+
+} // namespace Memory
+} // namespace yais
