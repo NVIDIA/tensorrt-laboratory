@@ -34,8 +34,8 @@ namespace Memory {
 
 void Copy(HostMemory& dst, size_t dst_offset, const HostMemory& src, size_t src_offset, size_t size)
 {
-    CHECK_LE(size, dst.Size() - dst_offset);
-    CHECK_LE(size, src.Size() - src_offset);
+    CHECK_LE(size, dst.Size() - dst_offset) << "Copy: dst range is invalid";
+    CHECK_LE(size, src.Size() - src_offset) << "Copy: src range is invalid";
     std::memcpy(dst[dst_offset], src[src_offset], size);
 }
 
