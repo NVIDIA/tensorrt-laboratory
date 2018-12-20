@@ -27,6 +27,7 @@
 #include "tensorrt/playground/core/memory/allocator.h"
 #include "tensorrt/playground/core/memory/malloc.h"
 #include "tensorrt/playground/core/memory/system_v.h"
+#include "tensorrt/playground/core/memory/copy.h"
 #include "tensorrt/playground/core/utils.h"
 
 #include <list>
@@ -153,9 +154,36 @@ TEST_F(TestSystemVMemory, TryAttachingToDeletedSegment)
     EXPECT_DEATH(auto attached = SystemV::Attach(shm_id), "");
 }
 
-class TestAllocator : public ::testing::Test
+class TestCopy : public ::testing::Test
 {
 };
+
+TEST_F(TestCopy, MallocToMalloc)
+{
+    char v0 = 111;
+    char v1 = 222;
+
+    Allocator<Malloc> m0(1024);
+    auto m1 = std::make_unique<Allocator<Malloc>>(1024*1024);
+
+    m0.Fill(v0);
+    auto m0_array =  m0.CastToArray<char>();
+    EXPECT_EQ(m0_array[0], v0);
+    EXPECT_EQ(m0_array[0], m0_array[1023]);
+
+    m1->Fill(v1);
+    auto m1_array =  m1->CastToArray<char>();
+    EXPECT_EQ(m1_array[0], v1);
+    EXPECT_EQ(m1_array[0], m1_array[1024]);
+
+    EXPECT_NE(m0_array[0], m1_array[0]);
+
+    // Copy smaller into larger
+    Copy(*m1, m0);
+
+    EXPECT_EQ(m1_array[0], v0);
+    EXPECT_EQ(m1_array[1024], v1);
+}
 
 class TestBytesToString : public ::testing::Test
 {

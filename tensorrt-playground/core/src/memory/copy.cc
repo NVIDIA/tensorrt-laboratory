@@ -24,31 +24,29 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/playground/core/memory/host_memory.h"
+#include "tensorrt/playground/core/memory/copy.h"
 
 #include <cstring>
-
 #include <glog/logging.h>
 
 namespace yais {
 namespace Memory {
 
-// HostMemory
-
-const std::string& HostMemory::Type() const
+void Copy(HostMemory& dst, size_t dst_offset, const HostMemory& src, size_t src_offset, size_t size)
 {
-    static std::string type = "Generic HostMemory";
-    return type;
+    CHECK_LE(size, dst.Size() - dst_offset);
+    CHECK_LE(size, src.Size() - src_offset);
+    std::memcpy(dst[dst_offset], src[src_offset], size);
 }
 
-size_t HostMemory::DefaultAlignment() const
+void Copy(HostMemory& dst, const HostMemory& src, size_t size)
 {
-    return 64;
+    Copy(dst, 0, src, 0, size);
 }
 
-void HostMemory::Fill(char fill_value)
+void Copy(HostMemory& dst, const HostMemory& src)
 {
-    std::memset(Data(), fill_value, Size());
+    Copy(dst, 0, src, 0, src.Size());
 }
 
 } // namespace Memory

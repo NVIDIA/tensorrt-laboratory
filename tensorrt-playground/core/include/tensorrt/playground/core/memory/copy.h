@@ -24,32 +24,16 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#pragma once
+
 #include "tensorrt/playground/core/memory/host_memory.h"
-
-#include <cstring>
-
-#include <glog/logging.h>
 
 namespace yais {
 namespace Memory {
 
-// HostMemory
-
-const std::string& HostMemory::Type() const
-{
-    static std::string type = "Generic HostMemory";
-    return type;
-}
-
-size_t HostMemory::DefaultAlignment() const
-{
-    return 64;
-}
-
-void HostMemory::Fill(char fill_value)
-{
-    std::memset(Data(), fill_value, Size());
-}
+void Copy(HostMemory& dst, const HostMemory& src);
+void Copy(HostMemory& dst, const HostMemory& src, size_t size);
+void Copy(HostMemory& dst, size_t dst_offset, const HostMemory& src, size_t src_offset, size_t size);
 
 } // namespace Memory
 } // namespace yais

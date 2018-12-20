@@ -2,6 +2,7 @@ find_package(glog 0.3.5 REQUIRED)
 
 add_library(core
   src/affinity.cc
+  src/memory/copy.cc
   src/memory/memory.cc
   src/memory/host_memory.cc
   src/memory/malloc.cc
