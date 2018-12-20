@@ -33,7 +33,7 @@ include(GNUInstallDirs)
 # Build options
 set(CMAKE_CXX_STANDARD 17)
 set(default_build_type "Release")
-set(CMAKE_DEBUG_POSTFIX "-d")
+#set(CMAKE_DEBUG_POSTFIX "-d")
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
 # CMake path
@@ -41,6 +41,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
+add_subdirectory(third_party/pybind11)
 add_subdirectory(tensorrt-playground)
 add_subdirectory(examples)
 

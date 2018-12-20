@@ -24,17 +24,42 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-find_package(gflags 2.2.1 REQUIRED)
+find_package(Flatbuffers)
 
-add_subdirectory(nvRPC)
+# This module defines
+#  FLATBUFFERS_INCLUDE_DIR, directory containing headers
+#  FLATBUFFERS_LIBS, directory containing flatbuffers libraries
+#  FLATBUFFERS_STATIC_LIB, path to libflatbuffers.a
+#  FLATBUFFERS_FOUND, whether flatbuffers has been found
 
-add_subdirectory(00_TensorRT)
-add_subdirectory(01_Basic_GRPC)
-add_subdirectory(02_TensorRT_GRPC)
-#add_subdirectory(03_Batching)
-#add_subdirectory(04_Middleman)
-#add_subdirectory(10_Internals)
-add_subdirectory(11_Protos)
-add_subdirectory(12_FlatBuffers)
-#add_subdirectory(12_ConfigGenerator)
-add_subdirectory(30_PyTensorRT)
+
+add_library(example-fbs 
+  example.grpc.fb.cc
+)
+
+target_link_libraries(example-fbs PUBLIC
+  flatbuffers
+)
+
+target_include_directories(example-fbs PUBLIC
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+
+add_executable(fb-server.x
+    server.cc)
+
+target_link_libraries(fb-server.x
+    nvrpc
+    example-fbs
+    gflags
+)
+
+add_executable(fb-client.x
+    client.cc)
+
+target_link_libraries(fb-client.x
+    nvrpc
+    example-fbs
+    gflags
+)

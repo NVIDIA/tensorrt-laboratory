@@ -71,8 +71,8 @@ class LifeCycleUnary : public IContextLifeCycle
     bool (LifeCycleUnary<RequestType, ResponseType>::*m_NextState)(bool);
 
     // Variables
-    RequestType m_Request;
-    ResponseType m_Response;
+    std::unique_ptr<RequestType> m_Request;
+    std::unique_ptr<ResponseType> m_Response;
     std::unique_ptr<::grpc::ServerContext> m_Context;
     std::unique_ptr<::grpc::ServerAsyncResponseWriter<ResponseType>> m_ResponseWriter;
 
@@ -128,12 +128,12 @@ template <class Request, class Response>
 void LifeCycleUnary<Request, Response>::Reset()
 {
     OnLifeCycleReset();
-    m_Request.Clear();
-    m_Response.Clear();
+    m_Request = std::make_unique<RequestType>();
+    m_Response = std::make_unique<ResponseType>();
     m_Context.reset(new ::grpc::ServerContext);
     m_ResponseWriter.reset(new ::grpc::ServerAsyncResponseWriter<ResponseType>(m_Context.get()));
     m_NextState = &LifeCycleUnary<RequestType, ResponseType>::StateRequestDone;
-    m_QueuingFunc(m_Context.get(), &m_Request, m_ResponseWriter.get(), IContext::Tag());
+    m_QueuingFunc(m_Context.get(), m_Request.get(), m_ResponseWriter.get(), IContext::Tag());
 }
 
 template <class Request, class Response>
@@ -142,7 +142,7 @@ bool LifeCycleUnary<Request, Response>::StateRequestDone(bool ok)
     if (!ok)
         return false;
     OnLifeCycleStart();
-    ExecuteRPC(m_Request, m_Response);
+    ExecuteRPC(*m_Request, *m_Response);
     return true;
 }
 
@@ -156,14 +156,14 @@ template <class Request, class Response>
 void LifeCycleUnary<Request, Response>::FinishResponse()
 {
     m_NextState = &LifeCycleUnary<RequestType, ResponseType>::StateFinishedDone;
-    m_ResponseWriter->Finish(m_Response, ::grpc::Status::OK, IContext::Tag());
+    m_ResponseWriter->Finish(*m_Response, ::grpc::Status::OK, IContext::Tag());
 }
 
 template <class Request, class Response>
 void LifeCycleUnary<Request, Response>::CancelResponse()
 {
     m_NextState = &LifeCycleUnary<RequestType, ResponseType>::StateFinishedDone;
-    m_ResponseWriter->Finish(m_Response, ::grpc::Status::CANCELLED, IContext::Tag());
+    m_ResponseWriter->Finish(*m_Response, ::grpc::Status::CANCELLED, IContext::Tag());
 }
 
 template <class Request, class Response>

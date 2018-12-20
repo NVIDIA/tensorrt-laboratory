@@ -143,10 +143,18 @@ RUN git clone https://github.com/bloomen/transwarp.git \
  && cp src/transwarp.h /usr/local/include/transwarp/transwarp.h \
  && cd .. && rm -rf transwarp
 
+# install flatbuffers
+RUN git clone -b v1.10.0 https://github.com/google/flatbuffers.git \
+ && cd flatbuffers \
+ && mkdir build2 && cd build2 \
+ && cmake -DCMAKE_BUILD_TYPE=Release .. \
+ && make -j$(nproc) install \
+ && rm -rf /flatbuffers
+
 
 # NVIDIA/YAIS
 
 WORKDIR /work
 COPY . .
-RUN ./build.sh && rm -rf build
+#RUN ./build.sh && rm -rf build
 
