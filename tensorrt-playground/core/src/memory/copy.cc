@@ -44,11 +44,5 @@ void Copy(HostMemory& dst, const HostMemory& src, size_t size)
     Copy(dst, 0, src, 0, size);
 }
 
-void Copy(HostMemory& dst, const HostMemory& src)
-{
-    CHECK_EQ(dst.Size(), src.Size());
-    Copy(dst, 0, src, 0, src.Size());
-}
-
 } // namespace Memory
 } // namespace yais
