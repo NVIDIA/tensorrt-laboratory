@@ -179,7 +179,7 @@ TEST_F(TestCopy, MallocToMalloc)
     EXPECT_NE(m0_array[0], m1_array[0]);
 
     // Copy smaller into larger
-    Copy(*m1, m0);
+    Copy(*m1, m0, 1024);
 
     EXPECT_EQ(m1_array[0], v0);
     EXPECT_EQ(m1_array[1024], v1);
