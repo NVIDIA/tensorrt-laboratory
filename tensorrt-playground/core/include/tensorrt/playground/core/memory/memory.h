@@ -133,12 +133,5 @@ class BaseMemory : public CoreMemory
 
 };
 
-class IAllocatable
-{
-    virtual void* Allocate(size_t) = 0;
-    virtual void Free() = 0;
-};
-
-
 } // end namespace Memory
 } // end namespace yais

@@ -25,55 +25,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
-#include <memory>
+#include <string>
 
-#include "tensorrt/playground/core/memory/memory.h"
+#include "tensorrt/playground/core/memory/allocatable.h"
 #include "tensorrt/playground/core/memory/host_memory.h"
 
 namespace yais {
 namespace Memory {
-
-class DeviceMemory : public BaseMemory<DeviceMemory>
-{
-  public:
-    using BaseMemory<DeviceMemory>::BaseMemory;
-    const std::string& Type() const override;
-
-    void Fill(char) override;
-    size_t DefaultAlignment() const override;
-};
-
-/**
- * @brief Allocates CUDA Device Memory
- *
- * Derived Memory class for GPU memory management using cudaMalloc and cudaFree.
- */
-class CudaDeviceMemory : public DeviceMemory, public IAllocatable
-{
-  public:
-    using DeviceMemory::DeviceMemory;
-    const std::string& Type() const final override;
-
-  protected:
-    void* Allocate(size_t) final override;
-    void Free() final override;
-};
-
-/**
- * @brief Allocates CUDA Managed Memory
- *
- * Allocates memory that will be automatically managed by the Unified Memory system.
- */
-class CudaManagedMemory : public DeviceMemory, public IAllocatable
-{
-  public:
-    using DeviceMemory::DeviceMemory;
-    const std::string& Type() const final override;
-
-  protected:
-    void* Allocate(size_t) final override;
-    void Free() final override;
-};
 
 /**
  * @brief Allocates Page Locked (Pinned) Memory on the Host

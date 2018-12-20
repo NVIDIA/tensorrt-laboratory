@@ -25,11 +25,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
+#include <string>
 
-#include <glog/logging.h>
-#include <memory>
-
-#include "tensorrt/playground/core/memory/memory.h"
+#include "tensorrt/playground/core/memory/allocatable.h"
 #include "tensorrt/playground/core/memory/host_memory.h"
 
 namespace yais {

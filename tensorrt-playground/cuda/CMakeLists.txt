@@ -4,7 +4,10 @@ message(STATUS "CUDA IncludeDir ${CUDA_INCLUDE_DIRS}")
 
 add_library(cuda
   src/device_info.cc
-  src/memory.cc
+  src/device_memory.cc
+  src/cuda_device.cc
+  src/cuda_managed.cc
+  src/cuda_pinned_host.cc
 )
 
 add_library(${PROJECT_NAME}::cuda ALIAS cuda)

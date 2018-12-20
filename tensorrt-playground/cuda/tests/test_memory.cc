@@ -24,11 +24,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/playground/core/memory/allocator.h"
-#include "tensorrt/playground/cuda/memory.h"
-#include "gtest/gtest.h"
-
 #include <list>
+#include <memory>
+
+#include "tensorrt/playground/core/memory/allocator.h"
+#include "tensorrt/playground/cuda/memory/cuda_device.h"
+#include "tensorrt/playground/cuda/memory/cuda_managed.h"
+#include "tensorrt/playground/cuda/memory/cuda_pinned_host.h"
+
+#include "gtest/gtest.h"
 
 using namespace yais;
 using namespace yais::Memory;

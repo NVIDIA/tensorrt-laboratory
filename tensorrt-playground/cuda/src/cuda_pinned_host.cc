@@ -24,44 +24,32 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#pragma once
-#include <string>
+#include "tensorrt/playground/cuda/memory/cuda_pinned_host.h"
 
-#include "tensorrt/playground/core/memory/allocatable.h"
-#include "tensorrt/playground/core/memory/host_memory.h"
-#include "tensorrt/playground/core/memory/descriptor.h"
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <glog/logging.h>
 
 namespace yais {
 namespace Memory {
 
-class SystemV : public HostMemory, public IAllocatable
+void* CudaPinnedHostMemory::Allocate(size_t size)
 {
-  protected:
-    SystemV(int shm_id);
-    SystemV(void* ptr, size_t size, bool allocated);
+    void* ptr;
+    CHECK_EQ(cudaMallocHost((void**)&ptr, size), CUDA_SUCCESS);
+    return ptr;
+}
 
-    SystemV(SystemV&& other) noexcept;
-    SystemV& operator=(SystemV&& other) noexcept;
+void CudaPinnedHostMemory::Free()
+{
+    CHECK_EQ(cudaFreeHost(Data()), CUDA_SUCCESS);
+}
 
-    SystemV(const SystemV&) = delete;
-    SystemV& operator=(const SystemV&) = delete;
+const std::string& CudaPinnedHostMemory::Type() const
+{
+    static std::string type = "CudaMallocHost";
+    return type;
+}
 
-  public:
-    virtual ~SystemV() override;
-    const std::string& Type() const final override;
-
-    static DescriptorHandle<SystemV> Attach(int shm_id);
-
-    int ShmID() const;
-    void DisableAttachment();
-
-  protected:
-    void* Allocate(size_t) final override;
-    void Free() final override;
-
-  private:
-    int m_ShmID;
-};
-
-} // end namespace Memory
-} // end namespace yais
+} // namespace Memory
+} // namespace yais

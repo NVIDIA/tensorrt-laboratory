@@ -24,53 +24,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/playground/cuda/memory.h"
-#include "tensorrt/playground/cuda/device_info.h"
+#include "tensorrt/playground/cuda/memory/cuda_device.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
-
 #include <glog/logging.h>
 
 namespace yais {
 namespace Memory {
-
-size_t DeviceMemory::DefaultAlignment() const
-{
-    return DeviceInfo::Alignment();
-}
-
-void DeviceMemory::Fill(char val)
-{
-    CHECK_EQ(cudaMemset(Data(), val, Size()), CUDA_SUCCESS);
-}
-
-const std::string& DeviceMemory::Type() const
-{
-    static std::string type = "DeviceMemory";
-    return type;
-}
-
-// CudaManagedMemory
-void* CudaManagedMemory::Allocate(size_t size)
-{
-    void* ptr;
-    CHECK_EQ(cudaMallocManaged((void**)&ptr, size, cudaMemAttachGlobal), CUDA_SUCCESS);
-    return ptr;
-}
-
-void CudaManagedMemory::Free()
-{
-    CHECK_EQ(cudaFree(Data()), CUDA_SUCCESS);
-}
-
-const std::string& CudaManagedMemory::Type() const
-{
-    static std::string type = "CudaMallocManaged";
-    return type;
-}
-
-// CudaDeviceMemory
 
 void* CudaDeviceMemory::Allocate(size_t size)
 {
@@ -90,25 +51,6 @@ const std::string& CudaDeviceMemory::Type() const
     return type;
 }
 
-// CudaPinnedHostMemory
-
-void* CudaPinnedHostMemory::Allocate(size_t size)
-{
-    void* ptr;
-    CHECK_EQ(cudaMallocHost((void**)&ptr, size), CUDA_SUCCESS);
-    return ptr;
-}
-
-void CudaPinnedHostMemory::Free()
-{
-    CHECK_EQ(cudaFreeHost(Data()), CUDA_SUCCESS);
-}
-
-const std::string& CudaPinnedHostMemory::Type() const
-{
-    static std::string type = "CudaMallocHost";
-    return type;
-}
 
 } // namespace Memory
 } // namespace yais

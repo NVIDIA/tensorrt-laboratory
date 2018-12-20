@@ -27,41 +27,20 @@
 #pragma once
 #include <string>
 
-#include "tensorrt/playground/core/memory/allocatable.h"
-#include "tensorrt/playground/core/memory/host_memory.h"
-#include "tensorrt/playground/core/memory/descriptor.h"
+#include "tensorrt/playground/core/memory/memory.h"
 
 namespace yais {
 namespace Memory {
 
-class SystemV : public HostMemory, public IAllocatable
+class DeviceMemory : public BaseMemory<DeviceMemory>
 {
-  protected:
-    SystemV(int shm_id);
-    SystemV(void* ptr, size_t size, bool allocated);
-
-    SystemV(SystemV&& other) noexcept;
-    SystemV& operator=(SystemV&& other) noexcept;
-
-    SystemV(const SystemV&) = delete;
-    SystemV& operator=(const SystemV&) = delete;
-
   public:
-    virtual ~SystemV() override;
-    const std::string& Type() const final override;
+    using BaseMemory<DeviceMemory>::BaseMemory;
+    const std::string& Type() const override;
 
-    static DescriptorHandle<SystemV> Attach(int shm_id);
-
-    int ShmID() const;
-    void DisableAttachment();
-
-  protected:
-    void* Allocate(size_t) final override;
-    void Free() final override;
-
-  private:
-    int m_ShmID;
+    void Fill(char) override;
+    size_t DefaultAlignment() const override;
 };
 
-} // end namespace Memory
-} // end namespace yais
+} // namespace Memory
+} // namespace yais

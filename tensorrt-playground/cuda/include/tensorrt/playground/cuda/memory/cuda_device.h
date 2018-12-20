@@ -28,40 +28,26 @@
 #include <string>
 
 #include "tensorrt/playground/core/memory/allocatable.h"
-#include "tensorrt/playground/core/memory/host_memory.h"
-#include "tensorrt/playground/core/memory/descriptor.h"
+#include "tensorrt/playground/cuda/memory/device_memory.h"
 
 namespace yais {
 namespace Memory {
 
-class SystemV : public HostMemory, public IAllocatable
+/**
+ * @brief Allocates CUDA Device Memory
+ *
+ * Derived Memory class for GPU memory management using cudaMalloc and cudaFree.
+ */
+class CudaDeviceMemory : public DeviceMemory, public IAllocatable
 {
-  protected:
-    SystemV(int shm_id);
-    SystemV(void* ptr, size_t size, bool allocated);
-
-    SystemV(SystemV&& other) noexcept;
-    SystemV& operator=(SystemV&& other) noexcept;
-
-    SystemV(const SystemV&) = delete;
-    SystemV& operator=(const SystemV&) = delete;
-
   public:
-    virtual ~SystemV() override;
+    using DeviceMemory::DeviceMemory;
     const std::string& Type() const final override;
-
-    static DescriptorHandle<SystemV> Attach(int shm_id);
-
-    int ShmID() const;
-    void DisableAttachment();
 
   protected:
     void* Allocate(size_t) final override;
     void Free() final override;
-
-  private:
-    int m_ShmID;
 };
 
-} // end namespace Memory
-} // end namespace yais
+} // namespace Memory
+} // namespace yais
