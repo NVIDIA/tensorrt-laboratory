@@ -35,6 +35,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include "tensorrt/playground/core/async_result.h"
 #include "tensorrt/playground/core/thread_pool.h"
 #include "tensorrt/playground/core/memory/descriptor.h"
 #include "tensorrt/playground/core/memory/host_memory.h"
@@ -47,48 +48,6 @@
 using namespace yais;
 using namespace yais::Memory;
 using namespace yais::TensorRT;
-/*
-struct AsyncCompute
-{
-    AsyncCompute() {}
-
-    AsyncCompute(AsyncCompute&&) = delete;
-    AsyncCompute& operator=(AsyncCompute&&) = delete;
-
-    AsyncCompute(const AsyncCompute&) = delete;
-    AsyncCompute& operator=(const AsyncCompute&) = delete;
-
-    virtual ~AsyncCompute() {}
-
-    template<typename T>
-    class Result
-    {
-      public:
-        Result() {}
-        Result(Result&& other) : m_Promise{std::move(other.m_Promise)} {}
-        virtual ~Result() {}
-
-        using ResultHandle = std::unique_ptr<T>;
-        using Future = std::shared_future<ResultHandle>;
-
-        void operator()(ResultHandle result)
-        {
-            DLOG(INFO) << "Promise SetValue";
-            m_Promise.set_value(std::move(result));
-        }
-
-        Future GetFuture()
-        {
-            return m_Promise.get_future();
-        }
-
-      private:
-        std::promise<ResultHandle> m_Promise;
-    };
-
-}
-
-*/
 
 struct InferModel
 {
@@ -109,48 +68,52 @@ struct InferModel
 
     using PreFn = std::function<void(BindingsHandle)>;
     using PostFn = std::function<void(BindingsHandle)>;
-
+/*
     template<typename T>
-    class Result
+    struct Completer
     {
-      public:
-        Result() {}
-        Result(Result&& other) : m_Promise{std::move(other.m_Promise)} {}
-        virtual ~Result() {}
+        using Result = typename AsyncResult<T>::Result;
+        using Future = typename AsyncResult<T>::Future;
+        using WrappedFn = std::function<void(BindingsHandle&);
+        using CompleterFn = std::function<Result(BindingsHandle&);
 
-        using ResultHandle = std::unique_ptr<T>;
-        using Future = std::shared_future<ResultHandle>;
-        using PostFn = std::function<ResultHandle(std::shared_ptr<Bindings>)>;
-
-        void operator()(ResultHandle result)
+      private:
+        Completer(ComputerFn completer_fn)
         {
-            DLOG(INFO) << "Promise SetValue";
-            m_Promise.set_value(std::move(result));
-        }
-
-        Future GetFuture()
-        {
-            return m_Promise.get_future();
+            m_WrappedFn = [this, completer_fn](BindingsHandle& bindings) mutable {
+                auto value = completer_fn(bindings);
+                m_Result(value);
+            }
         }
 
       private:
-        std::promise<ResultHandle> m_Promise;
-    };
-
+        WrappedFn m_WrappedFn;
+        AsyncResult<T> m_Result;
+    }
+*/
     template<typename T>
-    typename Result<T>::Future Compute(PreFn pre, typename Result<T>::PostFn post)
+    typename AsyncResult<T>::Future Compute(PreFn pre, std::function<std::unique_ptr<T>(BindingsHandle)> post)
     {
-        auto result = std::make_shared<Result<T>>();
-        auto wrapped_post = [post, result](BindingsHandle bindings) mutable {
-            DLOG(INFO) << "Wrapped Post";
+        auto result = std::make_shared<AsyncResult<T>>(); // make_unique fails
+        auto future = result->GetFuture();
+        auto wrapped_post = [post, result = std::move(result)](BindingsHandle bindings) mutable {
             auto val = post(bindings);
             (*result)(std::move(val));
         };
         Execute(pre, wrapped_post);
+        return future;
+    }
+
+    template<typename T, typename Post>
+    typename AsyncResult<T>::Future Compute2(PreFn pre, Post post)
+    {
+        auto result = std::make_shared<AsyncResult<T>>(); // make_unique fails
         auto future = result->GetFuture();
-        LOG(INFO) << "Wait on Future";
-        // CHECK(future.get());
-        LOG(INFO) << "Compute Finished";
+        auto wrapped_post = [post,result](BindingsHandle bindings) mutable {
+            auto val = post(bindings);
+            (*result)(std::move(val));
+        };
+        Execute(pre, wrapped_post);
         return future;
     }
 
@@ -195,7 +158,18 @@ struct InferModel
     {
         return m_Resources->GetThreadPool(name);
     }
-
+/*
+    void CopyInputsToInputBindings(const HostMap& inputs, BindingsHandle& bindings)
+    {
+        for (const auto& id : bindings->InputBindings())
+        {
+            const auto& b = bindings->GetBindings(id);
+            auto search = inputs.find(b.name);
+            CHECK(search != inputs.end());
+            Copy(bindings->HostMemoryDescriptor(id), *inputs[b.name], bindings->BindingSize(id));
+        }
+    }
+*/
     std::shared_ptr<Model> m_Model;
     std::shared_ptr<InferenceManager> m_Resources;
 };
@@ -239,7 +213,7 @@ int main(int argc, char *argv[])
     // std::vector<std::unique_ptr<bool>> results;
     for(int i=0; i<10; i++) {
         auto result = 
-            flowers.Compute<bool>(
+            flowers.Compute2<bool>(
                 [](std::shared_ptr<Bindings> bindings) mutable {
                     // TODO: Copy Input Data to Host Input Bindings
                     DLOG(INFO) << "Pre";
