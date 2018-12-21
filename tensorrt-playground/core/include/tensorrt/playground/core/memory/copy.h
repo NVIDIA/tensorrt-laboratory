@@ -31,8 +31,13 @@
 namespace yais {
 namespace Memory {
 
-void Copy(HostMemory& dst, const HostMemory& src, size_t size);
 void Copy(HostMemory& dst, size_t dst_offset, const HostMemory& src, size_t src_offset, size_t size);
+
+template<typename D, typename S>
+void Copy(D& dst, const S& src, size_t size)
+{
+    Copy(dst, 0, src, 0, size);
+}
 
 } // namespace Memory
 } // namespace yais

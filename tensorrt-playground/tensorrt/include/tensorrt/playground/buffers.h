@@ -34,7 +34,8 @@
 #include "tensorrt/playground/common.h"
 #include "tensorrt/playground/core/memory/cyclic_allocator.h"
 #include "tensorrt/playground/core/memory/memory_stack.h"
-#include "tensorrt/playground/cuda/memory.h"
+#include "tensorrt/playground/cuda/memory/cuda_device.h"
+#include "tensorrt/playground/cuda/memory/cuda_pinned_host.h"
 
 namespace yais {
 namespace TensorRT {

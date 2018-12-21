@@ -33,7 +33,7 @@
 
 #include "tensorrt/playground/core/memory/descriptor.h"
 #include "tensorrt/playground/core/memory/host_memory.h"
-#include "tensorrt/playground/cuda/memory.h"
+#include "tensorrt/playground/cuda/memory/device_memory.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>

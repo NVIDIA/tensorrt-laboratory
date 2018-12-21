@@ -34,7 +34,7 @@
 #include <glog/logging.h>
 
 #include "tensorrt/playground/core/memory/allocator.h"
-#include "tensorrt/playground/cuda/memory.h"
+#include "tensorrt/playground/cuda/memory/cuda_device.h"
 
 using yais::Memory::Allocator;
 using yais::Memory::CudaDeviceMemory;

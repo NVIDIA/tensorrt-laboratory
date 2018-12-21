@@ -26,6 +26,7 @@
  */
 #pragma once
 
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -98,6 +99,19 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
     auto GetOutputBindingIds() const -> const std::vector<uint32_t>
     {
         return m_OutputBindings;
+    }
+
+    auto DescribeInputs() const -> const std::map<std::string, TensorBindingInfo>
+    {
+        std::map<std::string, TensorBindingInfo> bindings;
+        for (const auto& b : m_Bindings)
+        {
+            if (b.isInput)
+            {
+                bindings[b.name] = b;
+            }
+        }
+        return bindings;
     }
 
     struct TensorBindingInfo

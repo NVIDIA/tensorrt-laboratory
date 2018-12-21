@@ -1,4 +1,5 @@
 find_package(glog 0.3.5 REQUIRED)
+find_library(TCMALLOC_LIB NAMES libtcmalloc_minimal.a tcmalloc_minimal)
 
 add_library(core
   src/affinity.cc
@@ -17,7 +18,7 @@ target_link_libraries(core
   PRIVATE
     Threads::Threads
     $<$<AND:$<BOOL:UNIX>,$<NOT:$<BOOL:APPLE>>>:rt>
-    glog    
+    glog
 )
 
 target_include_directories(core

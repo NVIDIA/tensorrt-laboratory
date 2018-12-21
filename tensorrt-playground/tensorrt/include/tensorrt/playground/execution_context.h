@@ -31,7 +31,7 @@
 
 #include "tensorrt/playground/bindings.h"
 #include "tensorrt/playground/core/utils.h"
-#include "tensorrt/playground/cuda/memory.h"
+#include "tensorrt/playground/cuda/memory/cuda_device.h"
 
 #include "NvInfer.h"
 
