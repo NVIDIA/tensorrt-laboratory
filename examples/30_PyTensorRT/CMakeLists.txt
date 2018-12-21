@@ -24,11 +24,23 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-pybind11_add_module(py_yais inference.cc)
 
-target_link_libraries(py_yais
-  PUBLIC
-     yais-tensorrt
-     nv-inference-protos
+add_executable(compute
+  compute.cc
 )
+
+target_link_libraries(compute PUBLIC
+  core
+  cuda
+  tensorrt
+  gflags
+)
+
+#pybind11_add_module(py_yais model.cc)
+
+#target_link_libraries(py_yais
+#  PUBLIC
+#     tensorrt
+#     nv-inference-protos
+#)
 
