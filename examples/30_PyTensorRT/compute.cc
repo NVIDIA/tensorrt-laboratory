@@ -36,6 +36,7 @@
 #include <glog/logging.h>
 
 #include "tensorrt/playground/bindings.h"
+#include "tensorrt/playground/core/async_compute.h"
 #include "tensorrt/playground/core/async_result.h"
 #include "tensorrt/playground/core/memory/descriptor.h"
 #include "tensorrt/playground/core/memory/host_memory.h"
@@ -49,30 +50,7 @@ using namespace yais;
 using namespace yais::Memory;
 using namespace yais::TensorRT;
 
-/*
-template<typename ResultType>
-class AsyncCompute
-{
-  private:
-    AsyncResult<ResultType> m_Result;
-
-  public:
-    using Future = typename AsyncResult<ResultType>::Future;
-
-    AsyncCompute() {}
-    virtual ~AsyncCompute() {}
-
-    Future GetFuture() { return m_Result.GetFuture(); }
-
-    template<class F, class... Args>
-    void operator()(F&&f, Args&&... args)
-    {
-        m_Result(std::move(f(args...)));
-    }
-};
-*/
-
-struct InferModel
+struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>)>
 {
     InferModel(std::shared_ptr<Model> model, std::shared_ptr<InferenceManager> resources)
         : m_Model{model}, m_Resources{resources}
@@ -93,29 +71,8 @@ struct InferModel
 
     using PreFn = std::function<void(BindingsHandle)>;
     using PostFn = std::function<void(BindingsHandle)>;
-    /*
-        template<typename T>
-        struct Completer
-        {
-            using Result = typename AsyncResult<T>::Result;
-            using Future = typename AsyncResult<T>::Future;
-            using WrappedFn = std::function<void(BindingsHandle&);
-            using CompleterFn = std::function<Result(BindingsHandle&);
 
-          private:
-            Completer(ComputerFn completer_fn)
-            {
-                m_WrappedFn = [this, completer_fn](BindingsHandle& bindings) mutable {
-                    auto value = completer_fn(bindings);
-                    m_Result(value);
-                }
-            }
-
-          private:
-            WrappedFn m_WrappedFn;
-            AsyncResult<T> m_Result;
-        }
-    */
+/*
     template<typename T>
     typename AsyncResult<T>::Future Compute(PreFn pre,
                                             std::function<std::unique_ptr<T>(BindingsHandle)> post)
@@ -142,6 +99,14 @@ struct InferModel
         Execute(pre, wrapped_post);
         return future;
     }
+*/
+    template<typename Post>
+    auto Compute3(PreFn pre, Post post)
+    {
+        auto compute = Wrap(post);
+        Execute2(pre, compute);
+        return compute->GetFuture();
+    }
     /*
         template<typename T, typename Post>
         typename AsyncResult<T>::Future Compute3(PreFn pre, Post post)
@@ -157,6 +122,30 @@ struct InferModel
         }
     */
   private:
+    template<typename T>
+    void Execute2(PreFn Pre, std::shared_ptr<AsyncCompute<T>> Post)
+    {
+        Workers("pre").enqueue([this, Pre, Post]() mutable {
+            auto bindings = InitializeBindings();
+            Pre(bindings);
+            Workers("cuda").enqueue([this, bindings, Post]() mutable {
+                bindings->CopyToDevice(bindings->InputBindings());
+                auto trt_ctx = Infer(bindings);
+                bindings->CopyFromDevice(bindings->OutputBindings());
+                Workers("post").enqueue([this, bindings, trt_ctx, Post]() mutable {
+                    trt_ctx->Synchronize();
+                    trt_ctx.reset();
+                    bindings->CopyToDevice(bindings->InputBindings());
+                    bindings->Synchronize();
+                    (*Post)(bindings);
+                    LOG(INFO) << "ResetBindings";
+                    bindings.reset();
+                    LOG(INFO) << "Execute Finished";
+                });
+            });
+        });
+    }
+
     void Execute(PreFn Pre, PostFn Post)
     {
         Workers("pre").enqueue([this, Pre, Post]() mutable {
@@ -228,76 +217,8 @@ DEFINE_int32(prethreads, 1, "Number of preproessing threads");
 DEFINE_int32(cudathreads, 1, "Number of cuda kernel launching threads");
 DEFINE_int32(postthreads, 3, "Number of postprocessing threads");
 
-template<typename PostFn>
-struct AsyncCompute;
-
-template<typename Result, typename... Args>
-struct AsyncCompute<Result(Args...)>
-{
-    using CallingFn = std::function<Result(Args...)>;
-    using WrappedFn = std::function<void(Args...)>;
-    using Future = typename AsyncResult<Result>::Future;
-
-    AsyncCompute(CallingFn calling_fn) : m_CallingFn(calling_fn)
-    {
-        m_WrappedFn = [this, calling_fn](Args... args) {
-            auto value = calling_fn(args...);
-            m_Result(std::move(value));
-        };
-    }
-
-    Future GetFuture()
-    {
-        return m_Result.GetFuture();
-    }
-
-    void operator()(Args&&... args)
-    {
-        LOG(INFO) << "Before Wrapped";
-        m_WrappedFn(args...);
-        LOG(INFO) << "After Wrapped";
-    }
-
-  private:
-    CallingFn m_CallingFn;
-    WrappedFn m_WrappedFn;
-    AsyncResult<Result> m_Result;
-};
-
-template<typename PostFn>
-struct AsyncCompute2;
-
-template<typename... Args>
-struct AsyncCompute2<void(Args...)>
-{
-    using WrappedFn = std::function<void(Args...)>;
-
-    template<typename F>
-    auto Enqueue(F&& f) -> typename AsyncResult<typename std::result_of<F(Args...)>::type>::Future
-    {
-        auto result = std::make_shared<AsyncResult<typename std::result_of<F(Args...)>::type>>();
-        auto future = result->GetFuture();
-        m_WrappedFn = [f, result](Args... args) {
-            auto value = f(args...);
-            (*result)(std::move(value));
-        };
-        return future;
-    }
-
-    void operator()(Args&&... args)
-    {
-        LOG(INFO) << "Before Wrapped";
-        m_WrappedFn(args...);
-        LOG(INFO) << "After Wrapped";
-    }
-
-  private:
-    WrappedFn m_WrappedFn;
-};
-
 int main(int argc, char* argv[])
 {
-    /*
     {
         FLAGS_alsologtostderr = 1; // Log to console
         ::google::InitGoogleLogging("TensorRT Inference");
@@ -319,6 +240,28 @@ int main(int argc, char* argv[])
 
         InferModel flowers(model, resources);
 
+        {
+        auto future = flowers.Compute3(
+            [](std::shared_ptr<Bindings> bindings) mutable {
+                // TODO: Copy Input Data to Host Input Bindings
+                DLOG(INFO) << "Pre";
+                bindings->SetBatchSize(bindings->GetModel()->GetMaxBatchSize());
+            },
+            [](std::shared_ptr<Bindings> bindings) mutable -> std::unique_ptr<bool> {
+                DLOG(INFO) << "Post";
+                return std::make_unique<bool>(false);
+            });
+        
+        future.wait();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        LOG(INFO) << "Waited 1 second to ensure compute cleaned up";
+        LOG(INFO) << "Result: " << (*(future.get()) ? "True" : "False") << " " << future.get().get();
+        auto&& result = std::move(future.get());
+        LOG(INFO) << "Result: " << (*result ? "True" : "False") << " " << result.get();
+        *result = true;
+        return 0;
+        }
+/*
         // std::vector<std::unique_ptr<bool>> results;
         for(int i = 0; i < 10; i++)
         {
@@ -334,8 +277,9 @@ int main(int argc, char* argv[])
                 });
             CHECK(result.get());
         }
+*/
     }
-    */
+
     // Test<std::unique_ptr<bool>(std::shared_ptr<Bindings>)> test;
     AsyncCompute<bool(int, int)> test2([](int i, int j) -> bool {
         LOG(INFO) << "Client Function";
@@ -347,15 +291,30 @@ int main(int argc, char* argv[])
     auto value = future.get();
     LOG(INFO) << "Result: " << (value ? "True" : "False");
 
+    /*
+        {
+            AsyncCompute2<void(int)> test3;
+            auto future = test3.Enqueue([](int i) -> bool {
+                LOG(INFO) << "hi " << i;
+                return false;
+            });
+
+            // some other async thread will make this call
+            test3(42);
+
+            auto value = future.get();
+            LOG(INFO) << "Result: " << (value ? "True" : "False");
+        }
+    */
     {
-        AsyncCompute2<void(int)> test3;
-        auto future = test3.Enqueue([](int i) -> bool {
-            LOG(INFO) << "hi " << i;
-            return false;
+        auto compute = AsyncCompute<void(int)>::Wrap([](int i) -> bool {
+            LOG(INFO) << "Test " << i;
+            return (bool)((i % 2) == 0);
         });
-        test3(42);
+
+        auto future = compute->GetFuture();
+        (*compute)(42);
         auto value = future.get();
-        LOG(INFO) << "Result: " << (value ? "True" : "False");
     }
 
     return 0;
