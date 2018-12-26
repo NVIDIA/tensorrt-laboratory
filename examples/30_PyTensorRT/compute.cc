@@ -50,7 +50,7 @@ using namespace yais;
 using namespace yais::Memory;
 using namespace yais::TensorRT;
 
-struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>)>
+struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
 {
     InferModel(std::shared_ptr<Model> model, std::shared_ptr<InferenceManager> resources)
         : m_Model{model}, m_Resources{resources}
@@ -72,81 +72,18 @@ struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>)>
     using PreFn = std::function<void(BindingsHandle)>;
     using PostFn = std::function<void(BindingsHandle)>;
 
-/*
-    template<typename T>
-    typename AsyncResult<T>::Future Compute(PreFn pre,
-                                            std::function<std::unique_ptr<T>(BindingsHandle)> post)
-    {
-        auto result = std::make_shared<AsyncResult<T>>(); // make_unique fails
-        auto future = result->GetFuture();
-        auto wrapped_post = [post, result = std::move(result)](BindingsHandle bindings) mutable {
-            auto val = post(bindings);
-            (*result)(std::move(val));
-        };
-        Execute(pre, wrapped_post);
-        return future;
-    }
-
-    template<typename T, typename Post>
-    typename AsyncResult<T>::Future Compute2(PreFn pre, Post post)
-    {
-        auto result = std::make_shared<AsyncResult<T>>(); // make_unique fails
-        auto future = result->GetFuture();
-        auto wrapped_post = [post, result](BindingsHandle bindings) mutable {
-            auto val = post(bindings);
-            (*result)(std::move(val));
-        };
-        Execute(pre, wrapped_post);
-        return future;
-    }
-*/
     template<typename Post>
     auto Compute3(PreFn pre, Post post)
     {
         auto compute = Wrap(post);
-        Execute2(pre, compute);
-        return compute->GetFuture();
-    }
-    /*
-        template<typename T, typename Post>
-        typename AsyncResult<T>::Future Compute3(PreFn pre, Post post)
-        {
-            auto compute = std::make_shared<AsyncCompute<T>>(); // make_unique fails
-            auto future = compute->GetFuture();
-            auto wrapped_post = [compute, post]() mutable {
-                auto val = post(bindings);
-                (*result)(std::move(val));
-            };
-            Execute(pre, wrapped_post);
-            return future;
-        }
-    */
-  private:
-    template<typename T>
-    void Execute2(PreFn Pre, std::shared_ptr<AsyncCompute<T>> Post)
-    {
-        Workers("pre").enqueue([this, Pre, Post]() mutable {
-            auto bindings = InitializeBindings();
-            Pre(bindings);
-            Workers("cuda").enqueue([this, bindings, Post]() mutable {
-                bindings->CopyToDevice(bindings->InputBindings());
-                auto trt_ctx = Infer(bindings);
-                bindings->CopyFromDevice(bindings->OutputBindings());
-                Workers("post").enqueue([this, bindings, trt_ctx, Post]() mutable {
-                    trt_ctx->Synchronize();
-                    trt_ctx.reset();
-                    bindings->CopyToDevice(bindings->InputBindings());
-                    bindings->Synchronize();
-                    (*Post)(bindings);
-                    LOG(INFO) << "ResetBindings";
-                    bindings.reset();
-                    LOG(INFO) << "Execute Finished";
-                });
-            });
-        });
+        Enqueue(pre, compute);
+        return compute->Future();
     }
 
-    void Execute(PreFn Pre, PostFn Post)
+   protected:
+
+    template<typename T>
+    void Enqueue(PreFn Pre, std::shared_ptr<AsyncCompute<T>> Post)
     {
         Workers("pre").enqueue([this, Pre, Post]() mutable {
             auto bindings = InitializeBindings();
@@ -158,9 +95,8 @@ struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>)>
                 Workers("post").enqueue([this, bindings, trt_ctx, Post]() mutable {
                     trt_ctx->Synchronize();
                     trt_ctx.reset();
-                    bindings->CopyToDevice(bindings->InputBindings());
                     bindings->Synchronize();
-                    Post(bindings);
+                    (*Post)(bindings);
                     LOG(INFO) << "ResetBindings";
                     bindings.reset();
                     LOG(INFO) << "Execute Finished";
@@ -242,12 +178,12 @@ int main(int argc, char* argv[])
 
         {
         auto future = flowers.Compute3(
-            [](std::shared_ptr<Bindings> bindings) mutable {
+            [](std::shared_ptr<Bindings> bindings) {
                 // TODO: Copy Input Data to Host Input Bindings
                 DLOG(INFO) << "Pre";
                 bindings->SetBatchSize(bindings->GetModel()->GetMaxBatchSize());
             },
-            [](std::shared_ptr<Bindings> bindings) mutable -> std::unique_ptr<bool> {
+            [](std::shared_ptr<Bindings>& bindings) -> std::unique_ptr<bool> {
                 DLOG(INFO) << "Post";
                 return std::make_unique<bool>(false);
             });
@@ -286,7 +222,7 @@ int main(int argc, char* argv[])
         return true;
     });
 
-    auto future = test2.GetFuture();
+    auto future = test2.Future();
     test2(1, 2);
     auto value = future.get();
     LOG(INFO) << "Result: " << (value ? "True" : "False");
@@ -312,7 +248,7 @@ int main(int argc, char* argv[])
             return (bool)((i % 2) == 0);
         });
 
-        auto future = compute->GetFuture();
+        auto future = compute->Future();
         (*compute)(42);
         auto value = future.get();
     }

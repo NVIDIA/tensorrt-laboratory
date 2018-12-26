@@ -43,7 +43,7 @@ class AsyncResult
     template <typename... Args>
     using ResultFn = std::function<Result(Args...)>;
 
-    AsyncResult() : m_Finished{false} {}
+    AsyncResult(){}
     virtual ~AsyncResult() {}
 
     AsyncResult(AsyncResult&&) noexcept = delete;
@@ -54,9 +54,7 @@ class AsyncResult
 
     void operator()(Result&& result)
     {
-        CHECK(!m_Finished);
         m_Promise.set_value(std::move(result));
-        m_Finished = true;
     }
 
     Future GetFuture()
@@ -66,7 +64,6 @@ class AsyncResult
 
   private:
     std::promise<Result> m_Promise;
-    bool m_Finished;
 };
 
 } // namespace yais

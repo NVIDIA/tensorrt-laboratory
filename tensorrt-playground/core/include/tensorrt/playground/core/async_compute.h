@@ -26,9 +26,10 @@
  */
 #pragma once
 
-#include <glog/logging.h>
+#include <future>
+#include <memory>
 
-#include "tensorrt/playground/core/async_result.h"
+#include <glog/logging.h>
 
 namespace yais {
 
@@ -52,21 +53,20 @@ struct AsyncCompute<ResultType(Args...)>
 {
     using CallingFn = std::function<ResultType(Args...)>;
     using WrappedFn = std::function<void(Args...)>;
-    using Future = typename AsyncResult<ResultType>::Future;
 
     AsyncCompute(CallingFn calling_fn)
     {
-        m_WrappedFn = [this, calling_fn](Args... args) {
-            m_Result(std::move(calling_fn(args...)));
+        m_WrappedFn = [this, calling_fn](Args&&... args) {
+            m_Promise.set_value(std::move(calling_fn(args...)));
         };
     }
 
-    Future GetFuture()
+    std::future<ResultType> Future()
     {
-        return m_Result.GetFuture();
+        return m_Promise.get_future();
     }
 
-    void operator()(Args... args)
+    void operator()(Args&&... args)
     {
         LOG(INFO) << "Before Wrapped";
         m_WrappedFn(args...);
@@ -75,7 +75,7 @@ struct AsyncCompute<ResultType(Args...)>
 
   private:
     WrappedFn m_WrappedFn;
-    AsyncResult<ResultType> m_Result;
+    std::promise<ResultType> m_Promise;
 };
 
 } // namespace yais
