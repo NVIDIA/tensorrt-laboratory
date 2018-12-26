@@ -37,7 +37,6 @@
 
 #include "tensorrt/playground/bindings.h"
 #include "tensorrt/playground/core/async_compute.h"
-#include "tensorrt/playground/core/async_result.h"
 #include "tensorrt/playground/core/memory/descriptor.h"
 #include "tensorrt/playground/core/memory/host_memory.h"
 #include "tensorrt/playground/core/thread_pool.h"
