@@ -35,24 +35,49 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include "tensorrt/playground/bindings.h"
 #include "tensorrt/playground/core/async_result.h"
-#include "tensorrt/playground/core/thread_pool.h"
 #include "tensorrt/playground/core/memory/descriptor.h"
 #include "tensorrt/playground/core/memory/host_memory.h"
+#include "tensorrt/playground/core/thread_pool.h"
 #include "tensorrt/playground/cuda/memory/device_memory.h"
-#include "tensorrt/playground/runtime.h"
-#include "tensorrt/playground/model.h"
-#include "tensorrt/playground/bindings.h"
 #include "tensorrt/playground/inference_manager.h"
+#include "tensorrt/playground/model.h"
+#include "tensorrt/playground/runtime.h"
 
 using namespace yais;
 using namespace yais::Memory;
 using namespace yais::TensorRT;
 
+/*
+template<typename ResultType>
+class AsyncCompute
+{
+  private:
+    AsyncResult<ResultType> m_Result;
+
+  public:
+    using Future = typename AsyncResult<ResultType>::Future;
+
+    AsyncCompute() {}
+    virtual ~AsyncCompute() {}
+
+    Future GetFuture() { return m_Result.GetFuture(); }
+
+    template<class F, class... Args>
+    void operator()(F&&f, Args&&... args)
+    {
+        m_Result(std::move(f(args...)));
+    }
+};
+*/
+
 struct InferModel
 {
     InferModel(std::shared_ptr<Model> model, std::shared_ptr<InferenceManager> resources)
-      : m_Model{model}, m_Resources{resources} {}
+        : m_Model{model}, m_Resources{resources}
+    {
+    }
 
     InferModel(InferModel&&) = delete;
     InferModel& operator=(InferModel&&) = delete;
@@ -68,31 +93,32 @@ struct InferModel
 
     using PreFn = std::function<void(BindingsHandle)>;
     using PostFn = std::function<void(BindingsHandle)>;
-/*
-    template<typename T>
-    struct Completer
-    {
-        using Result = typename AsyncResult<T>::Result;
-        using Future = typename AsyncResult<T>::Future;
-        using WrappedFn = std::function<void(BindingsHandle&);
-        using CompleterFn = std::function<Result(BindingsHandle&);
-
-      private:
-        Completer(ComputerFn completer_fn)
+    /*
+        template<typename T>
+        struct Completer
         {
-            m_WrappedFn = [this, completer_fn](BindingsHandle& bindings) mutable {
-                auto value = completer_fn(bindings);
-                m_Result(value);
-            }
-        }
+            using Result = typename AsyncResult<T>::Result;
+            using Future = typename AsyncResult<T>::Future;
+            using WrappedFn = std::function<void(BindingsHandle&);
+            using CompleterFn = std::function<Result(BindingsHandle&);
 
-      private:
-        WrappedFn m_WrappedFn;
-        AsyncResult<T> m_Result;
-    }
-*/
+          private:
+            Completer(ComputerFn completer_fn)
+            {
+                m_WrappedFn = [this, completer_fn](BindingsHandle& bindings) mutable {
+                    auto value = completer_fn(bindings);
+                    m_Result(value);
+                }
+            }
+
+          private:
+            WrappedFn m_WrappedFn;
+            AsyncResult<T> m_Result;
+        }
+    */
     template<typename T>
-    typename AsyncResult<T>::Future Compute(PreFn pre, std::function<std::unique_ptr<T>(BindingsHandle)> post)
+    typename AsyncResult<T>::Future Compute(PreFn pre,
+                                            std::function<std::unique_ptr<T>(BindingsHandle)> post)
     {
         auto result = std::make_shared<AsyncResult<T>>(); // make_unique fails
         auto future = result->GetFuture();
@@ -109,14 +135,27 @@ struct InferModel
     {
         auto result = std::make_shared<AsyncResult<T>>(); // make_unique fails
         auto future = result->GetFuture();
-        auto wrapped_post = [post,result](BindingsHandle bindings) mutable {
+        auto wrapped_post = [post, result](BindingsHandle bindings) mutable {
             auto val = post(bindings);
             (*result)(std::move(val));
         };
         Execute(pre, wrapped_post);
         return future;
     }
-
+    /*
+        template<typename T, typename Post>
+        typename AsyncResult<T>::Future Compute3(PreFn pre, Post post)
+        {
+            auto compute = std::make_shared<AsyncCompute<T>>(); // make_unique fails
+            auto future = compute->GetFuture();
+            auto wrapped_post = [compute, post]() mutable {
+                auto val = post(bindings);
+                (*result)(std::move(val));
+            };
+            Execute(pre, wrapped_post);
+            return future;
+        }
+    */
   private:
     void Execute(PreFn Pre, PostFn Post)
     {
@@ -158,23 +197,24 @@ struct InferModel
     {
         return m_Resources->GetThreadPool(name);
     }
-/*
-    void CopyInputsToInputBindings(const HostMap& inputs, BindingsHandle& bindings)
-    {
-        for (const auto& id : bindings->InputBindings())
+    /*
+        void CopyInputsToInputBindings(const HostMap& inputs, BindingsHandle& bindings)
         {
-            const auto& b = bindings->GetBindings(id);
-            auto search = inputs.find(b.name);
-            CHECK(search != inputs.end());
-            Copy(bindings->HostMemoryDescriptor(id), *inputs[b.name], bindings->BindingSize(id));
+            for (const auto& id : bindings->InputBindings())
+            {
+                const auto& b = bindings->GetBindings(id);
+                auto search = inputs.find(b.name);
+                CHECK(search != inputs.end());
+                Copy(bindings->HostMemoryDescriptor(id), *inputs[b.name],
+       bindings->BindingSize(id));
+            }
         }
-    }
-*/
+    */
     std::shared_ptr<Model> m_Model;
     std::shared_ptr<InferenceManager> m_Resources;
 };
 
-static bool ValidateEngine(const char *flagname, const std::string &value)
+static bool ValidateEngine(const char* flagname, const std::string& value)
 {
     struct stat buffer;
     return (stat(value.c_str(), &buffer) == 0);
@@ -188,32 +228,101 @@ DEFINE_int32(prethreads, 1, "Number of preproessing threads");
 DEFINE_int32(cudathreads, 1, "Number of cuda kernel launching threads");
 DEFINE_int32(postthreads, 3, "Number of postprocessing threads");
 
-int main(int argc, char *argv[])
+template<typename PostFn>
+struct AsyncCompute;
+
+template<typename Result, typename... Args>
+struct AsyncCompute<Result(Args...)>
 {
-    FLAGS_alsologtostderr = 1; // Log to console
-    ::google::InitGoogleLogging("TensorRT Inference");
-    ::google::ParseCommandLineFlags(&argc, &argv, true);
+    using CallingFn = std::function<Result(Args...)>;
+    using WrappedFn = std::function<void(Args...)>;
+    using Future = typename AsyncResult<Result>::Future;
 
-    auto contexts = FLAGS_contexts;
-    auto buffers = FLAGS_buffers ? FLAGS_buffers : 2 * FLAGS_contexts;
+    AsyncCompute(CallingFn calling_fn) : m_CallingFn(calling_fn)
+    {
+        m_WrappedFn = [this, calling_fn](Args... args) {
+            auto value = calling_fn(args...);
+            m_Result(std::move(value));
+        };
+    }
 
-    auto resources = std::make_shared<InferenceManager>(contexts, buffers);
+    Future GetFuture()
+    {
+        return m_Result.GetFuture();
+    }
 
-    resources->SetThreadPool("pre", std::make_unique<ThreadPool>(FLAGS_prethreads));
-    resources->SetThreadPool("cuda", std::make_unique<ThreadPool>(FLAGS_cudathreads));
-    resources->SetThreadPool("post", std::make_unique<ThreadPool>(FLAGS_postthreads));
+    void operator()(Args&&... args)
+    {
+        LOG(INFO) << "Before Wrapped";
+        m_WrappedFn(args...);
+        LOG(INFO) << "After Wrapped";
+    }
 
-    auto model = Runtime::DeserializeEngine(FLAGS_engine);
-    resources->RegisterModel("flowers", model);
-    resources->AllocateResources();
-    LOG(INFO) << "Resources Allocated";
+  private:
+    CallingFn m_CallingFn;
+    WrappedFn m_WrappedFn;
+    AsyncResult<Result> m_Result;
+};
 
-    InferModel flowers(model, resources);
+template<typename PostFn>
+struct AsyncCompute2;
 
-    // std::vector<std::unique_ptr<bool>> results;
-    for(int i=0; i<10; i++) {
-        auto result = 
-            flowers.Compute2<bool>(
+template<typename... Args>
+struct AsyncCompute2<void(Args...)>
+{
+    using WrappedFn = std::function<void(Args...)>;
+
+    template<typename F>
+    auto Enqueue(F&& f) -> typename AsyncResult<typename std::result_of<F(Args...)>::type>::Future
+    {
+        auto result = std::make_shared<AsyncResult<typename std::result_of<F(Args...)>::type>>();
+        auto future = result->GetFuture();
+        m_WrappedFn = [f, result](Args... args) {
+            auto value = f(args...);
+            (*result)(std::move(value));
+        };
+        return future;
+    }
+
+    void operator()(Args&&... args)
+    {
+        LOG(INFO) << "Before Wrapped";
+        m_WrappedFn(args...);
+        LOG(INFO) << "After Wrapped";
+    }
+
+  private:
+    WrappedFn m_WrappedFn;
+};
+
+int main(int argc, char* argv[])
+{
+    /*
+    {
+        FLAGS_alsologtostderr = 1; // Log to console
+        ::google::InitGoogleLogging("TensorRT Inference");
+        ::google::ParseCommandLineFlags(&argc, &argv, true);
+
+        auto contexts = FLAGS_contexts;
+        auto buffers = FLAGS_buffers ? FLAGS_buffers : 2 * FLAGS_contexts;
+
+        auto resources = std::make_shared<InferenceManager>(contexts, buffers);
+
+        resources->SetThreadPool("pre", std::make_unique<ThreadPool>(FLAGS_prethreads));
+        resources->SetThreadPool("cuda", std::make_unique<ThreadPool>(FLAGS_cudathreads));
+        resources->SetThreadPool("post", std::make_unique<ThreadPool>(FLAGS_postthreads));
+
+        auto model = Runtime::DeserializeEngine(FLAGS_engine);
+        resources->RegisterModel("flowers", model);
+        resources->AllocateResources();
+        LOG(INFO) << "Resources Allocated";
+
+        InferModel flowers(model, resources);
+
+        // std::vector<std::unique_ptr<bool>> results;
+        for(int i = 0; i < 10; i++)
+        {
+            auto result = flowers.Compute2<bool>(
                 [](std::shared_ptr<Bindings> bindings) mutable {
                     // TODO: Copy Input Data to Host Input Bindings
                     DLOG(INFO) << "Pre";
@@ -222,9 +331,31 @@ int main(int argc, char *argv[])
                 [](std::shared_ptr<Bindings> bindings) mutable -> std::unique_ptr<bool> {
                     DLOG(INFO) << "Post";
                     return std::move(std::make_unique<bool>(true));
-                }
-            );
-        CHECK(result.get());
+                });
+            CHECK(result.get());
+        }
+    }
+    */
+    // Test<std::unique_ptr<bool>(std::shared_ptr<Bindings>)> test;
+    AsyncCompute<bool(int, int)> test2([](int i, int j) -> bool {
+        LOG(INFO) << "Client Function";
+        return true;
+    });
+
+    auto future = test2.GetFuture();
+    test2(1, 2);
+    auto value = future.get();
+    LOG(INFO) << "Result: " << (value ? "True" : "False");
+
+    {
+        AsyncCompute2<void(int)> test3;
+        auto future = test3.Enqueue([](int i) -> bool {
+            LOG(INFO) << "hi " << i;
+            return false;
+        });
+        test3(42);
+        auto value = future.get();
+        LOG(INFO) << "Result: " << (value ? "True" : "False");
     }
 
     return 0;
