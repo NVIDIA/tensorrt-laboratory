@@ -32,6 +32,7 @@ add_executable(test_core
   test_pool.cc
   test_thread_pool.cc
   test_cyclic_allocator.cc
+  test_async_compute.cc
 )
 
 target_link_libraries(test_core
