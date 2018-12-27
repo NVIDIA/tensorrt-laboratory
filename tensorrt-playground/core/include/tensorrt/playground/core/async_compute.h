@@ -29,8 +29,6 @@
 #include <future>
 #include <memory>
 
-#include <glog/logging.h>
-
 namespace yais {
 
 template<typename CompleterFn>
@@ -68,9 +66,7 @@ struct AsyncCompute<ResultType(Args...)>
 
     void operator()(Args&&... args)
     {
-        LOG(INFO) << "Before Wrapped";
         m_WrappedFn(args...);
-        LOG(INFO) << "After Wrapped";
     }
 
   private:
