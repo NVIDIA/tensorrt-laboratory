@@ -37,7 +37,7 @@ namespace Memory {
 
 const std::string& HostMemory::Type() const
 {
-    static std::string type = "Generic HostMemory";
+    static std::string type = "HostMemory";
     return type;
 }
 
