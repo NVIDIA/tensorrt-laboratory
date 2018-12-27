@@ -25,22 +25,24 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-add_executable(compute
-  compute.cc
-)
-
-target_link_libraries(compute PUBLIC
-  core
-  cuda
-  tensorrt
-  gflags
-)
-
-#pybind11_add_module(py_yais model.cc)
-
-#target_link_libraries(py_yais
-#  PUBLIC
-#     tensorrt
-#     nv-inference-protos
+#add_executable(compute
+#  compute.cc
 #)
+
+#target_link_libraries(compute PUBLIC
+#  core
+#  cuda
+#  tensorrt
+#  gflags
+#)
+
+pybind11_add_module(infer compute.cc)
+
+target_link_libraries(infer
+  PUBLIC
+    core
+    cuda
+    tensorrt
+    gflags
+)
 

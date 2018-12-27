@@ -24,6 +24,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+#include <pybind11/stl.h>
+
+namespace py = pybind11;
+
 #include <future>
 #include <map>
 #include <memory>
@@ -49,6 +55,40 @@ using namespace yais;
 using namespace yais::Memory;
 using namespace yais::TensorRT;
 
+class InferModel;
+class PyInferModel;
+
+class InferenceManagerImpl : public InferenceManager
+{
+  public:
+    InferenceManagerImpl(int max_executions, int max_buffers) : InferenceManager(max_executions, max_buffers)
+    {
+        SetThreadPool("pre", std::make_unique<ThreadPool>(1));
+        SetThreadPool("cuda", std::make_unique<ThreadPool>(1));
+        SetThreadPool("post", std::make_unique<ThreadPool>(3));
+    }
+
+    ~InferenceManagerImpl() override {}
+
+    std::shared_ptr<PyInferModel> RegisterModelByPath(const std::string& name, const std::string& path)
+    {
+        auto model = Runtime::DeserializeEngine(path);
+        RegisterModel(name, model);
+        return GetHandler(name);
+    }
+
+    std::shared_ptr<PyInferModel> GetHandler(std::string name)
+    {
+        return std::make_shared<PyInferModel>(GetModel(name), casted_shared_from_this<InferenceManagerImpl>());
+    }
+
+    std::shared_ptr<InferenceManager> cuda()
+    {
+        AllocateResources();
+        return casted_shared_from_this<InferenceManager>();
+    }
+};
+
 struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
 {
     InferModel(std::shared_ptr<Model> model, std::shared_ptr<InferenceManager> resources)
@@ -68,25 +108,25 @@ struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
     using HostMap = std::map<std::string, DescriptorHandle<HostMemory>>;
     using DeviceMap = std::map<std::string, DescriptorHandle<DeviceMemory>>;
 
-    using PreFn = std::function<void(BindingsHandle)>;
+    using PreFn = std::function<void(Bindings&)>;
     using PostFn = std::function<void(BindingsHandle)>;
 
     template<typename Post>
     auto Compute3(PreFn pre, Post post)
     {
         auto compute = Wrap(post);
+        auto future = compute->Future();
         Enqueue(pre, compute);
-        return compute->Future();
+        return future.share();
     }
 
-   protected:
-
+  protected:
     template<typename T>
     void Enqueue(PreFn Pre, std::shared_ptr<AsyncCompute<T>> Post)
     {
         Workers("pre").enqueue([this, Pre, Post]() mutable {
             auto bindings = InitializeBindings();
-            Pre(bindings);
+            Pre(*bindings);
             Workers("cuda").enqueue([this, bindings, Post]() mutable {
                 bindings->CopyToDevice(bindings->InputBindings());
                 auto trt_ctx = Infer(bindings);
@@ -138,6 +178,52 @@ struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
     std::shared_ptr<InferenceManager> m_Resources;
 };
 
+
+struct PyInferModel : public InferModel
+{
+    using InferModel::InferModel;
+
+    auto Infer(py::array_t<float> data)
+    {
+        return Compute3(
+            [data](Bindings& bindings) {
+                CHECK_LE(data.shape(0), bindings.GetModel()->GetMaxBatchSize());
+                bindings.SetBatchSize(data.shape(0));
+                CHECK_EQ(data.nbytes(), bindings.BindingSize(0));
+                auto pinned = bindings.HostAddress(0);
+                std::memcpy(pinned, data.data(), data.nbytes());
+            },
+            [](std::shared_ptr<Bindings>& bindings) -> py::array_t<float> {
+                const auto& binding = bindings->GetModel()->GetBinding(1);
+                auto result = py::array_t<float>(binding.elementsPerBatchItem * bindings->BatchSize());
+                py::buffer_info buffer = result.request();
+                CHECK_EQ(result.nbytes(), bindings->BindingSize(1));
+                std::memcpy(buffer.ptr, bindings->HostAddress(1), result.nbytes());
+                return result;
+            }
+        );
+    }
+};
+
+PYBIND11_MODULE(infer, m)
+{
+    py::class_<InferenceManagerImpl, std::shared_ptr<InferenceManagerImpl>>(m, "InferenceManager")
+        .def(py::init([](int concurrency) {
+            return std::make_shared<InferenceManagerImpl>(concurrency, concurrency+4);
+        }))
+        .def("register_tensorrt_engine", &InferenceManagerImpl::RegisterModelByPath)
+        .def("get_model", &InferenceManagerImpl::GetHandler)
+        .def("cuda", &InferenceManagerImpl::cuda);
+
+    py::class_<PyInferModel, std::shared_ptr<PyInferModel>>(m, "Inference")
+        .def("infer", &PyInferModel::Infer, py::call_guard<py::gil_scoped_release>());
+
+    py::class_<std::shared_future<py::array_t<float>>>(m, "InferenceFutureResult")
+        .def("wait", &std::shared_future<py::array_t<float>>::wait)
+        .def("get", &std::shared_future<py::array_t<float>>::get);
+}
+
+
 static bool ValidateEngine(const char* flagname, const std::string& value)
 {
     struct stat buffer;
@@ -154,102 +240,45 @@ DEFINE_int32(postthreads, 3, "Number of postprocessing threads");
 
 int main(int argc, char* argv[])
 {
+    FLAGS_alsologtostderr = 1; // Log to console
+    ::google::InitGoogleLogging("TensorRT Inference");
+    ::google::ParseCommandLineFlags(&argc, &argv, true);
+
+    auto contexts = FLAGS_contexts;
+    auto buffers = FLAGS_buffers ? FLAGS_buffers : 2 * FLAGS_contexts;
+
+    auto resources = std::make_shared<InferenceManager>(contexts, buffers);
+
+    resources->SetThreadPool("pre", std::make_unique<ThreadPool>(FLAGS_prethreads));
+    resources->SetThreadPool("cuda", std::make_unique<ThreadPool>(FLAGS_cudathreads));
+    resources->SetThreadPool("post", std::make_unique<ThreadPool>(FLAGS_postthreads));
+
+    auto model = Runtime::DeserializeEngine(FLAGS_engine);
+    resources->RegisterModel("flowers", model);
+    resources->AllocateResources();
+    LOG(INFO) << "Resources Allocated";
+
+    InferModel flowers(model, resources);
+
     {
-        FLAGS_alsologtostderr = 1; // Log to console
-        ::google::InitGoogleLogging("TensorRT Inference");
-        ::google::ParseCommandLineFlags(&argc, &argv, true);
-
-        auto contexts = FLAGS_contexts;
-        auto buffers = FLAGS_buffers ? FLAGS_buffers : 2 * FLAGS_contexts;
-
-        auto resources = std::make_shared<InferenceManager>(contexts, buffers);
-
-        resources->SetThreadPool("pre", std::make_unique<ThreadPool>(FLAGS_prethreads));
-        resources->SetThreadPool("cuda", std::make_unique<ThreadPool>(FLAGS_cudathreads));
-        resources->SetThreadPool("post", std::make_unique<ThreadPool>(FLAGS_postthreads));
-
-        auto model = Runtime::DeserializeEngine(FLAGS_engine);
-        resources->RegisterModel("flowers", model);
-        resources->AllocateResources();
-        LOG(INFO) << "Resources Allocated";
-
-        InferModel flowers(model, resources);
-
-        {
         auto future = flowers.Compute3(
-            [](std::shared_ptr<Bindings> bindings) {
+            [](Bindings& bindings) {
                 // TODO: Copy Input Data to Host Input Bindings
                 DLOG(INFO) << "Pre";
-                bindings->SetBatchSize(bindings->GetModel()->GetMaxBatchSize());
+                bindings.SetBatchSize(bindings.GetModel()->GetMaxBatchSize());
             },
-            [](std::shared_ptr<Bindings>& bindings) -> std::unique_ptr<bool> {
+            [](std::shared_ptr<Bindings>& bindings) -> std::shared_ptr<bool> {
                 DLOG(INFO) << "Post";
-                return std::make_unique<bool>(false);
+                return std::make_shared<bool>(false);
             });
-        
-        future.wait();
+
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        //  auto result = std::move(future.get());
+        auto result = future.get();
+        CHECK(result);
         LOG(INFO) << "Waited 1 second to ensure compute cleaned up";
-        LOG(INFO) << "Result: " << (*(future.get()) ? "True" : "False") << " " << future.get().get();
-        auto&& result = std::move(future.get());
         LOG(INFO) << "Result: " << (*result ? "True" : "False") << " " << result.get();
-        *result = true;
         return 0;
-        }
-/*
-        // std::vector<std::unique_ptr<bool>> results;
-        for(int i = 0; i < 10; i++)
-        {
-            auto result = flowers.Compute2<bool>(
-                [](std::shared_ptr<Bindings> bindings) mutable {
-                    // TODO: Copy Input Data to Host Input Bindings
-                    DLOG(INFO) << "Pre";
-                    bindings->SetBatchSize(bindings->GetModel()->GetMaxBatchSize());
-                },
-                [](std::shared_ptr<Bindings> bindings) mutable -> std::unique_ptr<bool> {
-                    DLOG(INFO) << "Post";
-                    return std::move(std::make_unique<bool>(true));
-                });
-            CHECK(result.get());
-        }
-*/
-    }
-
-    // Test<std::unique_ptr<bool>(std::shared_ptr<Bindings>)> test;
-    AsyncCompute<bool(int, int)> test2([](int i, int j) -> bool {
-        LOG(INFO) << "Client Function";
-        return true;
-    });
-
-    auto future = test2.Future();
-    test2(1, 2);
-    auto value = future.get();
-    LOG(INFO) << "Result: " << (value ? "True" : "False");
-
-    /*
-        {
-            AsyncCompute2<void(int)> test3;
-            auto future = test3.Enqueue([](int i) -> bool {
-                LOG(INFO) << "hi " << i;
-                return false;
-            });
-
-            // some other async thread will make this call
-            test3(42);
-
-            auto value = future.get();
-            LOG(INFO) << "Result: " << (value ? "True" : "False");
-        }
-    */
-    {
-        auto compute = AsyncCompute<void(int)>::Wrap([](int i) -> bool {
-            LOG(INFO) << "Test " << i;
-            return (bool)((i % 2) == 0);
-        });
-
-        auto future = compute->Future();
-        (*compute)(42);
-        auto value = future.get();
     }
 
     return 0;
