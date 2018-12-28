@@ -34,6 +34,7 @@ namespace py = pybind11;
 #include <map>
 #include <memory>
 #include <string>
+#include <type_traits>
 
 #include <sys/stat.h>
 #include <unistd.h>
@@ -105,14 +106,10 @@ struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
     virtual ~InferModel() {}
 
     using BindingsHandle = std::shared_ptr<Bindings>;
-    using HostMap = std::map<std::string, DescriptorHandle<HostMemory>>;
-    using DeviceMap = std::map<std::string, DescriptorHandle<DeviceMemory>>;
-
     using PreFn = std::function<void(Bindings&)>;
-    using PostFn = std::function<void(BindingsHandle)>;
 
     template<typename Post>
-    auto Compute3(PreFn pre, Post post)
+    auto Infer(PreFn pre, Post post)
     {
         auto compute = Wrap(post);
         auto future = compute->Future();
@@ -129,7 +126,7 @@ struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
             Pre(*bindings);
             Workers("cuda").enqueue([this, bindings, Post]() mutable {
                 bindings->CopyToDevice(bindings->InputBindings());
-                auto trt_ctx = Infer(bindings);
+                auto trt_ctx = Compute(bindings);
                 bindings->CopyFromDevice(bindings->OutputBindings());
                 Workers("post").enqueue([this, bindings, trt_ctx, Post]() mutable {
                     trt_ctx->Synchronize();
@@ -150,7 +147,7 @@ struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
         return buffers->CreateBindings(m_Model);
     }
 
-    auto Infer(BindingsHandle& bindings) -> std::shared_ptr<ExecutionContext>
+    auto Compute(BindingsHandle& bindings) -> std::shared_ptr<ExecutionContext>
     {
         auto trt_ctx = m_Resources->GetExecutionContext(bindings->GetModel());
         trt_ctx->Infer(bindings);
@@ -174,6 +171,7 @@ struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
             }
         }
     */
+
     std::shared_ptr<Model> m_Model;
     std::shared_ptr<InferenceManager> m_Resources;
 };
@@ -185,7 +183,7 @@ struct PyInferModel : public InferModel
 
     auto Infer(py::array_t<float> data)
     {
-        return Compute3(
+        return InferModel::Infer(
             [data](Bindings& bindings) {
                 CHECK_LE(data.shape(0), bindings.GetModel()->GetMaxBatchSize());
                 bindings.SetBatchSize(data.shape(0));
@@ -203,6 +201,35 @@ struct PyInferModel : public InferModel
             }
         );
     }
+
+    std::string Test(py::kwargs kwargs)
+    {
+        for(auto item : kwargs)
+        {
+            LOG(INFO) << item.first;
+            auto str = py::cast<std::string>(item.first);
+
+            switch(m_Model->GetBindingType(str)) {
+            case Model::BindingType::Invalid:
+                LOG(INFO) << "Invalid Binding: " << item.first;
+                break;
+            case Model::BindingType::Input:
+                LOG(INFO) << "Is Input Binding: " << item.first;
+                break;
+            case Model::BindingType::Output:
+                LOG(INFO) << "Is Output Binding: " << item.first;
+                break;
+            };
+
+        }
+        return "wow";
+    }
+
+    template<typename T>
+    bool is_numpy(T item)
+    {
+        return std::is_same<T, py::buffer>::value;
+    }
 };
 
 PYBIND11_MODULE(infer, m)
@@ -216,11 +243,12 @@ PYBIND11_MODULE(infer, m)
         .def("cuda", &InferenceManagerImpl::cuda);
 
     py::class_<PyInferModel, std::shared_ptr<PyInferModel>>(m, "Inference")
-        .def("infer", &PyInferModel::Infer, py::call_guard<py::gil_scoped_release>());
+        .def("infer", &PyInferModel::Infer, py::call_guard<py::gil_scoped_release>())
+        .def("test", &PyInferModel::Test, py::call_guard<py::gil_scoped_release>());
 
     py::class_<std::shared_future<py::array_t<float>>>(m, "InferenceFutureResult")
-        .def("wait", &std::shared_future<py::array_t<float>>::wait)
-        .def("get", &std::shared_future<py::array_t<float>>::get);
+        .def("wait", &std::shared_future<py::array_t<float>>::wait, py::call_guard<py::gil_scoped_release>())
+        .def("get", &std::shared_future<py::array_t<float>>::get, py::call_guard<py::gil_scoped_release>());
 }
 
 
@@ -261,7 +289,7 @@ int main(int argc, char* argv[])
     InferModel flowers(model, resources);
 
     {
-        auto future = flowers.Compute3(
+        auto future = flowers.Infer(
             [](Bindings& bindings) {
                 // TODO: Copy Input Data to Host Input Bindings
                 DLOG(INFO) << "Pre";
