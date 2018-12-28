@@ -58,9 +58,9 @@ Runtime::Runtime()
 std::shared_ptr<Model> Runtime::DeserializeEngine(std::string plan_file)
 {
     auto singleton = Runtime::GetSingleton();
+    DLOG(INFO) << "Deserializing TensorRT ICudaEngine from file: " << plan_file;
     auto buffer = singleton->ReadEngineFile(plan_file);
-    // Create Engine / Deserialize Plan - need this step to be broken up plz!!
-    DLOG(INFO) << "Deserializing TensorRT ICudaEngine";
+    // TODO: Create Engine / Deserialize Plan - need this step to be broken up plz!!
     auto engine = make_shared(
         singleton->GetRuntime()->deserializeCudaEngine(buffer.data(), buffer.size(), nullptr));
     CHECK(engine) << "Unable to create ICudaEngine";
