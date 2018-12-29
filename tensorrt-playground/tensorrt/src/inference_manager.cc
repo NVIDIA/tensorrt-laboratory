@@ -59,7 +59,7 @@ InferenceManager::InferenceManager(int max_executions, int max_buffers)
     LOG(INFO) << "Maximum Copy Concurrency: " << m_MaxBuffers;
 }
 
-InferenceManager::~InferenceManager() {}
+InferenceManager::~InferenceManager() { JoinAllThreads(); }
 
 /**
  * @brief Register a Model with the InferenceManager object
@@ -232,12 +232,12 @@ auto InferenceManager::GetExecutionContext(const Model* model) -> std::shared_pt
     // This is the global concurrency limiter - it owns the activation scratch memory
     auto ctx = m_ExecutionContexts->Pop([](ExecutionContext* ptr) {
         ptr->Reset();
-        DLOG(INFO) << "Releasing Concurrency Limiter";
+        DLOG(INFO) << "Returning Execution Concurrency Limiter to Pool";
     });
     // This is the model concurrency limiter - it owns the TensorRT IExecutionContext
     // for which the pointer to the global limiter's memory buffer will be set
     ctx->SetContext(item->second->Pop(
-        [](::nvinfer1::IExecutionContext* ptr) { DLOG(INFO) << "Releasing IExecutionContext"; }));
+        [](::nvinfer1::IExecutionContext* ptr) { DLOG(INFO) << "Returning Model IExecutionContext to Pool"; }));
     DLOG(INFO) << "Acquired Concurrency Limiting Execution Context";
     return ctx;
 }
@@ -267,7 +267,7 @@ auto InferenceManager::GetThreadPool(std::string name) -> ThreadPool&
 void InferenceManager::SetThreadPool(std::string name, std::unique_ptr<ThreadPool> threads)
 {
     // std::unique_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
-    DLOG(INFO) << "Swapping ThreadPool: " << name;
+    DLOG(INFO) << "Registering ThreadPool: " << name;
     // Old threadpools will continute to live until all threads are joined.
     // this may need a mutex
     m_ThreadPools[name].swap(threads);

@@ -95,6 +95,5 @@ class FixedBuffers : public Buffers
     std::unique_ptr<Memory::MemoryStack<Memory::CudaDeviceMemory>> m_DeviceStack;
 };
 
-
 } // namespace TensorRT
 } // namespace yais

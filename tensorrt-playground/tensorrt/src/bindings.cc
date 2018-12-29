@@ -28,9 +28,22 @@
 
 #include <glog/logging.h>
 
+#include "tensorrt/playground/core/memory/descriptor.h"
+
+using yais::Memory::Descriptor;
 using yais::Memory::HostMemory;
 using yais::Memory::DeviceMemory;
 using yais::Memory::DescriptorHandle;
+
+namespace
+{
+    class RawHostMemoryDescriptor final : public Descriptor<HostMemory>
+    {
+      public:
+        RawHostMemoryDescriptor(void *ptr, size_t size) : Descriptor<HostMemory>(ptr, size, "BindingsRawPtr") {}
+        ~RawHostMemoryDescriptor() final override {}
+    };
+}
 
 namespace yais {
 namespace TensorRT {
@@ -49,10 +62,17 @@ Bindings::Bindings(const std::shared_ptr<Model> model, const std::shared_ptr<Buf
 
 Bindings::~Bindings() {}
 
+typename Bindings::HostDescriptor& Bindings::HostMemoryDescriptor(int binding_id)
+{
+    CHECK_LT(binding_id, m_HostAddresses.size());
+    return m_HostDescriptors[binding_id];
+}
+
 void Bindings::SetHostAddress(int binding_id, void *addr)
 {
     CHECK_LT(binding_id, m_HostAddresses.size());
-    m_HostDescriptors.erase(binding_id);
+    auto mdesc = std::make_unique<RawHostMemoryDescriptor>(addr, BindingSize(binding_id));
+    m_HostDescriptors[binding_id] = std::move(mdesc);
     m_HostAddresses[binding_id] = addr;
 }
 
@@ -150,7 +170,7 @@ void Bindings::SetBatchSize(uint32_t batch_size)
 
 size_t Bindings::BindingSize(uint32_t binding_id) const
 {
-    return m_Model->GetBinding(binding_id).bytesPerBatchItem * m_BatchSize;
+    return m_Model->GetBinding(binding_id).bytesPerBatchItem * (m_BatchSize ? m_BatchSize : m_Model->GetMaxBatchSize());
 }
 
 } // namespace TensorRT

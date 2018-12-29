@@ -73,6 +73,9 @@ class Bindings
     void SetHostAddress(int binding_id, HostDescriptor);
     void SetDeviceAddress(int binding_id, DeviceDescriptor);
 
+    HostDescriptor& HostMemoryDescriptor(int binding_id);
+    // const Memory::HostMemory& HostMemory(int binding_id) const;
+
     void *ActivationsAddress() { return m_ActivationsAddress; }
     void SetActivationsAddress(void *addr) { m_ActivationsAddress = addr; }
 
@@ -94,9 +97,10 @@ class Bindings
     inline cudaStream_t Stream() const { return m_Buffers->Stream(); }
     void Synchronize() const { m_Buffers->Synchronize(); }
 
+    size_t BindingSize(uint32_t binding_id) const;
+    
   private:
     Bindings(const std::shared_ptr<Model>, const std::shared_ptr<Buffers>);
-    size_t BindingSize(uint32_t binding_id) const;
 
     const std::shared_ptr<Model> m_Model;
     const std::shared_ptr<Buffers> m_Buffers;

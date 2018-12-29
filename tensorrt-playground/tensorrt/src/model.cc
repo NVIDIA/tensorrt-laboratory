@@ -53,11 +53,16 @@ Model::Model(std::shared_ptr<ICudaEngine> engine)
     DLOG(INFO) << "Initializing Bindings from Engine";
     for (uint32_t i = 0; i < m_Engine->getNbBindings(); i++)
     {
-        m_Bindings.push_back(ConfigureBinding(i));
-        if (m_Bindings[i].isInput)
+        const auto& binding = ConfigureBinding(i);
+        m_BindingsByName[binding.name] = std::move(binding);
+        m_BindingIdByName[binding.name] = i;
+        DLOG(INFO) << binding.name << " maps to " << i;
+        m_Bindings.push_back(std::move(ConfigureBinding(i)));
+        if (m_Bindings[i].isInput) {
             m_InputBindings.push_back(i);
-        else
+        } else {
             m_OutputBindings.push_back(i);
+        }
     }
     CHECK_EQ(m_Bindings.size(), m_Engine->getNbBindings());
 }
@@ -85,10 +90,38 @@ Model::TensorBindingInfo Model::ConfigureBinding(uint32_t i)
     return binding;
 }
 
+auto Model::BindingId(const std::string& name) const -> uint32_t
+{
+    auto search = m_BindingIdByName.find(name);
+    CHECK(search != m_BindingIdByName.end());
+    return search->second;
+}
+
 auto Model::GetBinding(uint32_t id) const -> const TensorBindingInfo &
 {
     CHECK_LT(id, m_Bindings.size()) << "Invalid BindingId; given: " << id << "; max: " << m_Bindings.size();
     return m_Bindings[id];
+}
+
+Model::BindingType Model::GetBindingType(const std::string& name) const
+{
+    auto search = m_BindingsByName.find(name);
+    if (search == m_BindingsByName.end()) {
+        return BindingType::Invalid;
+    }
+    if (search->second.isInput) {
+        return BindingType::Input;
+    } else {
+        return BindingType::Output;
+    }
+    return BindingType::Invalid;
+}
+
+auto Model::GetBinding(const std::string& name) const -> const TensorBindingInfo &
+{
+    auto search = m_BindingsByName.find(name);
+    CHECK(search != m_BindingsByName.end());
+    return search->second;
 }
 
 auto Model::CreateExecutionContext() const -> std::shared_ptr<IExecutionContext>

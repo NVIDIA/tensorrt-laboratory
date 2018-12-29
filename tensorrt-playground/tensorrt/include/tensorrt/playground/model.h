@@ -44,6 +44,14 @@ namespace TensorRT {
 class Model // TODO: inherit from IModel so we can have non-TensorRT models that conform
 {
   public:
+
+    enum BindingType
+    {
+        Input,
+        Output,
+        Invalid
+    };
+
     /**
      * @brief Construct a new Model object
      *
@@ -79,7 +87,13 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
 
     struct TensorBindingInfo;
 
+    auto BindingId(const std::string&) const -> uint32_t;
+
     auto GetBinding(uint32_t) const -> const TensorBindingInfo&;
+    auto GetBinding(const std::string&) const -> const TensorBindingInfo&;
+
+    BindingType GetBindingType(const std::string&) const;
+
     auto GetBindingsCount() const
     {
         return m_Bindings.size();
@@ -137,6 +151,8 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
 
     std::shared_ptr<::nvinfer1::ICudaEngine> m_Engine;
     std::vector<TensorBindingInfo> m_Bindings;
+    std::map<std::string, TensorBindingInfo> m_BindingsByName;
+    std::map<std::string, uint32_t> m_BindingIdByName;
     std::vector<uint32_t> m_InputBindings;
     std::vector<uint32_t> m_OutputBindings;
     std::vector<Weights> m_Weights;
