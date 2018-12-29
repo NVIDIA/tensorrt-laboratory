@@ -44,15 +44,14 @@ def infer(model, data):
     # time.sleep(2)
     #future = mnist.infer(data)
     #future = mnist.test(Input3=data)
-    future = model.kw(Input3=data)
+    future = model.infer(Input3=data)
     start = time.time()
     print("queued")
-    future.wait()
     result = future.get()
     print("finished")
     end = time.time()
     print(end-start)
-    return result.reshape((1,10))
+    return result
 
 if __name__ == "__main__":
     models = yais.InferenceManager(1)
@@ -61,5 +60,8 @@ if __name__ == "__main__":
 
     inputs = load_inputs("/work/models/onnx/mnist-v1.3/test_data_set_0")
     outputs = load_outputs("/work/models/onnx/mnist-v1.3/test_data_set_0")
-    results = [ infer(mnist, inputs[0]) ]
-    np.testing.assert_almost_equal(results, outputs, decimal=2) 
+    results = infer(mnist, inputs[0])
+    for key, val in results.items():
+        print(key)
+        results = [ val.reshape((1,10)) ]
+        np.testing.assert_almost_equal(results, outputs, decimal=2) 
