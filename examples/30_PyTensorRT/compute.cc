@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
 namespace py = pybind11;
@@ -62,7 +62,8 @@ class PyInferModel;
 class InferenceManagerImpl : public InferenceManager
 {
   public:
-    InferenceManagerImpl(int max_executions, int max_buffers) : InferenceManager(max_executions, max_buffers)
+    InferenceManagerImpl(int max_executions, int max_buffers)
+        : InferenceManager(max_executions, max_buffers)
     {
         SetThreadPool("pre", std::make_unique<ThreadPool>(1));
         SetThreadPool("cuda", std::make_unique<ThreadPool>(1));
@@ -71,7 +72,8 @@ class InferenceManagerImpl : public InferenceManager
 
     ~InferenceManagerImpl() override {}
 
-    std::shared_ptr<PyInferModel> RegisterModelByPath(const std::string& name, const std::string& path)
+    std::shared_ptr<PyInferModel> RegisterModelByPath(const std::string& name,
+                                                      const std::string& path)
     {
         auto model = Runtime::DeserializeEngine(path);
         RegisterModel(name, model);
@@ -80,7 +82,8 @@ class InferenceManagerImpl : public InferenceManager
 
     std::shared_ptr<PyInferModel> GetHandler(std::string name)
     {
-        return std::make_shared<PyInferModel>(GetModel(name), casted_shared_from_this<InferenceManagerImpl>());
+        return std::make_shared<PyInferModel>(GetModel(name),
+                                              casted_shared_from_this<InferenceManagerImpl>());
     }
 
     std::shared_ptr<InferenceManager> cuda()
@@ -117,6 +120,15 @@ struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
         return future.share();
     }
 
+    template<typename Post>
+    auto Infer(std::shared_ptr<Bindings> bindings, Post post)
+    {
+        auto compute = Wrap(post);
+        auto future = compute->Future();
+        Enqueue(bindings, compute);
+        return future.share();
+    }
+
   protected:
     template<typename T>
     void Enqueue(PreFn Pre, std::shared_ptr<AsyncCompute<T>> Post)
@@ -124,19 +136,24 @@ struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
         Workers("pre").enqueue([this, Pre, Post]() mutable {
             auto bindings = InitializeBindings();
             Pre(*bindings);
-            Workers("cuda").enqueue([this, bindings, Post]() mutable {
-                bindings->CopyToDevice(bindings->InputBindings());
-                auto trt_ctx = Compute(bindings);
-                bindings->CopyFromDevice(bindings->OutputBindings());
-                Workers("post").enqueue([this, bindings, trt_ctx, Post]() mutable {
-                    trt_ctx->Synchronize();
-                    trt_ctx.reset();
-                    bindings->Synchronize();
-                    (*Post)(bindings);
-                    LOG(INFO) << "ResetBindings";
-                    bindings.reset();
-                    LOG(INFO) << "Execute Finished";
-                });
+            Enqueue(bindings, Post);
+        });
+    }
+
+    template<typename T>
+    void Enqueue(std::shared_ptr<Bindings> bindings, std::shared_ptr<AsyncCompute<T>> Post)
+    {
+        Workers("cuda").enqueue([this, bindings, Post]() mutable {
+            bindings->CopyToDevice(bindings->InputBindings());
+            auto trt_ctx = Compute(bindings);
+            bindings->CopyFromDevice(bindings->OutputBindings());
+            Workers("post").enqueue([this, bindings, trt_ctx, Post]() mutable {
+                trt_ctx->Synchronize();
+                trt_ctx.reset();
+                bindings->Synchronize();
+                (*Post)(bindings);
+                bindings.reset();
+                LOG(INFO) << "Execute Finished";
             });
         });
     }
@@ -176,7 +193,6 @@ struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
     std::shared_ptr<InferenceManager> m_Resources;
 };
 
-
 struct PyInferModel : public InferModel
 {
     using InferModel::InferModel;
@@ -193,36 +209,95 @@ struct PyInferModel : public InferModel
             },
             [](std::shared_ptr<Bindings>& bindings) -> py::array_t<float> {
                 const auto& binding = bindings->GetModel()->GetBinding(1);
-                auto result = py::array_t<float>(binding.elementsPerBatchItem * bindings->BatchSize());
+                auto result =
+                    py::array_t<float>(binding.elementsPerBatchItem * bindings->BatchSize());
+                py::buffer_info buffer = result.request();
+                CHECK_EQ(result.nbytes(), bindings->BindingSize(1));
+                std::memcpy(buffer.ptr, bindings->HostAddress(1), result.nbytes());
+                LOG(INFO) << "Finshed Post - setting future/promise value";
+                return result;
+            });
+    }
+
+    auto kw(py::kwargs kwargs)
+    {
+        auto model = m_Model;
+        auto bindings = InitializeBindings();
+        int batch_size = -1;
+        for(auto item : kwargs)
+        {
+            auto key = py::cast<std::string>(item.first);
+            DLOG(INFO) << "Processing Python Keyword: " << key;
+            const auto& binding = model->GetBinding(key);
+            LOG_IF(FATAL, !binding.isInput) << item.first << " is not an InputBinding";
+            if(binding.isInput)
+            {
+                CHECK(py::isinstance<py::array>(item.second));
+                auto data = py::cast<py::array_t<float>>(item.second);
+                CHECK_LE(data.shape(0), model->GetMaxBatchSize());
+                if(batch_size == -1)
+                {
+                    batch_size = data.shape(0);
+                }
+                else
+                {
+                    CHECK_EQ(data.shape(0), batch_size);
+                }
+                CHECK_EQ(data.nbytes(), binding.bytesPerBatchItem * batch_size);
+                auto id = model->BindingId(key);
+                auto host = bindings->HostAddress(id);
+                std::memcpy(host, data.data(), data.nbytes());
+            }
+        }
+        bindings->SetBatchSize(batch_size);
+        return InferModel::Infer(bindings, [](std::shared_ptr<Bindings>& bindings) -> py::array_t<float> {
+            const auto& binding = bindings->GetModel()->GetBinding(1);
+            auto result = py::array_t<float>(binding.elementsPerBatchItem * bindings->BatchSize());
+            py::buffer_info buffer = result.request();
+            CHECK_EQ(result.nbytes(), bindings->BindingSize(1));
+            std::memcpy(buffer.ptr, bindings->HostAddress(1), result.nbytes());
+            LOG(INFO) << "Finshed Post - setting future/promise value";
+            return result;
+        });
+    }
+
+    auto Test(py::kwargs kwargs)
+    {
+        return InferModel::Infer(
+            [kwargs](Bindings& bindings) {
+                auto model = bindings.GetModel();
+                for(auto item : kwargs)
+                {
+                    auto key = py::cast<std::string>(item.first);
+                    DLOG(INFO) << "Processing Python Keyword: " << key;
+                    CHECK_EQ(model->GetBindingType(key), Model::BindingType::Input);
+                    auto id = model->BindingId(key);
+                    DLOG(INFO) << "Binding: " << key << " maps to id: " << id;
+                    // TODO: Cast to proper type by querying the model
+                    // DLOG(INFO) << item.second;
+                    LOG(INFO) << item.second.ptr();
+                    LOG(INFO) << py::isinstance<py::array>(item.second) ? "Is PyArray"
+                                                                        : "Is Not PyArray";
+                    auto data = py::cast<py::array_t<float>>(kwargs[item.first]);
+                    CHECK(data);
+                    DLOG(INFO) << "Casted";
+                    CHECK_LE(data.shape(0), bindings.GetModel()->GetMaxBatchSize());
+                    bindings.SetBatchSize(data.shape(0));
+                    CHECK_EQ(data.nbytes(), bindings.BindingSize(0));
+                    auto pinned = bindings.HostAddress(id);
+                    DLOG(INFO) << "Copying Python Numpy -> Pinned Host Memory";
+                    std::memcpy(pinned, data.data(), data.nbytes());
+                }
+            },
+            [](std::shared_ptr<Bindings>& bindings) -> py::array_t<float> {
+                const auto& binding = bindings->GetModel()->GetBinding(1);
+                auto result =
+                    py::array_t<float>(binding.elementsPerBatchItem * bindings->BatchSize());
                 py::buffer_info buffer = result.request();
                 CHECK_EQ(result.nbytes(), bindings->BindingSize(1));
                 std::memcpy(buffer.ptr, bindings->HostAddress(1), result.nbytes());
                 return result;
-            }
-        );
-    }
-
-    std::string Test(py::kwargs kwargs)
-    {
-        for(auto item : kwargs)
-        {
-            LOG(INFO) << item.first;
-            auto str = py::cast<std::string>(item.first);
-
-            switch(m_Model->GetBindingType(str)) {
-            case Model::BindingType::Invalid:
-                LOG(INFO) << "Invalid Binding: " << item.first;
-                break;
-            case Model::BindingType::Input:
-                LOG(INFO) << "Is Input Binding: " << item.first;
-                break;
-            case Model::BindingType::Output:
-                LOG(INFO) << "Is Output Binding: " << item.first;
-                break;
-            };
-
-        }
-        return "wow";
+            });
     }
 
     template<typename T>
@@ -236,21 +311,23 @@ PYBIND11_MODULE(infer, m)
 {
     py::class_<InferenceManagerImpl, std::shared_ptr<InferenceManagerImpl>>(m, "InferenceManager")
         .def(py::init([](int concurrency) {
-            return std::make_shared<InferenceManagerImpl>(concurrency, concurrency+4);
+            return std::make_shared<InferenceManagerImpl>(concurrency, concurrency + 4);
         }))
         .def("register_tensorrt_engine", &InferenceManagerImpl::RegisterModelByPath)
         .def("get_model", &InferenceManagerImpl::GetHandler)
         .def("cuda", &InferenceManagerImpl::cuda);
 
     py::class_<PyInferModel, std::shared_ptr<PyInferModel>>(m, "Inference")
-        .def("infer", &PyInferModel::Infer, py::call_guard<py::gil_scoped_release>())
-        .def("test", &PyInferModel::Test, py::call_guard<py::gil_scoped_release>());
+        .def("infer", &PyInferModel::Infer) // , py::call_guard<py::gil_scoped_release>())
+        .def("test", &PyInferModel::Test) //, py::call_guard<py::gil_scoped_release>());
+        .def("kw", &PyInferModel::kw); //, py::call_guard<py::gil_scoped_release>());
 
     py::class_<std::shared_future<py::array_t<float>>>(m, "InferenceFutureResult")
-        .def("wait", &std::shared_future<py::array_t<float>>::wait, py::call_guard<py::gil_scoped_release>())
-        .def("get", &std::shared_future<py::array_t<float>>::get, py::call_guard<py::gil_scoped_release>());
+        .def("wait", &std::shared_future<py::array_t<float>>::wait,
+             py::call_guard<py::gil_scoped_release>())
+        .def("get", &std::shared_future<py::array_t<float>>::get,
+             py::call_guard<py::gil_scoped_release>());
 }
-
 
 static bool ValidateEngine(const char* flagname, const std::string& value)
 {

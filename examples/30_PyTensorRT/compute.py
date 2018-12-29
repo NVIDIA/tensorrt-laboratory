@@ -39,31 +39,27 @@ def load_outputs(test_data_dir):
         ref_outputs.append(numpy_helper.to_array(tensor))
     return ref_outputs
 
-def infer(data):
-    # Create TensorRT Inference Manager
-    models = yais.InferenceManager(1)
-    #flowers50 = models.register_tensorrt_engine("flowers", "/work/models/ResNet-50-b1-fp32.engine")
-    mnist = models.register_tensorrt_engine("mnist", "/work/models/onnx/mnist-v1.3/mnist-v1.3.engine")
-    engines = models.cuda()
-
+def infer(model, data):
     # benchmark performance
     # time.sleep(2)
-    future = mnist.infer(data)
+    #future = mnist.infer(data)
+    #future = mnist.test(Input3=data)
+    future = model.kw(Input3=data)
     start = time.time()
     print("queued")
     future.wait()
     result = future.get()
-    print(result)
-    print(result.shape)
     print("finished")
     end = time.time()
     print(end-start)
     return result.reshape((1,10))
 
 if __name__ == "__main__":
+    models = yais.InferenceManager(1)
+    mnist = models.register_tensorrt_engine("mnist", "/work/models/onnx/mnist-v1.3/mnist-v1.3.engine")
+    models.cuda()
+
     inputs = load_inputs("/work/models/onnx/mnist-v1.3/test_data_set_0")
     outputs = load_outputs("/work/models/onnx/mnist-v1.3/test_data_set_0")
-    results = [infer(inputs)]
-    print(results)
-    print(outputs)
+    results = [ infer(mnist, inputs[0]) ]
     np.testing.assert_almost_equal(results, outputs, decimal=2) 
