@@ -48,7 +48,7 @@ class SystemV : public HostMemory, public IAllocatable
 
   public:
     virtual ~SystemV() override;
-    const std::string& Type() const final override;
+    const std::string& Type() const override;
 
     static DescriptorHandle<SystemV> Attach(int shm_id);
 

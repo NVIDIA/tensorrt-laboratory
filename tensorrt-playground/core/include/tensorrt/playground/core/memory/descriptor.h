@@ -34,8 +34,8 @@ template<typename MemoryType>
 class Descriptor : public MemoryType
 {
   protected:
-    Descriptor(MemoryType&&);
-    Descriptor(void*, size_t);
+    Descriptor(MemoryType&&, const std::string&);
+    Descriptor(void*, size_t, const std::string&);
 
     Descriptor(Descriptor&&) noexcept;
     Descriptor& operator=(Descriptor&&) noexcept;
@@ -45,6 +45,10 @@ class Descriptor : public MemoryType
 
   public:
     virtual ~Descriptor() override;
+    const std::string& Type() const final override;
+
+  private:
+    std::string m_Desc;
 };
 
 template<typename MemoryType>

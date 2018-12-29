@@ -102,7 +102,10 @@ DescriptorHandle<SystemV> SystemV::Attach(int shm_id)
     class DescriptorImpl final : public Descriptor<SystemV>
     {
       public:
-        explicit DescriptorImpl(int shm_id) : Descriptor<SystemV>(std::move(SystemV(shm_id))) {}
+        explicit DescriptorImpl(int shm_id)
+            : Descriptor<SystemV>(std::move(SystemV(shm_id)), "Attached")
+        {
+        }
         virtual ~DescriptorImpl() override {}
 
         DescriptorImpl(DescriptorImpl&& other) : Descriptor<SystemV>(std::move(other)) {}

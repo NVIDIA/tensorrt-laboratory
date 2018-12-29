@@ -42,7 +42,7 @@ class CudaManagedMemory : public DeviceMemory, public IAllocatable
 {
   public:
     using DeviceMemory::DeviceMemory;
-    const std::string& Type() const final override;
+    const std::string& Type() const override;
 
   protected:
     void* Allocate(size_t) final override;

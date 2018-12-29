@@ -49,7 +49,7 @@ class SmartStack : public MemoryStack<MemoryType>,
       public:
         StackDescriptorImpl(std::shared_ptr<const SmartStack<MemoryType>> stack, void* ptr,
                             size_t size)
-            : Descriptor<MemoryType>(ptr, size), m_Stack(stack),
+            : Descriptor<MemoryType>(ptr, size, "SmartStack"), m_Stack(stack),
               m_Offset(Stack().Offset(this->Data()))
         {
         }

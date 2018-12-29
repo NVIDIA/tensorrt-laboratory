@@ -37,7 +37,7 @@ class Malloc : public HostMemory, public IAllocatable
 {
   public:
     using HostMemory::HostMemory;
-    const std::string& Type() const final override;
+    const std::string& Type() const override;
 
   protected:
     void* Allocate(size_t) final override;

@@ -33,25 +33,27 @@ namespace Memory {
 
 // Descriptor
 
-template <typename MemoryType>
-Descriptor<MemoryType>::Descriptor(MemoryType&& other) : MemoryType(std::move(other)) 
+template<typename MemoryType>
+Descriptor<MemoryType>::Descriptor(MemoryType&& other, const std::string& desc)
+    : MemoryType(std::move(other)), m_Desc(MemoryType::Type() + "(" + desc + ")")
 {
-    DLOG(INFO) << "Descriptor<" << this->Type() << "> mem_ctor [" << this << "]: ptr=" << this->Data()
-               << "; size=" << this->Size();
+    DLOG(INFO) << "Descriptor<" << this->Type() << "> mem_ctor [" << this
+               << "]: ptr=" << this->Data() << "; size=" << this->Size();
 }
 
 template<class MemoryType>
-Descriptor<MemoryType>::Descriptor(void* ptr, size_t size) : MemoryType(ptr, size, false)
+Descriptor<MemoryType>::Descriptor(void* ptr, size_t size, const std::string& desc)
+    : MemoryType(ptr, size, false), m_Desc(MemoryType::Type() + "(" + desc + ")")
 {
-    DLOG(INFO) << "Descriptor<" << this->Type() << "> ptr_size_ctor [" << this << "]: ptr=" << this->Data()
-               << "; size=" << this->Size();
+    DLOG(INFO) << "Descriptor<" << this->Type() << "> ptr_size_ctor [" << this
+               << "]: ptr=" << this->Data() << "; size=" << this->Size();
 }
 
 template<class MemoryType>
 Descriptor<MemoryType>::Descriptor(Descriptor&& other) noexcept : MemoryType(std::move(other))
 {
-    DLOG(INFO) << "Descriptor<" << this->Type() << "> mv_ctor [" << this << "]: ptr=" << this->Data()
-               << "; size=" << this->Size();
+    DLOG(INFO) << "Descriptor<" << this->Type() << "> mv_ctor [" << this
+               << "]: ptr=" << this->Data() << "; size=" << this->Size();
 }
 
 template<class MemoryType>
@@ -61,12 +63,17 @@ Descriptor<MemoryType>& Descriptor<MemoryType>::operator=(Descriptor<MemoryType>
     return *this;
 }
 
-
 template<class MemoryType>
 Descriptor<MemoryType>::~Descriptor()
 {
     DLOG(INFO) << "~Descriptor<" << this->Type() << "> [" << this << "]: ptr=" << this->Data()
                << "; size=" << this->Size();
+}
+
+template<class MemoryType>
+const std::string& Descriptor<MemoryType>::Type() const
+{
+    return m_Desc;
 }
 
 } // namespace Memory
