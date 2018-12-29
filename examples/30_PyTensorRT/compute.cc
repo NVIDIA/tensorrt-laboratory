@@ -188,7 +188,17 @@ struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
             }
         }
     */
+/*j
+    const Model& Model() const
+    {
+        return *m_Model;
+    }
 
+    const InferenceManager& Resources() const
+    {
+        return *m_Resources;
+    }
+*/
     std::shared_ptr<Model> m_Model;
     std::shared_ptr<InferenceManager> m_Resources;
 };
@@ -196,6 +206,7 @@ struct InferModel : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
 struct PyInferModel : public InferModel
 {
     using InferModel::InferModel;
+    using InferResults = py::dict;
 
     auto InferData(py::array_t<float> data)
     {
@@ -250,14 +261,13 @@ struct PyInferModel : public InferModel
             }
         }
         bindings->SetBatchSize(batch_size);
-        // return InferModel::Infer(bindings, [](std::shared_ptr<Bindings>& bindings) -> py::array_t<float> {
         // return InferModel::Infer(bindings, [](std::shared_ptr<Bindings>& bindings) -> py::dict {
         // return InferModel::Infer(bindings, [](std::shared_ptr<Bindings>& bindings) -> py::array_t<float> {
         // return InferModel::Infer(bindings, [](std::shared_ptr<Bindings>& bindings) -> std::vector<py::array_t<float>> {
         // return InferModel::Infer(bindings, [](std::shared_ptr<Bindings>& bindings) -> py::array_t<float> {
-        return InferModel::Infer(bindings, [](std::shared_ptr<Bindings>& bindings) -> py::dict {
+        return InferModel::Infer(bindings, [](std::shared_ptr<Bindings>& bindings) -> InferResults {
             // py::gil_scoped_acquire acquire;
-            auto results = py::dict();
+            auto results = InferResults();
             // std::vector<py::array_t<float>> results;
             // py::array_t<float> results;
             for (const auto& id : bindings->OutputBindings())
@@ -295,9 +305,8 @@ PYBIND11_MODULE(infer, m)
         .def("infer_data", &PyInferModel::InferData) // , py::call_guard<py::gil_scoped_release>())
         .def("infer", &PyInferModel::Infer); //, py::call_guard<py::gil_scoped_release>());
 
-    py::class_<std::shared_future<py::dict>>(m, "InferenceFutureResult")
-        .def("get", &std::shared_future<py::dict>::get,
-             py::call_guard<py::gil_scoped_release>());
+    py::class_<std::shared_future<typename PyInferModel::InferResults>>(m, "InferenceFutureResult")
+        .def("get", &std::shared_future<typename PyInferModel::InferResults>::get, py::call_guard<py::gil_scoped_release>());
         //.def("wait", &std::shared_future<py::array_t<float>>::wait,
         //     py::call_guard<py::gil_scoped_release>())
         // .def("get", &std::shared_future<py::array_t<float>>::get,
