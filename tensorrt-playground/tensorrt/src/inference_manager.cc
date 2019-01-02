@@ -64,7 +64,7 @@ InferenceManager::~InferenceManager() { JoinAllThreads(); }
 /**
  * @brief Register a Model with the InferenceManager object
  */
-void InferenceManager::RegisterModel(std::string name, std::shared_ptr<Model> model)
+void InferenceManager::RegisterModel(const std::string& name, std::shared_ptr<Model> model)
 {
     RegisterModel(name, model, m_MaxExecutions);
 }
@@ -76,7 +76,7 @@ void InferenceManager::RegisterModel(std::string name, std::shared_ptr<Model> mo
  * must be 1 <= concurrency <= MaxConcurrency.  Larger values will be capped to the maximum
  * concurrency allowed by the InferenceManager object.
  */
-void InferenceManager::RegisterModel(std::string name, std::shared_ptr<Model> model,
+void InferenceManager::RegisterModel(const std::string& name, std::shared_ptr<Model> model,
                                      uint32_t max_concurrency)
 {
     auto item = m_Models.find(name);
@@ -256,7 +256,7 @@ auto InferenceManager::GetExecutionContext(const std::shared_ptr<Model>& model)
     return GetExecutionContext(model.get());
 }
 
-auto InferenceManager::GetThreadPool(std::string name) -> ThreadPool&
+auto InferenceManager::ThreadPool(const std::string& name) -> ::yais::ThreadPool&
 {
     // std::shared_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
     auto search = m_ThreadPools.find(name);
@@ -264,13 +264,19 @@ auto InferenceManager::GetThreadPool(std::string name) -> ThreadPool&
     return *(search->second);
 }
 
-void InferenceManager::SetThreadPool(std::string name, std::unique_ptr<ThreadPool> threads)
+void InferenceManager::RegisterThreadPool(const std::string& name, std::unique_ptr<::yais::ThreadPool> threads)
 {
     // std::unique_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
     DLOG(INFO) << "Registering ThreadPool: " << name;
     // Old threadpools will continute to live until all threads are joined.
     // this may need a mutex
     m_ThreadPools[name].swap(threads);
+}
+
+bool InferenceManager::HasThreadPool(const std::string& name) const
+{
+    auto search = m_ThreadPools.find(name);
+    return (bool)(search != m_ThreadPools.end());    
 }
 
 void InferenceManager::JoinAllThreads()
