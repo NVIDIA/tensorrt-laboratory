@@ -106,7 +106,7 @@ class SmartStack : public MemoryStack<MemoryType>,
         DLOG(INFO) << "Allocated " << ret->Size() << " starting at " << ret->Data()
                    << " on SmartStack " << stack.get();
 
-        return ret;
+        return std::move(ret);
     }
 };
 
