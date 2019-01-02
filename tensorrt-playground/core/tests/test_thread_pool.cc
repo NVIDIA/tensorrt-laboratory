@@ -55,3 +55,8 @@ TEST_F(TestThreadPool, ReturnChainedInt)
         thread_pool->enqueue([this] { return thread_pool->enqueue([] { return 1; }); });
     ASSERT_EQ(1, should_be_1.get().get());
 }
+
+TEST_F(TestThreadPool, MakeUnique)
+{
+    auto unqiue = std::make_unique<ThreadPool>(1);
+}
