@@ -15,3 +15,9 @@ http_archive(
 load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
 
 grpc_deps()
+
+load ("//:cuda_configure.bzl", "cuda_configure")
+cuda_configure(name = "local_config_cuda")
+
+load ("//:tensorrt_configure.bzl", "tensorrt_configure")
+tensorrt_configure(name = "local_config_tensorrt")
