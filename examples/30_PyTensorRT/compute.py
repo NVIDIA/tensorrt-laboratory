@@ -3,7 +3,7 @@ import time
 from concurrent import futures
 
 import numpy as np
-import infer as yais
+import infer
 
 import onnx
 import os
@@ -39,29 +39,21 @@ def load_outputs(test_data_dir):
         ref_outputs.append(numpy_helper.to_array(tensor))
     return ref_outputs
 
-def infer(model, data):
-    # benchmark performance
-    # time.sleep(2)
-    #future = mnist.infer(data)
-    #future = mnist.test(Input3=data)
-    future = model.infer(Input3=data)
-    start = time.time()
-    print("queued")
-    result = future.get()
-    print("finished")
-    end = time.time()
-    print(end-start)
-    return result
 
 if __name__ == "__main__":
-    models = yais.InferenceManager(max_executions=2)
+    models = infer.InferenceManager(max_executions=2)
     mnist = models.register_tensorrt_engine("mnist", "/work/models/onnx/mnist-v1.3/mnist-v1.3.engine")
+    print(mnist.input_bindings())
     models.update_resources()
 
     inputs = load_inputs("/work/models/onnx/mnist-v1.3/test_data_set_0")
     outputs = load_outputs("/work/models/onnx/mnist-v1.3/test_data_set_0")
-    results = infer(mnist, inputs[0])
-    for key, val in results.items():
-        print(key)
-        results = [ val.reshape((1,10)) ]
-        np.testing.assert_almost_equal(results, outputs, decimal=2) 
+    start = time.process_time()
+    results = [mnist.infer(Input3=input) for input in inputs]
+    results = [r.get() for r in results]
+    print("Compute Time: {}".format(time.process_time() - start))
+    for r in results:
+        for key, val in r.items():
+            print("Output Binding Name: {}; shape{}".format(key, val.shape))
+            result = [ val.reshape((1,10)) ]
+            np.testing.assert_almost_equal(result, outputs, decimal=3) 
