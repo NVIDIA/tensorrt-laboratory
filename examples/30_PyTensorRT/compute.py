@@ -54,9 +54,9 @@ def infer(model, data):
     return result
 
 if __name__ == "__main__":
-    models = yais.InferenceManager(1)
+    models = yais.InferenceManager(max_executions=2)
     mnist = models.register_tensorrt_engine("mnist", "/work/models/onnx/mnist-v1.3/mnist-v1.3.engine")
-    models.cuda()
+    models.update_resources()
 
     inputs = load_inputs("/work/models/onnx/mnist-v1.3/test_data_set_0")
     outputs = load_outputs("/work/models/onnx/mnist-v1.3/test_data_set_0")
