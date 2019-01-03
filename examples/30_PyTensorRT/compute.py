@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import itertools
 import os
 import time
 
@@ -16,18 +17,18 @@ def main():
     print("Input Bindings: {}".format(mnist.input_bindings()))
 
     inputs = utils.load_inputs("/work/models/onnx/mnist-v1.3/test_data_set_0")
-    outputs = utils.load_outputs("/work/models/onnx/mnist-v1.3/test_data_set_0")
+    expected = utils.load_outputs("/work/models/onnx/mnist-v1.3/test_data_set_0")
 
     start = time.process_time()
     results = [mnist.infer(Input3=input) for input in inputs]
     results = [r.get() for r in results]
     print("Compute Time: {}".format(time.process_time() - start))
 
-    for r in results:
+    for r, e in zip(results, expected):
         for key, val in r.items():
             print("Output Binding Name: {}; shape{}".format(key, val.shape))
-            result = [ val.reshape((1,10)) ]
-            np.testing.assert_almost_equal(result, outputs, decimal=3) 
+            r = val.reshape((1,10))
+            np.testing.assert_almost_equal(r, e, decimal=3) 
 
 if __name__ == "__main__":
     main()
