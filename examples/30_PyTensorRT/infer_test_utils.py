@@ -4,6 +4,8 @@ import os
 
 import onnx
 from onnx import numpy_helper
+from matplotlib import pyplot as plt
+import numpy as np
 
 def load_inputs(test_data_dir):
     # Load inputs
@@ -29,3 +31,12 @@ def load_outputs(test_data_dir):
         ref_outputs.append(numpy_helper.to_array(tensor))
     return ref_outputs
 
+def mnist_image(data):
+    two_d = (np.reshape(data, (28, 28))).astype(np.uint8)
+    plt.imshow(two_d, interpolation='nearest')
+    return plt
+
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()

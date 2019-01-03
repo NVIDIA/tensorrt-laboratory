@@ -38,12 +38,9 @@ RUN apt update && apt install -y --no-install-recommends build-essential autocon
 env LC_ALL=C.UTF-8
 env LANG=C.UTF-8
 
-COPY requirements.txt /tmp/requirements.txt
-
 RUN python3 -m pip install --upgrade pip \
  && python3 -m pip install --upgrade setuptools \
- && python3 -m pip install -r /tmp/requirements.txt \
- && rm -f /tmp/requirements.txt
+ && python3 -m pip install cmake==3.11.0
 
 # install gflags
 # -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_gflags_LIB=ON .. \
@@ -166,9 +163,16 @@ RUN wget https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/ba
  && ./bazel-$BAZEL_VERSION-installer-linux-x86_64.sh \
  && rm -f bazel-$BAZEL_VERSION-installer-linux-x86_64.sh
 
-# NVIDIA/YAIS
+# ===================
+# TensorRT Playground
+# ===================
+
+COPY requirements.txt /tmp/requirements.txt
+
+RUN python3 -m pip install -r /tmp/requirements.txt \
+ && rm -f /tmp/requirements.txt
 
 WORKDIR /work
 COPY . .
-#RUN ./build.sh && rm -rf build
+RUN ./build.sh
 

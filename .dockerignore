@@ -1,5 +1,4 @@
 build
-models
 *.engine
 @eaDir
 __pycache__

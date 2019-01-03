@@ -224,8 +224,6 @@ PYBIND11_MODULE(infer, m)
         .def("input_bindings", &PyInferRunner::InputBindings); //, py::call_guard<py::gil_scoped_release>());
 
     py::class_<std::shared_future<typename PyInferRunner::InferResults>>(m, "InferenceFutureResult")
-        .def("wait", &std::shared_future<typename PyInferRunner::InferResults>::wait,
-             py::call_guard<py::gil_scoped_release>())
-        .def("get", &std::shared_future<typename PyInferRunner::InferResults>::get,
-             py::call_guard<py::gil_scoped_release>());
+        .def("wait", &std::shared_future<typename PyInferRunner::InferResults>::wait) // py::call_guard<py::gil_scoped_release>())
+        .def("get", &std::shared_future<typename PyInferRunner::InferResults>::get); // py::call_guard<py::gil_scoped_release>());
 }
