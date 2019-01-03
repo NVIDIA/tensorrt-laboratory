@@ -1,0 +1,8 @@
+exports_files([
+    "core",
+    "cuda",
+    "nvrpc",
+    "tensorrt",
+    ],
+    visibility = ["//visibility:public"],
+)
