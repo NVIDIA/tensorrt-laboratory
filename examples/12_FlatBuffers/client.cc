@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
   auto start = std::chrono::steady_clock::now();
   for(int i=0; i<FLAGS_count; i++) {
       auto reply = client.Compute(i);
-      LOG(INFO) << reply;
+      LOG_FIRST_N(INFO, 20) << reply;
   }
   auto end = std::chrono::steady_clock::now();
   float elapsed = std::chrono::duration<float>(end - start).count();

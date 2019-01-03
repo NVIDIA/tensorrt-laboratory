@@ -113,8 +113,8 @@ class InferenceManager : public ::yais::Resources
     auto GetExecutionContext(const Model *model) -> std::shared_ptr<ExecutionContext>;
     auto GetExecutionContext(const std::shared_ptr<Model> &model) -> std::shared_ptr<ExecutionContext>;
 
-    auto ThreadPool(const std::string&) -> ::yais::ThreadPool&;
-    void RegisterThreadPool(const std::string&, std::unique_ptr<::yais::ThreadPool> threads);
+    auto AcquireThreadPool(const std::string&) -> ThreadPool&;
+    void RegisterThreadPool(const std::string&, std::unique_ptr<ThreadPool> threads);
     bool HasThreadPool(const std::string&) const;
     void JoinAllThreads();
 
@@ -127,7 +127,7 @@ class InferenceManager : public ::yais::Resources
     std::shared_ptr<Pool<Buffers>> m_Buffers;
     std::shared_ptr<Pool<ExecutionContext>> m_ExecutionContexts;
     std::map<std::string, std::shared_ptr<Model>> m_Models;
-    std::map<std::string, std::unique_ptr<::yais::ThreadPool>> m_ThreadPools;
+    std::map<std::string, std::unique_ptr<ThreadPool>> m_ThreadPools;
     std::map<const Model *, std::shared_ptr<Pool<::nvinfer1::IExecutionContext>>> m_ModelExecutionContexts;
     // mutable std::shared_mutex m_ThreadPoolMutex;
 

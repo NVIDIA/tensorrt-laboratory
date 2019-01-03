@@ -58,7 +58,7 @@ static std::string ModelName(int model_id)
 class InferenceResources : public InferenceManager
 {
   public:
-    InferenceResources(int max_executions, int max_buffers, int nCuda, int nResp)
+    InferenceResources(int max_executions, int max_buffers, size_t nCuda, size_t nResp)
         : InferenceManager(max_executions, max_buffers),
           m_CudaThreadPool(std::make_unique<ThreadPool>(nCuda)),
           m_ResponseThreadPool(std::make_unique<ThreadPool>(nResp)) {}

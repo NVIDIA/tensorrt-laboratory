@@ -24,8 +24,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+RUN installTRT.sh 5.1.0.1
+
 RUN apt update && apt install -y --no-install-recommends build-essential autoconf libtool git \
         curl wget pkg-config sudo ca-certificates vim-tiny automake libssl-dev bc python3-pip \
+        google-perftools \
  && apt remove -y cmake \
  && apt remove -y libgflags-dev libgflags2v5 \
  && apt remove -y libprotobuf-dev \
@@ -60,10 +63,11 @@ RUN git clone -b v0.3.5 https://github.com/google/glog.git \
  && cmake --build build --target install \
  && cd /tmp && rm -rf glog
 
+# grpc 1.17.x is blocked by: https://github.com/google/flatbuffers/pull/5100
 # cmake build per: https://github.com/grpc/grpc/blob/master/test/distrib/cpp/run_distrib_test_cmake.sh
 # -DCMAKE_INSTALL_PREFIX:PATH=/usr to overwrite the version of protobuf installed in the TensorRT base image
 WORKDIR /source
-RUN git clone -b v1.13.0 https://github.com/grpc/grpc \
+RUN git clone -b v1.16.1 https://github.com/grpc/grpc \
  && cd grpc \
  && git submodule update --init \
  && cd third_party/cares/cares \ 
@@ -151,6 +155,16 @@ RUN git clone -b v1.10.0 https://github.com/google/flatbuffers.git \
  && make -j$(nproc) install \
  && rm -rf /flatbuffers
 
+RUN apt update && apt install -y --no-install-recommends \
+    pkg-config zip g++ zlib1g-dev unzip python \
+ && rm -rf /var/lib/apt/lists/*
+
+ENV BAZEL_VERSION="0.21.0"
+
+RUN wget https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/bazel-$BAZEL_VERSION-installer-linux-x86_64.sh \
+ && chmod +x bazel-$BAZEL_VERSION-installer-linux-x86_64.sh \
+ && ./bazel-$BAZEL_VERSION-installer-linux-x86_64.sh \
+ && rm -f bazel-$BAZEL_VERSION-installer-linux-x86_64.sh
 
 # NVIDIA/YAIS
 

@@ -30,60 +30,28 @@
 #include <thread>
 
 #include "nvrpc/executor.h"
-#include "nvrpc/life_cycle_unary_fb.h"
 #include "nvrpc/server.h"
 #include "nvrpc/service.h"
-#include "tensorrt/playground/core/pool.h"
 #include "tensorrt/playground/core/resources.h"
-#include "tensorrt/playground/core/thread_pool.h"
 
 #include "example.grpc.fb.h"
 #include "example_generated.h"
 
 using yais::AsyncRPC;
 using yais::AsyncService;
-using yais::BaseContext;
+using yais::Context;
 using yais::Executor;
 using yais::Resources;
 using yais::Server;
-using yais::ThreadPool;
-
-using yais::LifeCycleUnaryFB;
-
-template<class Request, class Response, class Resources>
-using Context = BaseContext<LifeCycleUnaryFB<Request, Response>, Resources>;
 
 using Request = flatbuffers::grpc::Message<HelloRequest>;
 using Response = flatbuffers::grpc::Message<HelloReply>;
 
-// CLI Options
-DEFINE_int32(thread_count, 1, "Size of thread pool");
 
-// Define the resources your RPC will need to execute
-// ==================================================
-// In this case, all simple::Inference::Compute RPCs share a threadpool in which they will
-// queue up some work on.  This essentially means, after the message as been received and
-// processed, the actual work for the RPC is pushed to a worker pool outside the scope of
-// the transaction processing system (TPS).  This is essentially async computing, we have
-// decoupled the transaction from the workers executing the implementation.  The TPS can
-// continue to queue work, while the workers process the load.
 struct SimpleResources : public Resources
 {
-    SimpleResources(int numThreadsInPool = 3) : m_ThreadPool(numThreadsInPool) {}
-
-    ThreadPool& GetThreadPool()
-    {
-        return m_ThreadPool;
-    }
-
-  private:
-    ThreadPool m_ThreadPool;
 };
 
-// Contexts hold the state and provide the definition of the work to be performed by the RPC.
-// This is where you define what gets executed for a given RPC.
-// Incoming Message = simple::Input (RequestType)
-// Outgoing Message = simple::Output (ResponseType)
 class SimpleContext final : public Context<Request, Response, SimpleResources>
 {
     void ExecuteRPC(Request& input, Response& output) final override

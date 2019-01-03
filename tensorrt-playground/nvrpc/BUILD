@@ -9,7 +9,7 @@ cc_library(
         "include/**/*.h",
     ]),
     deps = [
-        "//core",
+        "//tensorrt-playground/core",
         "@com_github_grpc_grpc//:grpc++_unsecure",
     ],
     strip_include_prefix = "include",

@@ -53,6 +53,7 @@ namespace TensorRT
 
       protected:
         Runtime();
+        // TODO: Runtime(std::unique_ptr<::nvinfer1::ILogger>);
         std::vector<char> ReadEngineFile(std::string);
         ::nvinfer1::IRuntime* GetRuntime()
         {
@@ -72,7 +73,7 @@ namespace TensorRT
         // the order they are declared, not in the order they appear in the initializer list.
         // Inverting these causes m_Runtime to be initialized with a NULL m_Logger and was the
         // source of much head banging.
-        std::unique_ptr<Logger> m_Logger;
+        std::unique_ptr<::nvinfer1::ILogger> m_Logger;
         std::unique_ptr<::nvinfer1::IRuntime, NvInferDeleter> m_Runtime;
     };
 

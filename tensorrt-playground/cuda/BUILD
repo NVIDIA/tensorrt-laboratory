@@ -9,7 +9,7 @@ cc_library(
         "include/**/*.h",
     ]),
     deps = [
-        "//core",
+        "//tensorrt-playground/core",
         "@local_config_cuda//:cuda_headers",
         "@local_config_cuda//:cuda_runtime",
     ],

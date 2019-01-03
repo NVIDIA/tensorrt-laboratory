@@ -37,7 +37,7 @@
 #include "tensorrt/playground/core/affinity.h"
 #include "tensorrt/playground/core/memory/allocator.h"
 #include "tensorrt/playground/cuda/device_info.h"
-#include "tensorrt/playground/cuda/memory.h"
+#include "tensorrt/playground/cuda/memory/cuda_pinned_host.h"
 #include "tensorrt/playground/runtime.h"
 #include "tensorrt/playground/inference_manager.h"
 

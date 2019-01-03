@@ -117,5 +117,26 @@ class Bindings
     friend class Buffers;
 };
 
+/*
+class Workspace
+{
+  public:
+    HostMemory& HostDescriptor(const std::string&);
+    const HostMemory& HostDescriptor(const std::string&) const;
+    void HostDescriptor(const std::string&, DescriptorHandle<HostMemory>);
+
+    DeviceMemory& DeviceDescriptor(const std::string&);
+    const HostMemory& DeviceDescriptor(const std::string&) const;
+    void DeviceDescriptor(const std::string&, DescriptorHandle<DeviceMemory>);
+
+    std::shared_ptr<Bindings> ExportBindings(const std::string& model);
+
+  private:
+    std::map<std::string, DescriptorHandle<HostMemory>> m_HostDescriptors;
+    std::map<std::string, DescriptorHandle<DeviceMemory>> m_DeviceDescriptors;
+    std::shared_ptr<InferenceManager> m_Resources;
+};
+*/
+
 } // namespace TensorRT
 } // namespace yais

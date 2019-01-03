@@ -24,14 +24,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "YAIS/YAIS.h"
-#include "tensorrt/playground/cuda/device_info.h"
 #include "YAIS/Metrics.h"
 #include "YAIS/TensorRT/TensorRT.h"
+#include "YAIS/YAIS.h"
+#include "tensorrt/playground/cuda/device_info.h"
 
 #include <glog/logging.h>
-#include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
 namespace py = pybind11;
@@ -43,26 +43,128 @@ using yais::Metrics;
 using yais::Server;
 using yais::ThreadPool;
 using yais::TensorRT::Bindings;
-using yais::TensorRT::ManagedRuntime;
 using yais::TensorRT::InferenceManager;
+using yais::TensorRT::ManagedRuntime;
 using yais::TensorRT::Runtime;
 
-class Inference;
-class InferenceManager;
-void Serve(std::shared_ptr<InferenceManager>);
+class BaseInfer
+{
+    using BindingsHandle = std::shared_ptr<Bindings>;
+    using HostMap = std::map<std::string, DescriptorHandle<HostMemory>>;
+    using DeviceMap = std::map<std::string, DescriptorHandle<DeviceMemory>>;
 
-class InferenceManager : public InferenceManager
+    template<typename T>
+    class Result
+    {
+      public:
+        Result() {}
+        Result(Result&& other) : m_Promise{std::move(other.m_Promise)} {}
+        virtual Result() {}
+
+        using ResultHandle = std::unqiue_ptr<T>;
+        using Future = std::future<ResultHandle>;
+        using PostFn = std::function<ResultHandle(std : shared_ptr<Bindings>)>;
+
+        void operator()(ResultHandle result)
+        {
+            m_Promise.set_value(std::move(result));
+        }
+
+        Future GetFuture()
+        {
+            return m_Promise.get_future();
+        }
+
+      private:
+        std::promise<ResultHandle> m_Promise;
+    };
+
+    template<typename T>
+    typename Result<T>::Future operator(PreFn pre, Result<T>::PostFn post)
+    {
+        auto result = std::make_shared<Result<T>>();
+        auto wrapped_post = [post, result](BindingsHandle bindings) mutable {
+            auto val = post(bindings);
+            results(std::move(val));
+        } Execute(pre, post);
+        return results->GetFuture();
+    }
+
+    auto operator(HostMap& inputs)
+    {
+        auto Preprocess = [this, &inputs](BindingsHandle bindings) mutable {
+            PreprocessInputs(inputs, bindings);
+            PreprocessOutputs(outputs, bindings);
+            for(const auto& id : bindings->GetOutputBindingIds())
+            {
+                const auto& b = bindings->GetBinding(id);
+                auto search = outputs.find(b.name);
+                if(search == outputs.end())
+                {
+                    DLOG(INFO) << "Skipping d2h xfer for output binding: " << b.name;
+                    bindings->SetHostAddress(id, nullptr);
+                }
+            }
+        } auto Postprocess = [this, result, outputs](std::shared_ptr<Bindings> bindings) mutable {
+            for(const auto& kw : outputs)
+            {
+                bindings->CopyFromHost(kw->first, kw->second);
+            }
+            results(std::move(outputs));
+        };
+        Compute(Preprocess, Postprocess);
+        return result->GetFuture();
+    }
+
+    virtual void PreprocessInputs(Kwargs& inputs, Bindings& bindings)
+    {
+        for(const auto& id : bindings->InputBindings())
+        {
+            const auto& b = bindings->GetBinding(id);
+            auto search = inputs.find(b.name);
+            CHECK_NE(search, inputs.end()) << "Binding " << b.name << " not provided";
+            CopyOfSetBindingAddress(id, search->second);
+        }
+    }
+
+    void CopyToOrSetBindingAddress(uint32_t binding_id, DescriptorHandle<CoreMemory>) {}
+}
+
+class InferenceManagerImpl : public InferenceManager
 {
   public:
+    template<typename ResultsType>
+    class RawTensorInfer
+    {
+      public:
+        using BindingsHandle = std::shared_ptr<Bindings>;
+        using ResultsHandle = std::unique_ptr<ResultsType>;
+        using FutureResult = std::future<ResultsHandle>;
+
+        RawTensorInfer();
+        RawTensorInfer(RawTensorInfer&&);
+        virtual ~Runner();
+
+        template<typename ResultsType>
+        FutureResult operator()(BindingsHandle bindings)
+
+            FutureResult GetFuture();
+
+      private:
+        std::promise<ResultsType> m_Promise;
+    };
+
     InferenceManager(int max_executions, int max_buffers, int nCuda, int nResp)
-        : InferenceManager(max_executions, max_buffers),
-          m_CudaThreadPool(std::make_unique<ThreadPool>(nCuda)),
-          m_ResponseThreadPool(std::make_unique<ThreadPool>(nResp)),
-          m_PreprocessThreadPool(std::make_unique<ThreadPool>(3)) {}
+        : InferenceManager(max_executions, max_buffers)
+    {
+        RegisterThreadPool("CudaLauncher", std::make_unique<ThreadPool>(1));
+        RegisterThreadPool("Preprocess", std::make_unique<ThreadPool>(1));
+        RegisterThreadPool("Postprocess", std::make_unique<ThreadPool>(3));
+    }
 
     ~InferenceManager() override {}
 
-    std::shared_ptr<Inference> RegisterModelByPath(std::string path, std::string name)
+    std::shared_ptr<Inference> RegisterModelByPath(const std::string& name, const std::string& path)
     {
         auto model = Runtime::DeserializeEngine(path);
         RegisterModel(name, model);
@@ -81,13 +183,23 @@ class InferenceManager : public InferenceManager
         return casted_shared_from_this<InferenceManager>();
     }
 
-    void serve() {
+    void serve()
+    {
         Serve(casted_shared_from_this<InferenceManager>());
     }
 
-    std::unique_ptr<ThreadPool> &GetCudaThreadPool() { return m_CudaThreadPool; }
-    std::unique_ptr<ThreadPool> &GetResponseThreadPool() { return m_ResponseThreadPool; }
-    std::unique_ptr<ThreadPool> &GetPreprocessThreadPool() { return m_PreprocessThreadPool; }
+    std::unique_ptr<ThreadPool>& GetCudaThreadPool()
+    {
+        return m_CudaThreadPool;
+    }
+    std::unique_ptr<ThreadPool>& GetResponseThreadPool()
+    {
+        return m_ResponseThreadPool;
+    }
+    std::unique_ptr<ThreadPool>& GetPreprocessThreadPool()
+    {
+        return m_PreprocessThreadPool;
+    }
 
   private:
     std::unique_ptr<ThreadPool> m_CudaThreadPool;
@@ -97,24 +209,25 @@ class InferenceManager : public InferenceManager
 
 class Inference : public std::enable_shared_from_this<Inference>
 {
-
   public:
     Inference(std::string model_name, std::shared_ptr<InferenceManager> resources)
-        : m_Resources(resources), m_ModelName(model_name) {}
+        : m_Resources(resources), m_ModelName(model_name)
+    {
+    }
 
     using FutureResult = std::future<std::shared_ptr<Inference>>;
 
-    FutureResult PyData(py::array_t<float> &data)
+    FutureResult PyData(py::array_t<float>& data)
     {
         auto context = std::make_shared<Inference>(m_ModelName, m_Resources);
         // GetResources()->GetPreprocessThreadPool()->enqueue([this, context, &data] {
-            auto bindings = GetBindings();
-            CHECK_EQ(data.shape(0), bindings->GetModel()->GetMaxBatchSize());
-            LOG(INFO) << "data from python is " << data.nbytes() << " bytes";
-            // bindings->SetHostAddress(0, (void *)data.data());
-            auto pinned = bindings->HostAddress(0);
-            std::memcpy(pinned, data.data(), data.nbytes());
-            Infer(context, bindings);
+        auto bindings = GetBindings();
+        CHECK_EQ(data.shape(0), bindings->GetModel()->GetMaxBatchSize());
+        LOG(INFO) << "data from python is " << data.nbytes() << " bytes";
+        // bindings->SetHostAddress(0, (void *)data.data());
+        auto pinned = bindings->HostAddress(0);
+        std::memcpy(pinned, data.data(), data.nbytes());
+        Infer(context, bindings);
         //});
         return context->GetFuture();
     }
@@ -129,10 +242,10 @@ class Inference : public std::enable_shared_from_this<Inference>
 
     std::string Test(py::kwargs kwargs)
     {
-        for (auto item : kwargs) 
+        for(auto item : kwargs)
         {
             LOG(INFO) << "key: " << item.first;
-            LOG(INFO) << "batch_size: "  << item.second;
+            LOG(INFO) << "batch_size: " << item.second;
             // auto data = static_cast<py::array_t<float>>(item.second);
             LOG(INFO) << item.second.get_type();
             auto data = py::cast<py::array_t<float>>(kwargs[item.first]);
@@ -143,7 +256,6 @@ class Inference : public std::enable_shared_from_this<Inference>
     }
 
   protected:
-
     std::shared_ptr<Bindings> GetBindings()
     {
         auto model = GetResources()->GetModel(m_ModelName);
@@ -163,26 +275,32 @@ class Inference : public std::enable_shared_from_this<Inference>
         context->GetResources()->GetCudaThreadPool()->enqueue([context, bindings]() mutable {
             DLOG(INFO) << "cuda launch thread";
             bindings->CopyToDevice(bindings->InputBindings());
-            auto trt = context->GetResources()->GetExecutionContext(bindings->GetModel()); // <=== Limited Resource; May Block !!!
+            auto trt = context->GetResources()->GetExecutionContext(
+                bindings->GetModel()); // <=== Limited Resource; May Block !!!
             trt->Infer(bindings);
             bindings->CopyFromDevice(bindings->OutputBindings());
             DLOG(INFO) << "cuda launch thread finished";
 
-            context->GetResources()->GetResponseThreadPool()->enqueue([context, bindings, trt]() mutable {
-                DLOG(INFO) << "response thread starting";
-                // This thread waits on the completion of the async compute and the async copy
-                trt->Synchronize();
-                trt.reset(); // Finished with the Execution Context - Release it to competing threads
-                bindings->Synchronize();
-                bindings.reset(); // Finished with Buffers - Release it to competing threads
-                context->m_Promise.set_value(context);
-                DLOG(INFO) << "response thread finished - inference done";
-            });
+            context->GetResources()->GetResponseThreadPool()->enqueue(
+                [context, bindings, trt]() mutable {
+                    DLOG(INFO) << "response thread starting";
+                    // This thread waits on the completion of the async compute and the async copy
+                    trt->Synchronize();
+                    trt.reset(); // Finished with the Execution Context - Release it to competing
+                                 // threads
+                    bindings->Synchronize();
+                    bindings.reset(); // Finished with Buffers - Release it to competing threads
+                    context->m_Promise.set_value(context);
+                    DLOG(INFO) << "response thread finished - inference done";
+                });
         });
     }
 
   protected:
-    inline std::shared_ptr<InferenceManager> GetResources() { return m_Resources; }
+    inline std::shared_ptr<InferenceManager> GetResources()
+    {
+        return m_Resources;
+    }
 
   private:
     std::string m_ModelName;
@@ -190,90 +308,93 @@ class Inference : public std::enable_shared_from_this<Inference>
     std::promise<std::shared_ptr<Inference>> m_Promise;
 };
 
-
 // NVIDIA Inference Server Protos
-#include "nvidia_inference.pb.h"
 #include "nvidia_inference.grpc.pb.h"
+#include "nvidia_inference.pb.h"
 
 using nvidia::inferenceserver::GRPCService;
 using nvidia::inferenceserver::InferRequest;
 using nvidia::inferenceserver::InferResponse;
+using nvidia::inferenceserver::ServerStatus;
 using nvidia::inferenceserver::StatusRequest;
 using nvidia::inferenceserver::StatusResponse;
-using nvidia::inferenceserver::ServerStatus;
 
-static auto &registry = Metrics::GetRegistry();
+static auto& registry = Metrics::GetRegistry();
 
 // Counters
-static auto &inf_counter = \
-    prometheus::BuildCounter().Name("nv_inference_count").Register(registry);
+static auto& inf_counter = prometheus::BuildCounter().Name("nv_inference_count").Register(registry);
 
-static auto &inf_compute_time = \
+static auto& inf_compute_time =
     prometheus::BuildCounter().Name("nv_inference_compute_duration_us").Register(registry);
 
-static auto &inf_request_time = \
+static auto& inf_request_time =
     prometheus::BuildCounter().Name("nv_inference_request_duration_us").Register(registry);
 
 // Gauge - Periodically measure and report GPU power utilization.  As the load increases
 //         on the service, the power should increase proprotionally, until the power is capped
 //         either by device limits or compute resources.  At this level, the inf_load_ratio
 //         will begin to increase under futher increases in traffic
-static auto &power_usage_gauge = \
+static auto& power_usage_gauge =
     prometheus::BuildGauge().Name("nv_gpu_power_usage").Register(registry);
 
-static auto &power_limit_gauge = \
+static auto& power_limit_gauge =
     prometheus::BuildGauge().Name("nv_gpu_power_limit").Register(registry);
 
 // Histogram - Load Ratio = Request/Compute duration - should just above one for a service
 //             that can keep up with its current load.  This metrics provides more
 //             detailed information on the impact of the queue depth because it accounts
 //             for request time.
-static auto &inf_load_ratio = \
+static auto& inf_load_ratio =
     prometheus::BuildHistogram().Name("nv_inference_load_ratio").Register(registry);
 
 static const std::vector<double> buckets = {1.25, 1.50, 2.0, 10.0, 100.0}; // unitless
 
-
 class StatusContext final : public Context<StatusRequest, StatusResponse, InferenceManager>
 {
-    void ExecuteRPC(StatusRequest &request, StatusResponse &response) final override
+    void ExecuteRPC(StatusRequest& request, StatusResponse& response) final override
     {
         GetResources()->GetResponseThreadPool()->enqueue([this, &request, &response] {
-	    auto model = GetResources()->GetModel(request.model_name());
-	    auto server_status = response.mutable_server_status();
-	    server_status->set_ready_state(::nvidia::inferenceserver::ServerReadyState::SERVER_READY);
-	    auto model_status = server_status->mutable_model_status();
-	    auto config = (*model_status)[model->Name()].mutable_config();
-	    config->set_name(model->Name());
-	    config->set_max_batch_size(model->GetMaxBatchSize());
-	    for(auto i : model->GetInputBindingIds()) {
-	        const auto& binding = model->GetBinding(i);
-	        auto input = config->add_input();
-		input->set_name(binding.name);
-		input->set_data_type(::nvidia::inferenceserver::DataType::TYPE_INT8);
-                for(auto d : binding.dims) { input->add_dims(d); }
-
-	    }
-	    for(auto i : model->GetOutputBindingIds()) {
-	        const auto& binding = model->GetBinding(i);
-	        auto output = config->add_output();
-		output->set_name(binding.name);
-		output->set_data_type(::nvidia::inferenceserver::DataType::TYPE_FP32);
-                for(auto d : binding.dims) { output->add_dims(d); }
-
-	    }
-	    auto request_status = response.mutable_request_status();
-	    request_status->set_code(::nvidia::inferenceserver::RequestStatusCode::SUCCESS);
+            auto model = GetResources()->GetModel(request.model_name());
+            auto server_status = response.mutable_server_status();
+            server_status->set_ready_state(
+                ::nvidia::inferenceserver::ServerReadyState::SERVER_READY);
+            auto model_status = server_status->mutable_model_status();
+            auto config = (*model_status)[model->Name()].mutable_config();
+            config->set_name(model->Name());
+            config->set_max_batch_size(model->GetMaxBatchSize());
+            for(auto i : model->GetInputBindingIds())
+            {
+                const auto& binding = model->GetBinding(i);
+                auto input = config->add_input();
+                input->set_name(binding.name);
+                input->set_data_type(::nvidia::inferenceserver::DataType::TYPE_INT8);
+                for(auto d : binding.dims)
+                {
+                    input->add_dims(d);
+                }
+            }
+            for(auto i : model->GetOutputBindingIds())
+            {
+                const auto& binding = model->GetBinding(i);
+                auto output = config->add_output();
+                output->set_name(binding.name);
+                output->set_data_type(::nvidia::inferenceserver::DataType::TYPE_FP32);
+                for(auto d : binding.dims)
+                {
+                    output->add_dims(d);
+                }
+            }
+            auto request_status = response.mutable_request_status();
+            request_status->set_code(::nvidia::inferenceserver::RequestStatusCode::SUCCESS);
             LOG(INFO) << response.DebugString();
-	    this->FinishResponse();
-	});
+            this->FinishResponse();
+        });
     }
 };
 
-
 class FlowersContext final : public Context<InferRequest, InferResponse, InferenceManager>
 {
-    void ExecuteRPC(RequestType &input, ResponseType &output) final override
+    void ExecuteRPC(RequestType& input, ResponseType& output) final override
     {
         // Executing on a Executor threads - we don't want to block message handling, so we offload
         GetResources()->GetCudaThreadPool()->enqueue([this, &input, &output]() {
@@ -284,17 +405,21 @@ class FlowersContext final : public Context<InferRequest, InferResponse, Inferen
             bindings->SetBatchSize(input.batch_size());
             // bindings->SetHostAddress(0, GetResources()->GetSysvOffset(input.sysv_offset()));
             bindings->CopyToDevice(bindings->InputBindings());
-            auto ctx = GetResources()->GetExecutionContext(model); // <=== Limited Resource; May Block !!!
+            auto ctx =
+                GetResources()->GetExecutionContext(model); // <=== Limited Resource; May Block !!!
             auto t_start = Walltime();
             ctx->Infer(bindings);
             bindings->CopyFromDevice(bindings->OutputBindings());
             // All Async CUDA work has been queued - this thread's work is done.
-            GetResources()->GetResponseThreadPool()->enqueue([this, &input, &output, model, bindings, ctx, t_start]() mutable {
+            GetResources()->GetResponseThreadPool()->enqueue([this, &input, &output, model,
+                                                              bindings, ctx, t_start]() mutable {
                 // Executed on a thread from ResponseThreadPool
-                ctx->Synchronize(); ctx.reset(); // Finished with the Execution Context - Release it to competing threads
+                ctx->Synchronize();
+                ctx.reset(); // Finished with the Execution Context - Release it to competing
+                             // threads
                 auto compute_time = Walltime() - t_start;
                 bindings->Synchronize(); // Blocks on H2D, Compute, D2H Pipeline
-                WriteBatchPredictions(input, output, (float *)bindings->HostAddress(1));
+                WriteBatchPredictions(input, output, (float*)bindings->HostAddress(1));
                 bindings.reset(); // Finished with Buffers - Release it to competing threads
                 auto request_time = Walltime();
                 output.set_compute_time(static_cast<float>(compute_time));
@@ -304,7 +429,8 @@ class FlowersContext final : public Context<InferRequest, InferResponse, Inferen
                 auto batch_size = input.batch_size();
                 this->FinishResponse();
                 // The Response is now sending; Record some metrics and be done
-                std::map<std::string, std::string> labels = {{"model", model->Name()},{"gpu_uuid", yais::GetDeviceUUID(0)}};
+                std::map<std::string, std::string> labels = {{"model", model->Name()},
+                                                             {"gpu_uuid", yais::GetDeviceUUID(0)}};
                 inf_counter.Add(labels).Increment(batch_size);
                 inf_compute_time.Add(labels).Increment(compute_time * 1000);
                 inf_request_time.Add(labels).Increment(request_time * 1000);
@@ -313,14 +439,15 @@ class FlowersContext final : public Context<InferRequest, InferResponse, Inferen
         });
     }
 
-    void WriteBatchPredictions(RequestType &input, ResponseType &output, float *scores)
+    void WriteBatchPredictions(RequestType& input, ResponseType& output, float* scores)
     {
         int N = input.batch_size();
-        auto nClasses = GetResources()->GetModel(input.model_name())->GetBinding(1).elementsPerBatchItem;
+        auto nClasses =
+            GetResources()->GetModel(input.model_name())->GetBinding(1).elementsPerBatchItem;
         size_t cntr = 0;
         auto meta_data = output.mutable_meta_data();
         auto meta_data_output = meta_data->add_output();
-        for (int p = 0; p < N; p++)
+        for(int p = 0; p < N; p++)
         {
             auto bcls = meta_data_output->add_batch_classes();
             bcls->add_cls();
@@ -345,9 +472,7 @@ class FlowersContext final : public Context<InferRequest, InferResponse, Inferen
     }
 };
 
-
-
-
+/*
 void Serve(std::shared_ptr<InferenceManager> resources)
 {
     // Set CPU Affinity to be near the GPU
@@ -388,12 +513,12 @@ void Serve(std::shared_ptr<InferenceManager> resources)
 
     LOG(INFO) << "Running Server";
     server.Run(std::chrono::milliseconds(2000), [] {
-        power_usage_gauge.Add({{"gpu_uuid", yais::GetDeviceUUID(0)}}).Set(yais::GetDevicePowerUsage(0));
-        power_limit_gauge.Add({{"gpu_uuid", yais::GetDeviceUUID(0)}}).Set(yais::GetDevicePowerLimit(0));
+        power_usage_gauge.Add({{"gpu_uuid",
+yais::GetDeviceUUID(0)}}).Set(yais::GetDevicePowerUsage(0)); power_limit_gauge.Add({{"gpu_uuid",
+yais::GetDeviceUUID(0)}}).Set(yais::GetDevicePowerLimit(0));
     });
 }
-
-
+*/
 
 PYBIND11_MODULE(py_yais, m)
 {
@@ -414,7 +539,6 @@ PYBIND11_MODULE(py_yais, m)
     py::class_<Inference::FutureResult>(m, "InferenceFutureResult")
         .def("wait", &Inference::FutureResult::wait, py::call_guard<py::gil_scoped_release>())
         .def("get", &Inference::FutureResult::get, py::call_guard<py::gil_scoped_release>());
-
 }
 
 /*

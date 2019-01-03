@@ -256,7 +256,7 @@ auto InferenceManager::GetExecutionContext(const std::shared_ptr<Model>& model)
     return GetExecutionContext(model.get());
 }
 
-auto InferenceManager::ThreadPool(const std::string& name) -> ::yais::ThreadPool&
+auto InferenceManager::AcquireThreadPool(const std::string& name) -> ThreadPool&
 {
     // std::shared_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
     auto search = m_ThreadPools.find(name);
@@ -264,7 +264,7 @@ auto InferenceManager::ThreadPool(const std::string& name) -> ::yais::ThreadPool
     return *(search->second);
 }
 
-void InferenceManager::RegisterThreadPool(const std::string& name, std::unique_ptr<::yais::ThreadPool> threads)
+void InferenceManager::RegisterThreadPool(const std::string& name, std::unique_ptr<ThreadPool> threads)
 {
     // std::unique_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
     DLOG(INFO) << "Registering ThreadPool: " << name;

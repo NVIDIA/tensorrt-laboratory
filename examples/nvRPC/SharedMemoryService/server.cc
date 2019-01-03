@@ -71,7 +71,7 @@ class ExternalSharedMemoryManager final
     {
       public:
         PartialSegmentDescriptor(const std::shared_ptr<SystemV>& segment, size_t offset, size_t size)
-            : Memory::Descriptor<SystemV>((*segment)[offset], size), m_Segment(segment)
+            : Memory::Descriptor<SystemV>((*segment)[offset], size, "PartialSysVSegment"), m_Segment(segment)
         {
         }
 

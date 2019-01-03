@@ -26,9 +26,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-models_path=${YAIS_MODEL_PATH:-"../yais-models"}
+models_path=${TRT_MODELS_PATH:-"/path/to/my/models"}
 models_cli=""
 if [ -d "$models_path" ]; then
   models_cli=" -v $(realpath $models_path):/work/models "
 fi
-NV_GPU=1 nvidia-docker run --rm -ti -v $PWD:/work $models_cli --workdir /work --name yais --net=host yais
+NV_GPU=0 nvidia-docker run --rm -ti -v $PWD:/work $models_cli --workdir /work --name playground --net=host tensorrt-playground

@@ -90,7 +90,7 @@ struct SimpleResources : public Resources
 {
     SimpleResources(int numThreadsInPool=3) : m_ThreadPool(numThreadsInPool) {}
 
-    ThreadPool& GetThreadPool()
+    ThreadPool& AcquireThreadPool()
     {
         return m_ThreadPool;
     }
@@ -110,7 +110,7 @@ class SimpleContext final : public Context<simple::Input, simple::Output, Simple
         // We could do work here, but we'd block the TPS, i.e. the threads pulling messages 
         // off the incoming recieve queue.  Very quick responses are best done here; however,
         // longer running workload should be offloaded so the TPS can avoid being blocked.
-        GetResources()->GetThreadPool().enqueue([this, &input, &output]{
+        GetResources()->AcquireThreadPool().enqueue([this, &input, &output]{
             // Now running on a worker thread of the ThreadPool defined in SimpleResources.
             // Here we are just echoing back the incoming // batch_id; however, in later 
             // examples, we'll show how to run an async cuda pipline.
