@@ -137,6 +137,7 @@ struct PyInferRunner : public InferRunner
 {
     using InferRunner::InferRunner;
     using InferResults = py::dict;
+    using InferFuture = std::shared_future<InferResults>;
 
     auto Infer(py::kwargs kwargs)
     {
@@ -183,10 +184,9 @@ struct PyInferRunner : public InferRunner
                 {
                     const auto& binding = bindings->GetModel()->GetBinding(id);
                     DLOG(INFO) << "Processing binding: " << binding.name << "with index " << id;
-                    auto value =
-                        py::array_t<float>(binding.dims);
-                        // py::array_t<float>(binding.elementsPerBatchItem * bindings->BatchSize());
-                    // TODO: set shape dimensions on the numpy array
+                    auto value = py::array(DataTypeToNumpy(binding.dtype), binding.dims);
+                    // auto value = py::array_t<float>(binding.dims);
+                    // auto value = py::array_t<float>(binding.elementsPerBatchItem * bindings->BatchSize());
                     py::buffer_info buffer = value.request();
                     CHECK_EQ(value.nbytes(), bindings->BindingSize(id));
                     std::memcpy(buffer.ptr, bindings->HostAddress(id), value.nbytes());
@@ -227,7 +227,7 @@ struct PyInferRunner : public InferRunner
         value["shape"] = binding.dims;
         value["dtype"] = DataTypeToNumpy(binding.dtype);
         dict[key] = value;
-    }   
+    }
 };
 
 PYBIND11_MODULE(infer, m)
@@ -241,10 +241,9 @@ PYBIND11_MODULE(infer, m)
     py::class_<PyInferRunner, std::shared_ptr<PyInferRunner>>(m, "InferRunner")
         .def("infer", &PyInferRunner::Infer)
         .def("input_bindings", &PyInferRunner::InputBindings)
-        .def("output_bindings", &PyInferRunner::OutputBindings); //, py::call_guard<py::gil_scoped_release>());
+        .def("output_bindings", &PyInferRunner::OutputBindings);
 
     py::class_<std::shared_future<typename PyInferRunner::InferResults>>(m, "InferenceFutureResult")
         .def("wait", &std::shared_future<typename PyInferRunner::InferResults>::wait) // py::call_guard<py::gil_scoped_release>())
         .def("get", &std::shared_future<typename PyInferRunner::InferResults>::get); // py::call_guard<py::gil_scoped_release>());
-
 }
