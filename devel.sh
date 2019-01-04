@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 #
 # Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
 #
@@ -31,4 +31,16 @@ models_cli=""
 if [ -d "$models_path" ]; then
   models_cli=" -v $(realpath $models_path):/work/models "
 fi
-NV_GPU=0 nvidia-docker run --rm -ti -v $PWD:/work $models_cli --workdir /work --name playground --net=host tensorrt-playground
+
+crt=""
+if [ -x "$(which luda)" ] ; then
+    echo "Using luda"
+    crt="$(which luda) --no-home"
+elif [ -x "$(which nvidia-docker)" ]; then
+    echo "Using nvidia-docker"
+    crt="nvidia-docker run --rm -ti"
+else
+    echo "No GPU container runtime found"
+    exit 911
+fi
+NV_GPU=0 $crt -v $PWD:/work $models_cli --workdir /work --name playground --net host tensorrt-playground
