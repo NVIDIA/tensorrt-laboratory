@@ -201,14 +201,30 @@ struct PyInferRunner : public InferRunner
         auto dict = py::dict();
         for (const auto& id : GetModel().GetInputBindingIds())
         {
-            const auto& binding = GetModel().GetBinding(id);
-            py::str key = binding.name;
-            py::dict value;
-            value["shape"] = binding.dims;
-            dict[key] = value;
+            AddBindingInfo(dict, id);
         }
         return dict;
     }
+
+    py::dict OutputBindings() const
+    {
+        auto dict = py::dict();
+        for (const auto& id : GetModel().GetOutputBindingIds())
+        {
+            AddBindingInfo(dict, id);
+        }
+        return dict;
+    }
+
+  protected:
+    void AddBindingInfo(py::dict& dict, int id) const
+    {
+        const auto& binding = GetModel().GetBinding(id);
+        py::str key = binding.name;
+        py::dict value;
+        value["shape"] = binding.dims;
+        dict[key] = value;
+    }   
 };
 
 PYBIND11_MODULE(infer, m)
@@ -220,8 +236,9 @@ PYBIND11_MODULE(infer, m)
         .def("infer_runner", &PyInferenceManager::InferRunner);
 
     py::class_<PyInferRunner, std::shared_ptr<PyInferRunner>>(m, "InferRunner")
-        .def("infer", &PyInferRunner::Infer) //, py::call_guard<py::gil_scoped_release>());
-        .def("input_bindings", &PyInferRunner::InputBindings); //, py::call_guard<py::gil_scoped_release>());
+        .def("infer", &PyInferRunner::Infer)
+        .def("input_bindings", &PyInferRunner::InputBindings)
+        .def("output_bindings", &PyInferRunner::OutputBindings); //, py::call_guard<py::gil_scoped_release>());
 
     py::class_<std::shared_future<typename PyInferRunner::InferResults>>(m, "InferenceFutureResult")
         .def("wait", &std::shared_future<typename PyInferRunner::InferResults>::wait) // py::call_guard<py::gil_scoped_release>())
