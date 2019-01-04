@@ -26,27 +26,27 @@
  */
 #include "tensorrt/playground/python/tensorrt/utils.h"
 
-#include <NvInfer.h>
-
 #include <glog/logging.h>
+
+namespace py = pybind11;
 
 namespace yais
 {
 namespace TensorRT
 {
 
-std::string DataTypeToNumpyString(::nvinfer1::DataType dtype)
+py::dtype DataTypeToNumpy(::nvinfer1::DataType dtype)
 {
     switch (dtype)
     {
     case nvinfer1::DataType::kFLOAT:
-        return "np.float";
-    case nvinfer1::DataType::kINT32:
-        return "np.int32";
+        return py::dtype("float32");
     case nvinfer1::DataType::kHALF:
-        return "np.fp16";
+        return py::dtype("float16");
+    case nvinfer1::DataType::kINT32:
+        return py::dtype("int32");
     case nvinfer1::DataType::kINT8: 
-        return "np.int8";
+        return py::dtype("int8");
     default:
         LOG(FATAL) << "Unknown TensorRT DataType";
     }    

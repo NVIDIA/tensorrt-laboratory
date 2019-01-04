@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include <memory>
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
 
 #include <NvInfer.h>
 
@@ -37,7 +37,7 @@ namespace TensorRT
 /**
  * @brief Number of bytes for a given TensorRT DataType
  */
-std::string DataTypeToNumpyString(::nvinfer1::DataType dtype);
+pybind11::dtype DataTypeToNumpy(::nvinfer1::DataType dtype);
 
 } // namespace TensorRT
 } // namespace yais

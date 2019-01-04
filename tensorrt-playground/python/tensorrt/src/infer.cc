@@ -225,7 +225,7 @@ struct PyInferRunner : public InferRunner
         py::str key = binding.name;
         py::dict value;
         value["shape"] = binding.dims;
-        value["dtype"] = DataTypeToNumpyString(binding.dtype);
+        value["dtype"] = DataTypeToNumpy(binding.dtype);
         dict[key] = value;
     }   
 };
@@ -246,4 +246,5 @@ PYBIND11_MODULE(infer, m)
     py::class_<std::shared_future<typename PyInferRunner::InferResults>>(m, "InferenceFutureResult")
         .def("wait", &std::shared_future<typename PyInferRunner::InferResults>::wait) // py::call_guard<py::gil_scoped_release>())
         .def("get", &std::shared_future<typename PyInferRunner::InferResults>::get); // py::call_guard<py::gil_scoped_release>());
+
 }
