@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
 
 project(tensorrt-playground)
-
 include(GNUInstallDirs)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -48,6 +47,8 @@ endif()
 if(BUILD_TENSORRT)
    add_subdirectory(tensorrt)
 endif()
+
+add_subdirectory(python)
 
 # install
 
