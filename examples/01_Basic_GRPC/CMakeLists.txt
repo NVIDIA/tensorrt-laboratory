@@ -41,3 +41,13 @@ target_link_libraries(echo-client.x
     echo-protos
     gflags
 )
+
+add_executable(async-echo-client.x
+    src/async_client.cc)
+
+target_link_libraries(async-echo-client.x
+    nvrpc
+    nvrpc-client
+    echo-protos
+    gflags
+)

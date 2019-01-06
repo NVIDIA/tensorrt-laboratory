@@ -27,9 +27,20 @@ add_library(nvrpc
   src/executor.cc
 )
 
+add_library(nvrpc-client
+  src/client/executor.cc
+)
+
 add_library(${PROJECT_NAME}::nvrpc ALIAS nvrpc)
+add_library(${PROJECT_NAME}::nvrpc-client ALIAS nvrpc-client)
 
 target_link_libraries(nvrpc
+  PUBLIC
+    ${PROJECT_NAME}::core
+    ${_GRPC_GRPCPP_UNSECURE}
+)
+
+target_link_libraries(nvrpc-client
   PUBLIC
     ${PROJECT_NAME}::core
     ${_GRPC_GRPCPP_UNSECURE}
@@ -40,7 +51,13 @@ target_include_directories(nvrpc
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
+target_include_directories(nvrpc-client
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
+
 set_target_properties(nvrpc PROPERTIES OUTPUT_NAME nvrpc)
+set_target_properties(nvrpc-client PROPERTIES OUTPUT_NAME nvrpc-client)
 
 install(
   TARGETS nvrpc
@@ -50,6 +67,15 @@ install(
   ARCHIVE DESTINATION  ${CMAKE_INSTALL_LIBDIR}
   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
+install(
+  TARGETS nvrpc-client
+  EXPORT ${PROJECT_NAME}-targets
+  RUNTIME DESTINATION  ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION  ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION  ${CMAKE_INSTALL_LIBDIR}
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
 
 install(
   DIRECTORY include/

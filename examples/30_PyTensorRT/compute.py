@@ -14,6 +14,7 @@ def main():
     models.update_resources()
 
     print("Input Bindings: {}".format(mnist.input_bindings()))
+    print("Output Bindings: {}".format(mnist.output_bindings()))
 
     inputs = utils.load_inputs("/work/models/onnx/mnist-v1.3/test_data_set_0")
     expected = utils.load_outputs("/work/models/onnx/mnist-v1.3/test_data_set_0")

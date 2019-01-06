@@ -88,7 +88,9 @@ message Output {
 // continue to queue work, while the workers process the load.
 struct SimpleResources : public Resources
 {
-    SimpleResources(int numThreadsInPool=3) : m_ThreadPool(numThreadsInPool) {}
+    SimpleResources(int numThreadsInPool=3) : m_ThreadPool(numThreadsInPool) {
+        LOG(INFO) << "Server ThreadCount: " << numThreadsInPool;
+    }
 
     ThreadPool& AcquireThreadPool()
     {
@@ -149,7 +151,7 @@ int main(int argc, char *argv[])
     );
 
     LOG(INFO) << "Initializing Resources for RPC (simple::Inference::Compute)";
-    auto rpcResources = std::make_shared<SimpleResources>();
+    auto rpcResources = std::make_shared<SimpleResources>(FLAGS_thread_count);
 
     // Create Executors - Executors provide the messaging processing resources for the RPCs
     // Multiple Executors can be registered with a Server.  The executor is responsible

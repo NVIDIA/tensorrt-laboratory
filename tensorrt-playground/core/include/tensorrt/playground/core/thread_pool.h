@@ -267,8 +267,9 @@ BaseThreadPool<MutexType, ConditionType>::~BaseThreadPool()
     }
     m_Condition.notify_all();
 
-    for(std::thread& worker : workers)
+    for(std::thread& worker : workers) {
         worker.join();
+    }
 }
 
 template<typename MutexType, typename ConditionType>
