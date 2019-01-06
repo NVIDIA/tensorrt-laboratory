@@ -38,6 +38,17 @@ target_link_libraries(inference.x
     gflags
 )
 
+add_executable(infer.x
+    infer.cc
+    ${PROTO_SRCS}
+    ${PROTO_GRPC_SRCS})
+
+target_link_libraries(infer.x
+    tensorrt-playground::nvrpc
+    tensorrt-playground::tensorrt
+    gflags
+)
+
 if(YAIS_ENABLE_MPI)
 find_package(MPI)
 include_directories(SYSTEM ${MPI_INCLUDE_PATH})
