@@ -67,8 +67,8 @@ class Bindings
     void *DeviceAddress(uint32_t binding_id);
     void **DeviceAddresses();
 
-    void SetHostAddress(int binding_id, void *addr);
-    void SetDeviceAddress(int binding_id, void *addr);
+    [[deprecated]] void SetHostAddress(int binding_id, void *addr);
+    [[deprecated]] void SetDeviceAddress(int binding_id, void *addr);
 
     void SetHostAddress(int binding_id, HostDescriptor);
     void SetDeviceAddress(int binding_id, DeviceDescriptor);
