@@ -29,6 +29,11 @@
 #include <glog/logging.h>
 
 #include "tensorrt/playground/cuda/device_info.h"
+#include "tensorrt/playground/cuda/memory/cuda_device.h"
+#include "tensorrt/playground/cuda/memory/cuda_pinned_host.h"
+
+using yais::Memory::CudaDeviceMemory;
+using yais::Memory::CudaPinnedHostMemory;
 
 namespace yais {
 namespace TensorRT {
@@ -59,7 +64,10 @@ InferenceManager::InferenceManager(int max_executions, int max_buffers)
     LOG(INFO) << "Maximum Copy Concurrency: " << m_MaxBuffers;
 }
 
-InferenceManager::~InferenceManager() { JoinAllThreads(); }
+InferenceManager::~InferenceManager()
+{
+    JoinAllThreads();
+}
 
 /**
  * @brief Register a Model with the InferenceManager object
@@ -165,7 +173,8 @@ void InferenceManager::AllocateResources()
     for(int i = 0; i < m_MaxBuffers; i++)
     {
         DLOG(INFO) << "Allocating Host/Device Buffers #" << i;
-        m_Buffers->Push(std::make_shared<FixedBuffers>(m_HostStackSize, m_DeviceStackSize));
+        m_Buffers->Push(std::make_shared<FixedBuffers<CudaPinnedHostMemory, CudaDeviceMemory>>(
+            m_HostStackSize, m_DeviceStackSize));
     }
 
     m_ExecutionContexts = Pool<ExecutionContext>::Create();
@@ -236,8 +245,9 @@ auto InferenceManager::GetExecutionContext(const Model* model) -> std::shared_pt
     });
     // This is the model concurrency limiter - it owns the TensorRT IExecutionContext
     // for which the pointer to the global limiter's memory buffer will be set
-    ctx->SetContext(item->second->Pop(
-        [](::nvinfer1::IExecutionContext* ptr) { DLOG(INFO) << "Returning Model IExecutionContext to Pool"; }));
+    ctx->SetContext(item->second->Pop([](::nvinfer1::IExecutionContext* ptr) {
+        DLOG(INFO) << "Returning Model IExecutionContext to Pool";
+    }));
     DLOG(INFO) << "Acquired Concurrency Limiting Execution Context";
     return ctx;
 }
@@ -264,7 +274,8 @@ auto InferenceManager::AcquireThreadPool(const std::string& name) -> ThreadPool&
     return *(search->second);
 }
 
-void InferenceManager::RegisterThreadPool(const std::string& name, std::unique_ptr<ThreadPool> threads)
+void InferenceManager::RegisterThreadPool(const std::string& name,
+                                          std::unique_ptr<ThreadPool> threads)
 {
     // std::unique_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
     DLOG(INFO) << "Registering ThreadPool: " << name;
@@ -276,7 +287,7 @@ void InferenceManager::RegisterThreadPool(const std::string& name, std::unique_p
 bool InferenceManager::HasThreadPool(const std::string& name) const
 {
     auto search = m_ThreadPools.find(name);
-    return (bool)(search != m_ThreadPools.end());    
+    return (bool)(search != m_ThreadPools.end());
 }
 
 void InferenceManager::JoinAllThreads()

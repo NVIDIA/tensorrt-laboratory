@@ -53,7 +53,7 @@ struct StackWithInternalDescriptor
     void Reset() { m_Stack.Reset(); }
 
   private:
-    MemoryStack<Malloc> m_Stack;
+    MemoryStack<MemoryType> m_Stack;
 };
 
 static void BM_MemoryStack_Allocate(benchmark::State &state)

@@ -63,36 +63,95 @@ class Buffers : public std::enable_shared_from_this<Buffers>
 
   protected:
     virtual void Reset(bool writeZeros = false){};
-    virtual void ConfigureBindings(const std::shared_ptr<Model>& model,
-                                   std::shared_ptr<Bindings>) = 0;
+    void ConfigureBindings(const std::shared_ptr<Model>& model, std::shared_ptr<Bindings>);
+
+    virtual std::unique_ptr<Memory::HostMemory> AllocateHost(size_t size) = 0;
+    virtual std::unique_ptr<Memory::DeviceMemory> AllocateDevice(size_t size) = 0;
 
   private:
     cudaStream_t m_Stream;
     friend class InferenceManager;
 };
 
+template<typename HostMemoryType, typename DeviceMemoryType>
 class FixedBuffers : public Buffers
 {
   public:
-    FixedBuffers(size_t host_size, size_t device_size);
-    ~FixedBuffers() override;
+    FixedBuffers(size_t host_size, size_t device_size)
+        : m_HostStack(std::make_unique<Memory::MemoryStack<HostMemoryType>>(host_size)),
+          m_DeviceStack(std::make_unique<Memory::MemoryStack<DeviceMemoryType>>(device_size)),
+          Buffers()
+    {
+    }
+
+    ~FixedBuffers() override {}
 
   protected:
-    void Reset(bool writeZeros = false) final override;
-    void ConfigureBindings(const std::shared_ptr<Model>& model, std::shared_ptr<Bindings>) override;
+    template<typename MemoryType>
+    class BufferStackDescriptor final : public Memory::Descriptor<MemoryType>
+    {
+      public:
+        BufferStackDescriptor(void* ptr, size_t size)
+            : Memory::Descriptor<MemoryType>(ptr, size, MemoryType::Type() + "Desc")
+        {
+        }
+        ~BufferStackDescriptor() final override {}
+    };
 
-    void* AllocateHost(size_t size)
+    std::unique_ptr<Memory::HostMemory> AllocateHost(size_t size) final override
     {
-        return m_HostStack->Allocate(size);
+        return std::move(std::make_unique<BufferStackDescriptor<HostMemoryType>>(
+            m_HostStack->Allocate(size), size));
     }
-    void* AllocateDevice(size_t size)
+
+    std::unique_ptr<Memory::DeviceMemory> AllocateDevice(size_t size) final override
     {
-        return m_DeviceStack->Allocate(size);
+        return std::move(std::make_unique<BufferStackDescriptor<DeviceMemoryType>>(
+            m_DeviceStack->Allocate(size), size));
+    }
+
+    void Reset(bool writeZeros = false) final override
+    {
+        m_HostStack->Reset(writeZeros);
+        m_DeviceStack->Reset(writeZeros);
     }
 
   private:
-    std::unique_ptr<Memory::MemoryStack<Memory::CudaPinnedHostMemory>> m_HostStack;
-    std::unique_ptr<Memory::MemoryStack<Memory::CudaDeviceMemory>> m_DeviceStack;
+    std::unique_ptr<Memory::MemoryStack<HostMemoryType>> m_HostStack;
+    std::unique_ptr<Memory::MemoryStack<DeviceMemoryType>> m_DeviceStack;
+};
+
+template<typename HostMemoryType, typename DeviceMemoryType>
+class CyclicBuffers : public Buffers
+{
+  public:
+    using HostAllocatorType = std::unique_ptr<Memory::CyclicAllocator<HostMemoryType>>;
+    using DeviceAllocatorType = std::unique_ptr<Memory::CyclicAllocator<DeviceMemoryType>>;
+
+    using HostDescriptor = typename Memory::CyclicAllocator<HostMemoryType>::Descriptor;
+    using DeviceDescriptor = typename Memory::CyclicAllocator<DeviceMemoryType>::Descriptor;
+
+    CyclicBuffers(HostAllocatorType host, DeviceAllocatorType device)
+        : m_HostAllocator{std::move(host)}, m_DeviceAllocator{std::move(device)}
+    {
+    }
+    ~CyclicBuffers() override {}
+
+    std::unique_ptr<Memory::HostMemory> AllocateHost(size_t size)
+    {
+        return m_HostAllocator->Allocate(size);
+    }
+
+    std::unique_ptr<Memory::DeviceMemory> AllocateDevice(size_t size)
+    {
+        return m_DeviceAllocator->Allocate(size);
+    }
+
+    void Reset(bool writeZeros = false) final override {}
+
+  private:
+    HostAllocatorType m_HostAllocator;
+    DeviceAllocatorType m_DeviceAllocator;
 };
 
 } // namespace TensorRT

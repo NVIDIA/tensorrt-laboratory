@@ -162,5 +162,7 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
     friend class ManagedRuntime;
 };
 
+
+
 } // namespace TensorRT
 } // namespace yais

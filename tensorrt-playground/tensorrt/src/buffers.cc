@@ -32,12 +32,9 @@
 
 #include <glog/logging.h>
 
-using yais::Memory::MemoryStack;
 using yais::Memory::CudaDeviceMemory;
 using yais::Memory::CudaPinnedHostMemory;
-
-
-
+using yais::Memory::MemoryStack;
 
 namespace yais {
 namespace TensorRT {
@@ -62,54 +59,24 @@ auto Buffers::CreateBindings(const std::shared_ptr<Model>& model) -> std::shared
     return bindings;
 }
 
-void Buffers::Synchronize()
-{
-    CHECK_EQ(cudaStreamSynchronize(m_Stream), CUDA_SUCCESS) << "Stream Sync failed";
-}
-
-FixedBuffers::FixedBuffers(size_t host_size, size_t device_size)
-    : m_HostStack(std::make_unique<MemoryStack<CudaPinnedHostMemory>>(host_size)),
-      m_DeviceStack(std::make_unique<MemoryStack<CudaDeviceMemory>>(device_size)), Buffers()
-{
-}
-
-FixedBuffers::~FixedBuffers() {}
-
-/**
- * @brief Pushes both Host and Device Stack Pointers for each Binding in a Model
- *
- * For each binding in the model, a stack pointer will be pushed on both host and device
- * memory stacks.  Buffers used a MemoryStackWithTracking object, so every Push is
- * recorded and the Pointer and the Size of each stack allocation can be recalled by
- * passing the index of the binding.
- *
- * @param model
- * @param batch_size
- * @return bindings
- */
-void FixedBuffers::ConfigureBindings(const std::shared_ptr<Model>& model,
-                                     std::shared_ptr<Bindings> bindings)
+void Buffers::ConfigureBindings(const std::shared_ptr<Model>& model,
+                                std::shared_ptr<Bindings> bindings)
 {
     for(uint32_t i = 0; i < model->GetBindingsCount(); i++)
     {
         auto binding_size = model->GetBinding(i).bytesPerBatchItem * model->GetMaxBatchSize();
         DLOG(INFO) << "Configuring Binding " << i << ": pushing " << binding_size
                    << " to host/device stacks";
-        bindings->SetHostAddress(i, m_HostStack->Allocate(binding_size));
-        bindings->SetDeviceAddress(i, m_DeviceStack->Allocate(binding_size));
+        bindings->SetHostAddress(i, AllocateHost(binding_size));
+        bindings->SetDeviceAddress(i, AllocateDevice(binding_size));
     }
 }
 
-/**
- * @brief Resets the Host and Device Stack Pointers to their origins
- *
- * @param writeZeros
- */
-void FixedBuffers::Reset(bool writeZeros)
+void Buffers::Synchronize()
 {
-    m_HostStack->Reset(writeZeros);
-    m_DeviceStack->Reset(writeZeros);
+    CHECK_EQ(cudaStreamSynchronize(m_Stream), CUDA_SUCCESS) << "Stream Sync failed";
 }
+
 
 } // namespace TensorRT
 } // namespace yais

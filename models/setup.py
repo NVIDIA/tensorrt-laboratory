@@ -31,26 +31,26 @@ import subprocess
 
 models = [
     ("ResNet-50-deploy.prototxt", "prob"),
-#   ("ResNet-152-deploy.prototxt", "prob"),
+    ("ResNet-152-deploy.prototxt", "prob"),
 ]
 
 precisions = [
     ("fp32", ""),
-#   ("fp16", "--fp16"),
-#   ("int8", "--int8")
+    ("fp16", "--fp16"),
+    ("int8", "--int8")
 ]
 
 def main():
     for model, o in models:
         for name, p in precisions:
-            for b in [1]: #, 2, 4, 8]:
+            for b in [1, 8]: #, 2, 4, 8]:
                 n = "b{}-{}".format(b, name)
                 e = model.replace("prototxt", "engine")
                 e = e.replace("deploy", n)
                 m = os.path.join("/work/models", model)
                 if os.path.isfile(e):
                     continue
-                subprocess.call("giexec --deploy={} --batch={} --output={} {} --engine={}".format(
+                subprocess.call("giexec --deploy={} --batch={} --output={} {} --saveEngine={}".format(
                     m, b, o, p, e
                 ), shell=True)
 
