@@ -27,87 +27,70 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
+#include <vector>
 
 #include <NvInfer.h>
 
 namespace yais {
 namespace TensorRT {
 
-class Runtime;
-class Model;
-class Buffers;
-class Bindings;
-class ExecutionContext;
-class InferenceManager;
-
-struct NvInferDeleter
+class NvAllocator : public ::nvinfer1::IGpuAllocator
 {
-    NvInferDeleter()
-    {
-        NvInferDeleter([] {});
-    }
-    NvInferDeleter(std::function<void()> capture) : m_Capture{capture} {}
+    struct Pointer; 
 
-    template<typename T>
-    void operator()(T* obj) const
+  public:
+    NvAllocator() : m_UseWeightAllocator(false) {}
+    virtual ~NvAllocator() override {}
+
+    NvAllocator(const NvAllocator&) = delete;
+    NvAllocator& operator=(const NvAllocator&) = delete;
+
+    NvAllocator(NvAllocator&&) noexcept = delete;
+    NvAllocator& operator=(NvAllocator&&) noexcept = delete;
+
+    // TensorRT IGpuAllocator virtual overrides
+    void* allocate(uint64_t size, uint64_t alignment, uint32_t flags) final override;
+    void free(void* ptr) final override;
+
+    template<class F, class... Args>
+    auto UseWeightAllocator(F&& f, Args&&... args) -> typename std::result_of<F(Args...)>::type
     {
-        if(obj)
-        {
-            obj->destroy();
-            if(m_Capture)
-            {
-                m_Capture();
-            }
-        }
+        std::lock_guard<std::recursive_mutex> lock(m_Mutex);
+        m_Pointers.clear();
+        m_UseWeightAllocator = true;
+        auto retval = f(std::forward<Args>(args)...);
+        m_UseWeightAllocator = false;
+        m_Pointers.clear();
+        return retval;
     }
+
+    const std::vector<Pointer>& GetPointers();
 
   private:
-    std::function<void()> m_Capture;
+    struct Pointer
+    {
+        void* addr;
+        size_t size;
+    };
+
+    bool m_UseWeightAllocator;
+    std::recursive_mutex m_Mutex;
+    std::vector<Pointer> m_Pointers;
+    virtual void WeightAllocator(void**, size_t) = 0;
 };
 
-/**
- * @brief Create a std::shared_ptr for an nvinfer interface object
- *
- * @tparam T
- * @param obj
- * @return std::shared_ptr<T>
- */
-template<typename T>
-std::shared_ptr<T> nv_shared(T* obj)
+class StandardAllocator : public NvAllocator
 {
-    if(!obj)
-    {
-        throw std::runtime_error("Failed to create object");
-    }
-    return std::shared_ptr<T>(obj, NvInferDeleter());
+    using NvAllocator::NvAllocator;
+    void WeightAllocator(void** ptr, size_t) final override;
 };
 
-template<typename T>
-std::shared_ptr<T> nv_shared(T* obj, std::function<void()> capture)
+class ManagedAllocator : public NvAllocator
 {
-    if(!obj)
-    {
-        throw std::runtime_error("Failed to create object");
-    }
-    return std::shared_ptr<T>(obj, NvInferDeleter(capture));
+    using NvAllocator::NvAllocator;
+    void WeightAllocator(void** ptr, size_t) override;
 };
-
-/**
- * @brief Create a std::unique_ptr for an nvinfer interface object
- *
- * @tparam T
- * @param obj
- * @return std::unique_ptr<T, NvInferDeleter>
- */
-template<typename T>
-std::unique_ptr<T, NvInferDeleter> nv_unique(T* obj)
-{
-    if(!obj)
-    {
-        throw std::runtime_error("Failed to create object");
-    }
-    return std::unique_ptr<T, NvInferDeleter>(obj);
-}
 
 } // namespace TensorRT
 } // namespace yais

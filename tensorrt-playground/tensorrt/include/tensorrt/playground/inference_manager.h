@@ -37,6 +37,7 @@
 #include "tensorrt/playground/core/thread_pool.h"
 #include "tensorrt/playground/core/resources.h"
 #include "tensorrt/playground/common.h"
+#include "tensorrt/playground/runtime.h"
 #include "tensorrt/playground/model.h"
 #include "tensorrt/playground/buffers.h"
 #include "tensorrt/playground/execution_context.h"
@@ -46,54 +47,6 @@ namespace yais
 namespace TensorRT
 {
 
-template<typename HostMemoryType, typename DeviceMemoryType>
-class CyclicBuffers : public Buffers
-{
-  public:
-    using HostAllocatorType = std::unique_ptr<Memory::CyclicAllocator<HostMemoryType>>;
-    using DeviceAllocatorType = std::unique_ptr<Memory::CyclicAllocator<DeviceMemoryType>>;
-
-    using HostDescriptor = typename Memory::CyclicAllocator<HostMemoryType>::Descriptor;
-    using DeviceDescriptor = typename Memory::CyclicAllocator<DeviceMemoryType>::Descriptor;
-
-    CyclicBuffers(HostAllocatorType host, DeviceAllocatorType device)
-        : m_HostAllocator{std::move(host)}, m_DeviceAllocator{std::move(device)}
-    {
-    }
-    ~CyclicBuffers() override {}
-
-    HostDescriptor AllocateHost(size_t size)
-    {
-        return m_HostAllocator->Allocate(size);
-    }
-
-    DeviceDescriptor AllocateDevice(size_t size)
-    {
-        return m_DeviceAllocator->Allocate(size);
-    }
-
-    void Reset(bool writeZeros = false) final override {}
-    void ConfigureBindings(const std::shared_ptr<Model>& model, std::shared_ptr<Bindings> bindings) override
-    {
-        for(uint32_t i = 0; i < model->GetBindingsCount(); i++)
-        {
-            auto binding_size = model->GetBinding(i).bytesPerBatchItem * model->GetMaxBatchSize();
-            DLOG(INFO) << "Configuring Binding " << i << ": pushing " << binding_size
-                       << " to host/device stacks";
-            bindings->SetHostAddress(i, m_HostAllocator->Allocate(binding_size));
-            bindings->SetDeviceAddress(i, m_DeviceAllocator->Allocate(binding_size));
-        }
-    }
-
-  private:
-    HostAllocatorType m_HostAllocator;
-    DeviceAllocatorType m_DeviceAllocator;
-};
-
-
-/**
- * @brief TensorRT Resource Manager
- */
 class InferenceManager : public ::yais::Resources
 {
   public:
@@ -118,18 +71,29 @@ class InferenceManager : public ::yais::Resources
     bool HasThreadPool(const std::string&) const;
     void JoinAllThreads();
 
+    Runtime& ActiveRuntime();
+    void RegisterRuntime(const std::string&, std::shared_ptr<Runtime>);
+    void SetActiveRuntime(const std::string&);
+    void SetActiveRuntimeToDefault();
+
+    int MaxExecConcurrency() const;
+    int MaxCopyConcurrency() const;
+
   private:
     int m_MaxExecutions;
     int m_MaxBuffers;
     size_t m_HostStackSize;
     size_t m_DeviceStackSize;
     size_t m_ActivationsSize;
+    Runtime *m_ActiveRuntime;
+
+    std::map<std::string, std::unique_ptr<ThreadPool>> m_ThreadPools;
+    std::map<std::string, std::shared_ptr<Runtime>> m_Runtimes;
+    std::map<std::string, std::shared_ptr<Model>> m_Models;
+    std::map<const Model *, std::shared_ptr<Pool<::nvinfer1::IExecutionContext>>> m_ModelExecutionContexts;
+
     std::shared_ptr<Pool<Buffers>> m_Buffers;
     std::shared_ptr<Pool<ExecutionContext>> m_ExecutionContexts;
-    std::map<std::string, std::shared_ptr<Model>> m_Models;
-    std::map<std::string, std::unique_ptr<ThreadPool>> m_ThreadPools;
-    std::map<const Model *, std::shared_ptr<Pool<::nvinfer1::IExecutionContext>>> m_ModelExecutionContexts;
-    // mutable std::shared_mutex m_ThreadPoolMutex;
 
     std::size_t Align(std::size_t size, std::size_t alignment)
     {

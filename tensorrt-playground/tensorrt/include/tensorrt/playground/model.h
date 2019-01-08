@@ -32,6 +32,8 @@
 
 #include <NvInfer.h>
 
+#include "tensorrt/playground/runtime.h"
+
 namespace yais {
 namespace TensorRT {
 
@@ -58,7 +60,7 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
      * @param engine
      */
     Model(std::shared_ptr<::nvinfer1::ICudaEngine> engine); // TODO: Move to protected/private
-    virtual ~Model() {}
+    virtual ~Model();
 
     auto Name() const -> const std::string
     {
@@ -150,6 +152,7 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
     };
 
     std::shared_ptr<::nvinfer1::ICudaEngine> m_Engine;
+    std::shared_ptr<const Runtime> m_Runtime;
     std::vector<TensorBindingInfo> m_Bindings;
     std::map<std::string, TensorBindingInfo> m_BindingsByName;
     std::map<std::string, uint32_t> m_BindingIdByName;
@@ -157,10 +160,9 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
     std::vector<uint32_t> m_OutputBindings;
     std::vector<Weights> m_Weights;
     std::string m_Name;
-
-    friend class Runtime;
-    friend class ManagedRuntime;
 };
+
+
 
 } // namespace TensorRT
 } // namespace yais

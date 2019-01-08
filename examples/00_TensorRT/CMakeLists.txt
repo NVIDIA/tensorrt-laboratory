@@ -27,12 +27,25 @@
 include_directories(${CUDA_INCLUDE_DIRS})
 include_directories(${TensorRT_INCLUDE_DIRS})
 
+
+
 add_executable(inference.x
     inference.cc
     ${PROTO_SRCS}
     ${PROTO_GRPC_SRCS})
 
 target_link_libraries(inference.x
+    tensorrt-playground::nvrpc
+    tensorrt-playground::tensorrt
+    gflags
+)
+
+add_executable(infer.x
+    infer.cc
+    ${PROTO_SRCS}
+    ${PROTO_GRPC_SRCS})
+
+target_link_libraries(infer.x
     tensorrt-playground::nvrpc
     tensorrt-playground::tensorrt
     gflags

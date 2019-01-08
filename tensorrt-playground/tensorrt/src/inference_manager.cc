@@ -29,6 +29,11 @@
 #include <glog/logging.h>
 
 #include "tensorrt/playground/cuda/device_info.h"
+#include "tensorrt/playground/cuda/memory/cuda_device.h"
+#include "tensorrt/playground/cuda/memory/cuda_pinned_host.h"
+
+using yais::Memory::CudaDeviceMemory;
+using yais::Memory::CudaPinnedHostMemory;
 
 namespace yais {
 namespace TensorRT {
@@ -52,14 +57,29 @@ namespace TensorRT {
  */
 InferenceManager::InferenceManager(int max_executions, int max_buffers)
     : m_MaxExecutions(max_executions), m_MaxBuffers(max_buffers), m_HostStackSize(0),
-      m_DeviceStackSize(0), m_ActivationsSize(0), m_Buffers{nullptr}
+      m_DeviceStackSize(0), m_ActivationsSize(0), m_Buffers{nullptr}, m_ActiveRuntime{nullptr}
 {
+    // RegisterRuntime("default", std::make_unique<CustomRuntime<StandardAllocator>>());
+    // SetActiveRuntime("default");
     LOG(INFO) << "-- Initialzing TensorRT Resource Manager --";
     LOG(INFO) << "Maximum Execution Concurrency: " << m_MaxExecutions;
     LOG(INFO) << "Maximum Copy Concurrency: " << m_MaxBuffers;
 }
 
-InferenceManager::~InferenceManager() { JoinAllThreads(); }
+InferenceManager::~InferenceManager()
+{
+    JoinAllThreads();
+}
+
+int InferenceManager::MaxExecConcurrency() const
+{
+    return m_MaxExecutions;
+}
+
+int InferenceManager::MaxCopyConcurrency() const
+{
+    return m_MaxBuffers;
+}
 
 /**
  * @brief Register a Model with the InferenceManager object
@@ -143,6 +163,25 @@ void InferenceManager::RegisterModel(const std::string& name, std::shared_ptr<Mo
     }
 }
 
+Runtime& InferenceManager::ActiveRuntime()
+{
+    return *m_ActiveRuntime;
+}
+
+void InferenceManager::RegisterRuntime(const std::string& name, std::shared_ptr<Runtime> runtime)
+{
+    auto search = m_Runtimes.find(name);
+    CHECK(search == m_Runtimes.end());
+    m_Runtimes[name] = std::move(runtime);    
+}
+
+void InferenceManager::SetActiveRuntime(const std::string& name)
+{
+    auto search = m_Runtimes.find(name);
+    CHECK(search != m_Runtimes.end());
+    m_ActiveRuntime = search->second.get();
+}
+
 /**
  * @brief Allocates Host and Device Resources for Inference
  *
@@ -165,7 +204,8 @@ void InferenceManager::AllocateResources()
     for(int i = 0; i < m_MaxBuffers; i++)
     {
         DLOG(INFO) << "Allocating Host/Device Buffers #" << i;
-        m_Buffers->Push(std::make_shared<FixedBuffers>(m_HostStackSize, m_DeviceStackSize));
+        m_Buffers->Push(std::make_shared<FixedBuffers<CudaPinnedHostMemory, CudaDeviceMemory>>(
+            m_HostStackSize, m_DeviceStackSize));
     }
 
     m_ExecutionContexts = Pool<ExecutionContext>::Create();
@@ -236,8 +276,9 @@ auto InferenceManager::GetExecutionContext(const Model* model) -> std::shared_pt
     });
     // This is the model concurrency limiter - it owns the TensorRT IExecutionContext
     // for which the pointer to the global limiter's memory buffer will be set
-    ctx->SetContext(item->second->Pop(
-        [](::nvinfer1::IExecutionContext* ptr) { DLOG(INFO) << "Returning Model IExecutionContext to Pool"; }));
+    ctx->SetContext(item->second->Pop([](::nvinfer1::IExecutionContext* ptr) {
+        DLOG(INFO) << "Returning Model IExecutionContext to Pool";
+    }));
     DLOG(INFO) << "Acquired Concurrency Limiting Execution Context";
     return ctx;
 }
@@ -264,7 +305,8 @@ auto InferenceManager::AcquireThreadPool(const std::string& name) -> ThreadPool&
     return *(search->second);
 }
 
-void InferenceManager::RegisterThreadPool(const std::string& name, std::unique_ptr<ThreadPool> threads)
+void InferenceManager::RegisterThreadPool(const std::string& name,
+                                          std::unique_ptr<ThreadPool> threads)
 {
     // std::unique_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
     DLOG(INFO) << "Registering ThreadPool: " << name;
@@ -276,7 +318,7 @@ void InferenceManager::RegisterThreadPool(const std::string& name, std::unique_p
 bool InferenceManager::HasThreadPool(const std::string& name) const
 {
     auto search = m_ThreadPools.find(name);
-    return (bool)(search != m_ThreadPools.end());    
+    return (bool)(search != m_ThreadPools.end());
 }
 
 void InferenceManager::JoinAllThreads()

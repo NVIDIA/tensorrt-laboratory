@@ -34,7 +34,7 @@
 namespace yais {
 namespace TensorRT {
 
-struct InferRunner : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
+struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)>
 {
     InferRunner(std::shared_ptr<Model> model, std::shared_ptr<InferenceManager> resources)
         : m_Model{model}, m_Resources{resources}
@@ -85,16 +85,20 @@ struct InferRunner : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
     void Enqueue(std::shared_ptr<Bindings> bindings, std::shared_ptr<AsyncCompute<T>> Post)
     {
         Workers("cuda").enqueue([this, bindings, Post]() mutable {
+            DLOG(INFO) << "H2D";
             bindings->CopyToDevice(bindings->InputBindings());
+            DLOG(INFO) << "Compute";
             auto trt_ctx = Compute(bindings);
             bindings->CopyFromDevice(bindings->OutputBindings());
             Workers("post").enqueue([this, bindings, trt_ctx, Post]() mutable {
                 trt_ctx->Synchronize();
                 trt_ctx.reset();
+                DLOG(INFO) << "Sync TRT";
                 bindings->Synchronize();
+                DLOG(INFO) << "Sync D2H";
                 (*Post)(bindings);
                 bindings.reset();
-                LOG(INFO) << "Execute Finished";
+                DLOG(INFO) << "Execute Finished";
             });
         });
     }

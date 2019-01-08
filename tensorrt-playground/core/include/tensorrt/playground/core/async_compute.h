@@ -34,8 +34,11 @@ namespace yais {
 template<typename CompleterFn>
 struct AsyncCompute;
 
+template<typename CompleterFn>
+struct AsyncComputeWrapper;
+
 template<typename... Args>
-struct AsyncCompute<void(Args...)>
+struct AsyncComputeWrapper<void(Args...)>
 {
     template<typename F>
     static auto Wrap(F&& f)
@@ -44,6 +47,36 @@ struct AsyncCompute<void(Args...)>
         using UserFn = ResultType(Args...);
         return std::make_shared<AsyncCompute<UserFn>>(f);
     }
+};
+
+template<typename... Args>
+struct AsyncCompute<void(Args...)>
+{
+    using CallingFn = std::function<void(Args...)>;
+    using WrappedFn = std::function<void(Args...)>;
+
+    AsyncCompute(CallingFn calling_fn)
+    {
+        m_WrappedFn = [this, calling_fn](Args&&... args) {
+            calling_fn(args...);
+            m_Promise.set_value();
+        };
+    }
+
+    std::future<void> Future()
+    {
+        return m_Promise.get_future();
+    }
+
+    void operator()(Args&&... args)
+    {
+        m_WrappedFn(args...);
+    }
+
+  private:
+    WrappedFn m_WrappedFn;
+    std::promise<void> m_Promise;
+
 };
 
 template<typename ResultType, typename... Args>

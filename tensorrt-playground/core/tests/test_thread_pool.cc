@@ -60,3 +60,49 @@ TEST_F(TestThreadPool, MakeUnique)
 {
     auto unqiue = std::make_unique<ThreadPool>(1);
 }
+
+TEST_F(TestThreadPool, CaptureThis)
+{
+    class ObjectThatOwnsAThreadPool
+    {
+        class ValueObject;
+      public:
+        ObjectThatOwnsAThreadPool() : m_ThreadPool(std::move(std::make_unique<ThreadPool>(1))), 
+                                      m_Object(std::move(std::make_unique<ValueObject>())) {}
+
+        DELETE_COPYABILITY(ObjectThatOwnsAThreadPool);
+        DELETE_MOVEABILITY(ObjectThatOwnsAThreadPool);
+
+        ~ObjectThatOwnsAThreadPool() {
+            LOG(INFO) << "Destroying ObjectThatOwnsAThreadPool: " << this;
+        }
+        auto test()
+        {
+            LOG(INFO) << "[before queue] val = " << m_Object.get();
+            return m_ThreadPool->enqueue([this]() {
+                LOG(INFO) << "[before sleep] val = " << m_Object.get();
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                LOG(INFO) << "[after  sleep] val = " << m_Object.get();
+                return m_Object->value;
+            });
+        }
+
+      private:
+        class ValueObject {
+          public:
+            ValueObject() : value(42) {}
+            DELETE_COPYABILITY(ValueObject);
+            DELETE_MOVEABILITY(ValueObject);
+            ~ValueObject() { LOG(INFO) << "Destroying ValueObject"; }
+            int value;
+        };
+        std::unique_ptr<ValueObject> m_Object;
+        std::unique_ptr<ThreadPool> m_ThreadPool;
+    };
+
+    auto obj = std::make_unique<ObjectThatOwnsAThreadPool>();
+    auto future = obj->test();
+    obj.reset();
+    EXPECT_EQ(future.get(), 42);
+    LOG(INFO) << "done";
+}

@@ -4,6 +4,7 @@ message(STATUS "TensorRT IncludeDir ${TensorRT_INCLUDE_DIRS}")
 message(STATUS "TensorRT Version ${TensorRT_VERSION_STRING}")
 
 add_library(tensorrt
+  src/allocator.cc
   src/bindings.cc
   src/buffers.cc
   src/execution_context.cc

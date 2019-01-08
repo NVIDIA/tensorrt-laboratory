@@ -31,6 +31,7 @@
 #include <glog/logging.h>
 
 #include "tensorrt/playground/core/thread_pool.h"
+#include "tensorrt/playground/infer_runner.h"
 #include "tensorrt/playground/inference_manager.h"
 #include "tensorrt/playground/runtime.h"
 
@@ -42,13 +43,12 @@
 #endif
 
 using yais::ThreadPool;
+using yais::TensorRT::Bindings;
 using yais::TensorRT::InferenceManager;
+using yais::TensorRT::InferRunner;
 using yais::TensorRT::Runtime;
-using yais::TensorRT::CustomRuntime;
-using yais::TensorRT::StandardAllocator;
-using yais::TensorRT::ManagedAllocator;
-
-static int g_Concurrency = 0;
+using yais::TensorRT::StandardRuntime;
+using yais::TensorRT::ManagedRuntime;
 
 static std::string ModelName(int model_id)
 {
@@ -60,19 +60,15 @@ static std::string ModelName(int model_id)
 class InferenceResources : public InferenceManager
 {
   public:
-    InferenceResources(int max_executions, int max_buffers, size_t nCuda, size_t nResp)
-        : InferenceManager(max_executions, max_buffers),
-          m_CudaThreadPool(std::make_unique<ThreadPool>(nCuda)),
-          m_ResponseThreadPool(std::make_unique<ThreadPool>(nResp)) {}
+    InferenceResources(int max_executions, int max_buffers)
+        : InferenceManager(max_executions, max_buffers)
+    {
+        RegisterThreadPool("pre", std::make_unique<ThreadPool>(1));
+        RegisterThreadPool("cuda", std::make_unique<ThreadPool>(1));
+        RegisterThreadPool("post", std::make_unique<ThreadPool>(3));
+    }
 
     ~InferenceResources() override {}
-
-    std::unique_ptr<ThreadPool> &GetCudaThreadPool() { return m_CudaThreadPool; }
-    std::unique_ptr<ThreadPool> &GetResponseThreadPool() { return m_ResponseThreadPool; }
-
-  private:
-    std::unique_ptr<ThreadPool> m_CudaThreadPool;
-    std::unique_ptr<ThreadPool> m_ResponseThreadPool;
 };
 
 class Inference final
@@ -84,6 +80,7 @@ class Inference final
     {
         int replica = 0;
         uint64_t inf_count = 0;
+        std::vector<std::shared_future<void>> futures;
 
         auto start = std::chrono::steady_clock::now();
         auto elapsed = [start]() -> float {
@@ -92,79 +89,62 @@ class Inference final
 
         auto model = GetResources()->GetModel(ModelName(replica++));
         auto batch_size = requested_batch_size ? requested_batch_size : model->GetMaxBatchSize();
-        if (batch_size > model->GetMaxBatchSize()) {
-            LOG(FATAL) << "Requested batch_size greater than allowed by the compiled TensorRT Engine";
-        }
+        LOG_IF(FATAL, batch_size > model->GetMaxBatchSize())
+            << "Requested batch_size greater than allowed by the compiled TensorRT Engine";
 
         // Inference Loop - Main thread copies, cuda thread launches, response thread completes
-        if (!warmup) {
-            LOG(INFO) << "-- Inference: Running for ~" << (int)seconds << " seconds with batch_size " << batch_size << " --";
+        if(!warmup)
+        {
+            LOG(INFO) << "-- Inference: Running for ~" << (int)seconds
+                      << " seconds with batch_size " << batch_size << " --";
         }
 
-        std::vector<std::future<void>> futures;
-
-        while (elapsed() < seconds && ++inf_count)
+        while(elapsed() < seconds && ++inf_count)
         {
-            if (replica >= replicas) replica = 0;
+            if(replica >= replicas)
+                replica = 0;
 
             // This thread only async copies buffers H2D
             auto model = GetResources()->GetModel(ModelName(replica++));
             auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
             auto bindings = buffers->CreateBindings(model);
-            auto promise = std::make_shared<std::promise<void>>();
-            futures.push_back(promise->get_future());
-
             bindings->SetBatchSize(batch_size);
-            bindings->CopyToDevice(bindings->InputBindings());
 
-            GetResources()->GetCudaThreadPool()->enqueue([this, bindings, promise]() mutable {
-                // This thread enqueues two async kernels:
-                //  1) TensorRT execution
-                //  2) D2H of output tensors
-                auto trt = GetResources()->GetExecutionContext(bindings->GetModel()); // <=== Limited Resource; May Block !!!
-                trt->Infer(bindings);
-                bindings->CopyFromDevice(bindings->OutputBindings());
-
-                GetResources()->GetResponseThreadPool()->enqueue([bindings, trt, promise]() mutable {
-                    // This thread waits on the completion of the async compute and the async copy
-                    trt->Synchronize(); trt.reset(); // Finished with the Execution Context - Release it to competing threads
-                    bindings->Synchronize(); bindings.reset(); // Finished with Buffers - Release it to competing threads
-                    promise->set_value();
-                });
-            });
+            InferRunner runner(model, GetResources());
+            futures.push_back(
+                runner.Infer(bindings, [](std::shared_ptr<Bindings>& bindings) mutable {
+                    bindings.reset();
+                }));
         }
 
-        for(const auto& f : futures)
+        // Join worker threads
+        for(auto& f : futures)
         {
             f.wait();
         }
 
-/*
-        // Join worker threads
-        if (!warmup)
-            GetResources()->GetCudaThreadPool().reset();
-        if (!warmup)
-            GetResources()->GetResponseThreadPool().reset();
-*/
         // End timing and report
         auto total_time = std::chrono::duration<float>(elapsed()).count();
         auto inferences = inf_count * batch_size;
-        if (!warmup)
-            LOG(INFO) << "Inference Results: " << inf_count 
-                      << "; batches in " << total_time << " seconds"
-                      << "; sec/batch/stream: " << total_time / (inf_count / g_Concurrency)  
+        if(!warmup)
+            LOG(INFO) << "Inference Results: " << inf_count << "; batches in " << total_time
+                      << " seconds"
+                      << "; sec/batch/stream: " << total_time / (inf_count / m_Resources->MaxExecConcurrency())
                       << "; batches/sec: " << inf_count / total_time
                       << "; inf/sec: " << inferences / total_time;
     }
 
   protected:
-    inline std::shared_ptr<InferenceResources> GetResources() { return m_Resources; }
+    inline std::shared_ptr<InferenceResources> GetResources()
+    {
+        return m_Resources;
+    }
 
   private:
     std::shared_ptr<InferenceResources> m_Resources;
 };
 
-static bool ValidateEngine(const char *flagname, const std::string &value)
+static bool ValidateEngine(const char* flagname, const std::string& value)
 {
     struct stat buffer;
     return (stat(value.c_str(), &buffer) == 0);
@@ -181,7 +161,7 @@ DEFINE_int32(respthreads, 1, "Number Response Sync Threads");
 DEFINE_int32(replicas, 1, "Number of Replicas of the Model to load");
 DEFINE_int32(batch_size, 0, "Overrides the max batch_size of the provided engine");
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     FLAGS_alsologtostderr = 1; // Log to console
     ::google::InitGoogleLogging("TensorRT Inference");
@@ -189,23 +169,20 @@ int main(int argc, char *argv[])
 
     MPI_CHECK(MPI_Init(&argc, &argv));
 
-    auto contexts = g_Concurrency = FLAGS_contexts;
+    auto contexts = FLAGS_contexts;
     auto buffers = FLAGS_buffers ? FLAGS_buffers : 2 * FLAGS_contexts;
 
-    auto resources = std::make_shared<InferenceResources>(
-        contexts,
-        buffers,
-        FLAGS_cudathreads,
-        FLAGS_respthreads);
+    auto resources = std::make_shared<InferenceResources>(contexts, buffers);
 
+    //, FLAGS_cudathreads, FLAGS_respthreads);
     std::shared_ptr<Runtime> runtime;
     if(FLAGS_runtime == "default")
     {
-        runtime = std::make_shared<CustomRuntime<StandardAllocator>>();
+        runtime = std::make_shared<StandardRuntime>();
     }
     else if(FLAGS_runtime == "unified")
     {
-        runtime = std::make_shared<CustomRuntime<ManagedAllocator>>();
+        runtime = std::make_shared<ManagedRuntime>();
     }
     else
     {
@@ -215,21 +192,23 @@ int main(int argc, char *argv[])
     resources->RegisterModel("0", runtime->DeserializeEngine(FLAGS_engine));
     resources->AllocateResources();
 
-    for (int i = 1; i < FLAGS_replicas; i++)
+    for(int i = 1; i < FLAGS_replicas; i++)
     {
         resources->RegisterModel(ModelName(i), runtime->DeserializeEngine(FLAGS_engine));
     }
 
-    Inference inference(resources);
-    inference.Run(0.1, true, 1, 0); // warmup
+    {
+        Inference inference(resources);
+        inference.Run(0.1, true, 1, 0); // warmup
 
-    // if testing mps - sync all processes before executing timed loop
-    MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
-    inference.Run(FLAGS_seconds, false, FLAGS_replicas, FLAGS_batch_size);
-    MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
+        // if testing mps - sync all processes before executing timed loop
+        MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
+        inference.Run(FLAGS_seconds, false, FLAGS_replicas, FLAGS_batch_size);
+        MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
+        // todo: perform an mpi_allreduce to collect the per process timings
+        //       for a simplified report
+        MPI_CHECK(MPI_Finalize());
+    }
 
-    // todo: perform an mpi_allreduce to collect the per process timings
-    //       for a simplified report
-    MPI_CHECK(MPI_Finalize());
     return 0;
 }

@@ -62,6 +62,8 @@ using yais::Memory::CudaPinnedHostMemory;
 using yais::TensorRT::Model;
 using yais::TensorRT::InferenceManager;
 using yais::TensorRT::Runtime;
+using yais::TensorRT::StandardRuntime;
+using yais::TensorRT::ManagedRuntime;
 
 // Flowers Protos
 #include "inference.pb.h"
@@ -226,6 +228,7 @@ DEFINE_validator(engine, &ValidateEngine);
 DEFINE_string(dataset, "127.0.0.1:4444", "GRPC Dataset/SharedMemory Service Address");
 DEFINE_int32(contexts, 1, "Number of Execution Contexts");
 DEFINE_int32(buffers,  0, "Number of Input/Output Buffers");
+DEFINE_string(runtime, "default", "TensorRT Runtime");
 DEFINE_int32(execution_threads, 1, "Number of RPC execution threads");
 DEFINE_int32(preprocessing_threads, 0, "Number of preprocessing threads");
 DEFINE_int32(kernel_launching_threads, 1, "Number of threads to launch CUDA kernels");
@@ -287,7 +290,22 @@ int main(int argc, char *argv[])
         FLAGS_postprocessing_threads,   // number of threads used to write and complete responses
         GetSharedMemory(FLAGS_dataset)  // pointer to data in shared memory
     );
-    rpcResources->RegisterModel("flowers", Runtime::DeserializeEngine(FLAGS_engine));
+
+    std::shared_ptr<Runtime> runtime;
+    if(FLAGS_runtime == "default")
+    {
+        runtime = std::make_shared<StandardRuntime>();
+    }
+    else if(FLAGS_runtime == "unified")
+    {
+        runtime = std::make_shared<ManagedRuntime>();
+    }
+    else
+    {
+        LOG(FATAL) << "Invalid TensorRT Runtime";
+    }
+
+    rpcResources->RegisterModel("flowers", runtime->DeserializeEngine(FLAGS_engine));
     rpcResources->AllocateResources();
 
     // Create Executors - Executors provide the messaging processing resources for the RPCs
