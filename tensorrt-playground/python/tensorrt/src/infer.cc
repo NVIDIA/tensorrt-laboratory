@@ -121,7 +121,7 @@ class PyInferenceManager final : public InferenceManager
     std::shared_ptr<PyInferRunner> RegisterModelByPath(const std::string& name,
                                                        const std::string& path)
     {
-        auto model = Runtime::DeserializeEngine(path);
+        auto model = ActiveRuntime().DeserializeEngine(path);
         RegisterModel(name, model);
         return this->InferRunner(name);
     }

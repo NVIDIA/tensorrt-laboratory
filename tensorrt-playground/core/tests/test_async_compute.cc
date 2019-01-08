@@ -40,11 +40,11 @@ class TestAsyncCompute : public ::testing::Test
 TEST_F(TestAsyncCompute, EvenTest)
 {
     auto compute =
-        AsyncCompute<void(int)>::Wrap([](int i) -> bool { return (bool)((i % 2) == 0); });
+        AsyncComputeWrapper<void(int)>::Wrap([](int i) -> bool { return (bool)((i % 2) == 0); });
 
     /*
     // fails to compile: the class was defined to accept a user function with only 1 int, not 2 
-    auto compute2ints = AsyncCompute<void(int)>::Wrap([](int i, int j) -> bool {
+    auto compute2ints = AsyncComputeWrapper<void(int)>::Wrap([](int i, int j) -> bool {
          return (bool)((i % 2) == 0);
     });
     */
@@ -60,7 +60,7 @@ TEST_F(TestAsyncCompute, EvenTest)
 TEST_F(TestAsyncCompute, OddTest)
 {
     auto compute =
-        AsyncCompute<void(int)>::Wrap([](int i) -> bool { return (bool)((i % 2) == 0); });
+        AsyncComputeWrapper<void(int)>::Wrap([](int i) -> bool { return (bool)((i % 2) == 0); });
 
     auto future = compute->Future();
     (*compute)(41);
@@ -71,7 +71,7 @@ TEST_F(TestAsyncCompute, OddTest)
 
 TEST_F(TestAsyncCompute, ReturnUniquePtr)
 {
-    auto compute = AsyncCompute<void(int)>::Wrap([](int i) -> std::unique_ptr<bool> {
+    auto compute = AsyncComputeWrapper<void(int)>::Wrap([](int i) -> std::unique_ptr<bool> {
         return std::make_unique<bool>((bool)((i % 2) == 0));
     });
 
@@ -83,10 +83,22 @@ TEST_F(TestAsyncCompute, ReturnUniquePtr)
     EXPECT_FALSE(*value); // this the unique ptr
     EXPECT_ANY_THROW(future.get()); // this is the unique ptr - value moved out
 }
+
+TEST_F(TestAsyncCompute, ReturnVoid)
+{
+    auto compute = AsyncComputeWrapper<void(int)>::Wrap([](int i) {
+        LOG(INFO) << "Inner";
+    });
+
+    auto future = compute->Future();
+    (*compute)(41);
+    future.wait();
+}
+
 /*
 TEST_F(TestAsyncCompute, ReturnBoolInputs1xInt)
 {
-    struct ReturnBoolInputs1xInt : public AsyncCompute<bool(int)>
+    struct ReturnBoolInputs1xInt : public AsyncComputeWrapper<bool(int)>
     {
         template<typename T, typename ...Args>
         auto Compute(T(Args...) UserFn) {
@@ -102,7 +114,7 @@ TEST_F(TestAsyncCompute, ReturnBoolInputs1xInt)
         }
       protected:
         template<typename T, typename... Args>
-        auto Enqueue(std::shared_ptr<AsyncCompute<T>> UserFn, Args&&... args)
+        auto Enqueue(std::shared_ptr<AsyncComputeWrapper<T>> UserFn, Args&&... args)
         {
             auto compute = Wrap(UserFn);
             auto future = compute->Future();

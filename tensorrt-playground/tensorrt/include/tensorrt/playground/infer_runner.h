@@ -34,7 +34,7 @@
 namespace yais {
 namespace TensorRT {
 
-struct InferRunner : public AsyncCompute<void(std::shared_ptr<Bindings>&)>
+struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)>
 {
     InferRunner(std::shared_ptr<Model> model, std::shared_ptr<InferenceManager> resources)
         : m_Model{model}, m_Resources{resources}

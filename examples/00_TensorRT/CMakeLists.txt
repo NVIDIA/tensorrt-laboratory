@@ -27,6 +27,8 @@
 include_directories(${CUDA_INCLUDE_DIRS})
 include_directories(${TensorRT_INCLUDE_DIRS})
 
+
+
 add_executable(inference.x
     inference.cc
     ${PROTO_SRCS}

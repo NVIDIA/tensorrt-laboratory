@@ -57,8 +57,10 @@ namespace TensorRT {
  */
 InferenceManager::InferenceManager(int max_executions, int max_buffers)
     : m_MaxExecutions(max_executions), m_MaxBuffers(max_buffers), m_HostStackSize(0),
-      m_DeviceStackSize(0), m_ActivationsSize(0), m_Buffers{nullptr}
+      m_DeviceStackSize(0), m_ActivationsSize(0), m_Buffers{nullptr}, m_ActiveRuntime{nullptr}
 {
+    // RegisterRuntime("default", std::make_unique<CustomRuntime<StandardAllocator>>());
+    // SetActiveRuntime("default");
     LOG(INFO) << "-- Initialzing TensorRT Resource Manager --";
     LOG(INFO) << "Maximum Execution Concurrency: " << m_MaxExecutions;
     LOG(INFO) << "Maximum Copy Concurrency: " << m_MaxBuffers;
@@ -67,6 +69,16 @@ InferenceManager::InferenceManager(int max_executions, int max_buffers)
 InferenceManager::~InferenceManager()
 {
     JoinAllThreads();
+}
+
+int InferenceManager::MaxExecConcurrency() const
+{
+    return m_MaxExecutions;
+}
+
+int InferenceManager::MaxCopyConcurrency() const
+{
+    return m_MaxBuffers;
 }
 
 /**
@@ -149,6 +161,25 @@ void InferenceManager::RegisterModel(const std::string& name, std::shared_ptr<Mo
     {
         m_ModelExecutionContexts[model.get()]->Push(model->CreateExecutionContext());
     }
+}
+
+Runtime& InferenceManager::ActiveRuntime()
+{
+    return *m_ActiveRuntime;
+}
+
+void InferenceManager::RegisterRuntime(const std::string& name, std::unique_ptr<Runtime> runtime)
+{
+    auto search = m_Runtimes.find(name);
+    CHECK(search == m_Runtimes.end());
+    m_Runtimes[name] = std::move(runtime);    
+}
+
+void InferenceManager::SetActiveRuntime(const std::string& name)
+{
+    auto search = m_Runtimes.find(name);
+    CHECK(search != m_Runtimes.end());
+    m_ActiveRuntime = search->second.get();
 }
 
 /**

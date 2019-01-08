@@ -31,8 +31,8 @@
 #include <glog/logging.h>
 
 #include "tensorrt/playground/core/thread_pool.h"
-#include "tensorrt/playground/inference_manager.h"
 #include "tensorrt/playground/infer_runner.h"
+#include "tensorrt/playground/inference_manager.h"
 #include "tensorrt/playground/runtime.h"
 
 #ifdef YAIS_USE_MPI
@@ -43,13 +43,13 @@
 #endif
 
 using yais::ThreadPool;
-using yais::TensorRT::InferenceManager;
-using yais::TensorRT::ManagedRuntime;
-using yais::TensorRT::Runtime;
-using yais::TensorRT::InferRunner;
 using yais::TensorRT::Bindings;
-
-static int g_Concurrency = 0;
+using yais::TensorRT::InferenceManager;
+using yais::TensorRT::InferRunner;
+using yais::TensorRT::Runtime;
+using yais::TensorRT::CustomRuntime;
+using yais::TensorRT::StandardAllocator;
+using yais::TensorRT::ManagedAllocator;
 
 static std::string ModelName(int model_id)
 {
@@ -81,6 +81,7 @@ class Inference final
     {
         int replica = 0;
         uint64_t inf_count = 0;
+        std::vector<std::shared_future<void>> futures;
 
         auto start = std::chrono::steady_clock::now();
         auto elapsed = [start]() -> float {
@@ -89,11 +90,8 @@ class Inference final
 
         auto model = GetResources()->GetModel(ModelName(replica++));
         auto batch_size = requested_batch_size ? requested_batch_size : model->GetMaxBatchSize();
-        if(batch_size > model->GetMaxBatchSize())
-        {
-            LOG(FATAL)
-                << "Requested batch_size greater than allowed by the compiled TensorRT Engine";
-        }
+        LOG_IF(FATAL, batch_size > model->GetMaxBatchSize())
+            << "Requested batch_size greater than allowed by the compiled TensorRT Engine";
 
         // Inference Loop - Main thread copies, cuda thread launches, response thread completes
         if(!warmup)
@@ -101,8 +99,6 @@ class Inference final
             LOG(INFO) << "-- Inference: Running for ~" << (int)seconds
                       << " seconds with batch_size " << batch_size << " --";
         }
-
-        std::vector<std::shared_future<bool>> futures;
 
         while(elapsed() < seconds && ++inf_count)
         {
@@ -114,18 +110,17 @@ class Inference final
             auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
             auto bindings = buffers->CreateBindings(model);
             bindings->SetBatchSize(batch_size);
+
             InferRunner runner(model, GetResources());
-            futures.push_back(runner.Infer(
-                bindings,
-                [](std::shared_ptr<Bindings>& bindings) mutable -> bool {
+            futures.push_back(
+                runner.Infer(bindings, [](std::shared_ptr<Bindings>& bindings) mutable {
                     bindings.reset();
-                    return true;
-                }
-            ));
+                }));
         }
 
         // Join worker threads
-        for (auto& f : futures) {
+        for(auto& f : futures)
+        {
             f.wait();
         }
 
@@ -135,7 +130,7 @@ class Inference final
         if(!warmup)
             LOG(INFO) << "Inference Results: " << inf_count << "; batches in " << total_time
                       << " seconds"
-                      << "; sec/batch/stream: " << total_time / (inf_count / g_Concurrency)
+                      << "; sec/batch/stream: " << total_time / (inf_count / m_Resources->MaxExecConcurrency())
                       << "; batches/sec: " << inf_count / total_time
                       << "; inf/sec: " << inferences / total_time;
     }
@@ -158,6 +153,7 @@ static bool ValidateEngine(const char* flagname, const std::string& value)
 
 DEFINE_string(engine, "/path/to/tensorrt.engine", "TensorRT serialized engine");
 DEFINE_validator(engine, &ValidateEngine);
+DEFINE_string(runtime, "default", "TensorRT Runtime");
 DEFINE_int32(seconds, 5, "Approximate number of seconds for the timing loop");
 DEFINE_int32(contexts, 1, "Number of Execution Contexts");
 DEFINE_int32(buffers, 0, "Number of Buffers (default: 2x contexts)");
@@ -174,31 +170,46 @@ int main(int argc, char* argv[])
 
     MPI_CHECK(MPI_Init(&argc, &argv));
 
-    auto contexts = g_Concurrency = FLAGS_contexts;
+    auto contexts = FLAGS_contexts;
     auto buffers = FLAGS_buffers ? FLAGS_buffers : 2 * FLAGS_contexts;
 
     auto resources = std::make_shared<InferenceResources>(contexts, buffers);
-    
-    //, FLAGS_cudathreads, FLAGS_respthreads);
 
-    resources->RegisterModel("0", ManagedRuntime::DeserializeEngine(FLAGS_engine));
+    //, FLAGS_cudathreads, FLAGS_respthreads);
+    std::shared_ptr<Runtime> runtime;
+    if(FLAGS_runtime == "default")
+    {
+        runtime = std::make_shared<CustomRuntime<StandardAllocator>>();
+    }
+    else if(FLAGS_runtime == "unified")
+    {
+        runtime = std::make_shared<CustomRuntime<ManagedAllocator>>();
+    }
+    else
+    {
+        LOG(FATAL) << "Invalid TensorRT Runtime";
+    }
+
+    resources->RegisterModel("0", runtime->DeserializeEngine(FLAGS_engine));
     resources->AllocateResources();
 
     for(int i = 1; i < FLAGS_replicas; i++)
     {
-        resources->RegisterModel(ModelName(i), ManagedRuntime::DeserializeEngine(FLAGS_engine));
+        resources->RegisterModel(ModelName(i), runtime->DeserializeEngine(FLAGS_engine));
     }
 
-    Inference inference(resources);
-    inference.Run(0.1, true, 1, 0); // warmup
+    {
+        Inference inference(resources);
+        inference.Run(0.1, true, 1, 0); // warmup
 
-    // if testing mps - sync all processes before executing timed loop
-    MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
-    inference.Run(FLAGS_seconds, false, FLAGS_replicas, FLAGS_batch_size);
-    MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
+        // if testing mps - sync all processes before executing timed loop
+        MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
+        inference.Run(FLAGS_seconds, false, FLAGS_replicas, FLAGS_batch_size);
+        MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
+        // todo: perform an mpi_allreduce to collect the per process timings
+        //       for a simplified report
+        MPI_CHECK(MPI_Finalize());
+    }
 
-    // todo: perform an mpi_allreduce to collect the per process timings
-    //       for a simplified report
-    MPI_CHECK(MPI_Finalize());
     return 0;
 }

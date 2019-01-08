@@ -38,33 +38,38 @@
 using ::nvinfer1::ICudaEngine;
 using ::nvinfer1::IExecutionContext;
 
-namespace yais
-{
-namespace TensorRT
-{
+namespace yais {
+namespace TensorRT {
 
 /**
  * @brief Construct a new Model object
  */
-Model::Model(std::shared_ptr<ICudaEngine> engine)
-    : m_Engine(engine)
+Model::Model(std::shared_ptr<ICudaEngine> engine) : m_Engine(engine)
 {
     CHECK(m_Engine) << "Model required an initialzed ICudaEngine*";
     DLOG(INFO) << "Initializing Bindings from Engine";
-    for (uint32_t i = 0; i < m_Engine->getNbBindings(); i++)
+    for(uint32_t i = 0; i < m_Engine->getNbBindings(); i++)
     {
         const auto& binding = ConfigureBinding(i);
         m_BindingsByName[binding.name] = std::move(binding);
         m_BindingIdByName[binding.name] = i;
         DLOG(INFO) << binding.name << " maps to " << i;
         m_Bindings.push_back(std::move(ConfigureBinding(i)));
-        if (m_Bindings[i].isInput) {
+        if(m_Bindings[i].isInput)
+        {
             m_InputBindings.push_back(i);
-        } else {
+        }
+        else
+        {
             m_OutputBindings.push_back(i);
         }
     }
     CHECK_EQ(m_Bindings.size(), m_Engine->getNbBindings());
+}
+
+Model::~Model()
+{
+    DLOG(INFO) << "Destroying Model: " << m_Name;
 }
 
 Model::TensorBindingInfo Model::ConfigureBinding(uint32_t i)
@@ -72,21 +77,22 @@ Model::TensorBindingInfo Model::ConfigureBinding(uint32_t i)
     TensorBindingInfo binding;
     auto dims = m_Engine->getBindingDimensions(i);
     size_t elements = 1;
-    for (int j = 0; j < dims.nbDims; j++)
+    for(int j = 0; j < dims.nbDims; j++)
     {
         binding.dims.push_back(dims.d[j]);
         elements *= dims.d[j];
     }
 
     binding.name = m_Engine->getBindingName(i);
-    binding.dtype = m_Engine->getBindingDataType(i); 
+    binding.dtype = m_Engine->getBindingDataType(i);
     binding.dtypeSize = SizeofDataType(binding.dtype);
     binding.elementsPerBatchItem = elements;
     binding.bytesPerBatchItem = elements * binding.dtypeSize;
     binding.isInput = m_Engine->bindingIsInput(i);
-    LOG(INFO) << "Binding: " << binding.name << "; isInput: " << (binding.isInput ? "true" : "false")
-               << "; dtype size: " << binding.dtypeSize
-               << "; bytes per batch item: " << binding.bytesPerBatchItem;
+    LOG(INFO) << "Binding: " << binding.name
+              << "; isInput: " << (binding.isInput ? "true" : "false")
+              << "; dtype size: " << binding.dtypeSize
+              << "; bytes per batch item: " << binding.bytesPerBatchItem;
     return binding;
 }
 
@@ -97,27 +103,32 @@ auto Model::BindingId(const std::string& name) const -> uint32_t
     return search->second;
 }
 
-auto Model::GetBinding(uint32_t id) const -> const TensorBindingInfo &
+auto Model::GetBinding(uint32_t id) const -> const TensorBindingInfo&
 {
-    CHECK_LT(id, m_Bindings.size()) << "Invalid BindingId; given: " << id << "; max: " << m_Bindings.size();
+    CHECK_LT(id, m_Bindings.size())
+        << "Invalid BindingId; given: " << id << "; max: " << m_Bindings.size();
     return m_Bindings[id];
 }
 
 Model::BindingType Model::GetBindingType(const std::string& name) const
 {
     auto search = m_BindingsByName.find(name);
-    if (search == m_BindingsByName.end()) {
+    if(search == m_BindingsByName.end())
+    {
         return BindingType::Invalid;
     }
-    if (search->second.isInput) {
+    if(search->second.isInput)
+    {
         return BindingType::Input;
-    } else {
+    }
+    else
+    {
         return BindingType::Output;
     }
     return BindingType::Invalid;
 }
 
-auto Model::GetBinding(const std::string& name) const -> const TensorBindingInfo &
+auto Model::GetBinding(const std::string& name) const -> const TensorBindingInfo&
 {
     auto search = m_BindingsByName.find(name);
     CHECK(search != m_BindingsByName.end());
@@ -126,17 +137,21 @@ auto Model::GetBinding(const std::string& name) const -> const TensorBindingInfo
 
 auto Model::CreateExecutionContext() const -> std::shared_ptr<IExecutionContext>
 {
-    return make_shared<IExecutionContext>(m_Engine->createExecutionContextWithoutDeviceMemory());
+    return nv_shared<IExecutionContext>(m_Engine->createExecutionContextWithoutDeviceMemory(),
+                                        [engine = m_Engine, name = m_Name]() mutable {
+                                            DLOG(INFO) << "Destroying IExecutionContext for Model: "
+                                                       << name;
+                                        });
 }
 
-void Model::AddWeights(void *ptr, size_t size)
+void Model::AddWeights(void* ptr, size_t size)
 {
     m_Weights.push_back(Weights{ptr, size});
 }
 
 void Model::PrefetchWeights(cudaStream_t stream) const
 {
-    for (auto weights : m_Weights)
+    for(auto weights : m_Weights)
     {
         CHECK_EQ(cudaMemPrefetchAsync(weights.addr, weights.size, 0, stream), CUDA_SUCCESS)
             << "Failed to Prefetch Weights";
@@ -146,7 +161,7 @@ void Model::PrefetchWeights(cudaStream_t stream) const
 auto Model::GetWeightsMemorySize() const -> const size_t
 {
     size_t total = 0;
-    for (auto weights : m_Weights)
+    for(auto weights : m_Weights)
     {
         total += weights.size;
     }
@@ -156,7 +171,7 @@ auto Model::GetWeightsMemorySize() const -> const size_t
 auto Model::GetBindingMemorySize() const -> const size_t
 {
     size_t bytes = 0;
-    for (auto const &binding : m_Bindings)
+    for(auto const& binding : m_Bindings)
     {
         bytes += binding.bytesPerBatchItem;
     }

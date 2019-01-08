@@ -24,89 +24,55 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#pragma once
+#include "tensorrt/playground/allocator.h"
 
-#include <memory>
+#include <cuda.h>
+#include <cuda_runtime.h>
 
-#include <NvInfer.h>
+#include <glog/logging.h>
 
 namespace yais {
 namespace TensorRT {
 
-class Runtime;
-class Model;
-class Buffers;
-class Bindings;
-class ExecutionContext;
-class InferenceManager;
-
-struct NvInferDeleter
+void* NvAllocator::allocate(size_t size, uint64_t alignment, uint32_t flags)
 {
-    NvInferDeleter()
+    void* ptr;
+    std::lock_guard<std::recursive_mutex> lock(m_Mutex);
+    if(m_UseWeightAllocator)
     {
-        NvInferDeleter([] {});
+        WeightAllocator(&ptr, size);
+        m_Pointers.push_back(Pointer{ptr, size});
     }
-    NvInferDeleter(std::function<void()> capture) : m_Capture{capture} {}
-
-    template<typename T>
-    void operator()(T* obj) const
+    else
     {
-        if(obj)
-        {
-            obj->destroy();
-            if(m_Capture)
-            {
-                m_Capture();
-            }
-        }
+        CHECK_EQ(cudaMalloc(&ptr, size), CUDA_SUCCESS);
+        DLOG(INFO) << "TensorRT cudaMalloc size = " << size;
     }
+    return ptr;
+}
 
-  private:
-    std::function<void()> m_Capture;
-};
-
-/**
- * @brief Create a std::shared_ptr for an nvinfer interface object
- *
- * @tparam T
- * @param obj
- * @return std::shared_ptr<T>
- */
-template<typename T>
-std::shared_ptr<T> nv_shared(T* obj)
+void NvAllocator::free(void* ptr)
 {
-    if(!obj)
-    {
-        throw std::runtime_error("Failed to create object");
-    }
-    return std::shared_ptr<T>(obj, NvInferDeleter());
-};
+    DLOG(INFO) << "TensorRT cudaFree " << ptr;
+    CHECK_EQ(cudaFree(ptr), CUDA_SUCCESS) << "Failed to free TensorRT device memory";
+}
 
-template<typename T>
-std::shared_ptr<T> nv_shared(T* obj, std::function<void()> capture)
+const std::vector<NvAllocator::Pointer>& NvAllocator::GetPointers()
 {
-    if(!obj)
-    {
-        throw std::runtime_error("Failed to create object");
-    }
-    return std::shared_ptr<T>(obj, NvInferDeleter(capture));
-};
+    return m_Pointers;
+}
 
-/**
- * @brief Create a std::unique_ptr for an nvinfer interface object
- *
- * @tparam T
- * @param obj
- * @return std::unique_ptr<T, NvInferDeleter>
- */
-template<typename T>
-std::unique_ptr<T, NvInferDeleter> nv_unique(T* obj)
+void StandardAllocator::WeightAllocator(void** ptr, size_t size)
 {
-    if(!obj)
-    {
-        throw std::runtime_error("Failed to create object");
-    }
-    return std::unique_ptr<T, NvInferDeleter>(obj);
+    CHECK_EQ(cudaMalloc(ptr, size), CUDA_SUCCESS);
+    DLOG(INFO) << "TensorRT cudaMalloc size = " << size << "; " << *ptr;
+}
+
+void ManagedAllocator::WeightAllocator(void** ptr, size_t size)
+{
+    CHECK_EQ(cudaMallocManaged(ptr, size), CUDA_SUCCESS);
+    DLOG(INFO) << "TensorRT cudaMallocManaged size = " << size << "; " << *ptr;
+    CHECK_EQ(cudaMemAdvise(*ptr, size, cudaMemAdviseSetReadMostly, 0), CUDA_SUCCESS);
 }
 
 } // namespace TensorRT

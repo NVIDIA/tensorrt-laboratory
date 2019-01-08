@@ -39,7 +39,7 @@ namespace nvrpc {
 namespace client {
 
 template<typename Request, typename Response>
-struct ClientUnary : public ::yais::AsyncCompute<void(Request&, Response&, ::grpc::Status&)>
+struct ClientUnary : public ::yais::AsyncComputeWrapper<void(Request&, Response&, ::grpc::Status&)>
 {
   public:
     using PrepareFn = std::function<std::unique_ptr<::grpc::ClientAsyncResponseReader<Response>>(

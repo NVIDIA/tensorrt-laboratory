@@ -44,7 +44,9 @@
 using yais::ThreadPool;
 using yais::TensorRT::InferenceManager;
 using yais::TensorRT::Runtime;
-using yais::TensorRT::ManagedRuntime;
+using yais::TensorRT::CustomRuntime;
+using yais::TensorRT::StandardAllocator;
+using yais::TensorRT::ManagedAllocator;
 
 static int g_Concurrency = 0;
 
@@ -99,6 +101,8 @@ class Inference final
             LOG(INFO) << "-- Inference: Running for ~" << (int)seconds << " seconds with batch_size " << batch_size << " --";
         }
 
+        std::vector<std::future<void>> futures;
+
         while (elapsed() < seconds && ++inf_count)
         {
             if (replica >= replicas) replica = 0;
@@ -107,10 +111,13 @@ class Inference final
             auto model = GetResources()->GetModel(ModelName(replica++));
             auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
             auto bindings = buffers->CreateBindings(model);
+            auto promise = std::make_shared<std::promise<void>>();
+            futures.push_back(promise->get_future());
+
             bindings->SetBatchSize(batch_size);
             bindings->CopyToDevice(bindings->InputBindings());
 
-            GetResources()->GetCudaThreadPool()->enqueue([this, bindings]() mutable {
+            GetResources()->GetCudaThreadPool()->enqueue([this, bindings, promise]() mutable {
                 // This thread enqueues two async kernels:
                 //  1) TensorRT execution
                 //  2) D2H of output tensors
@@ -118,20 +125,27 @@ class Inference final
                 trt->Infer(bindings);
                 bindings->CopyFromDevice(bindings->OutputBindings());
 
-                GetResources()->GetResponseThreadPool()->enqueue([bindings, trt]() mutable {
+                GetResources()->GetResponseThreadPool()->enqueue([bindings, trt, promise]() mutable {
                     // This thread waits on the completion of the async compute and the async copy
                     trt->Synchronize(); trt.reset(); // Finished with the Execution Context - Release it to competing threads
                     bindings->Synchronize(); bindings.reset(); // Finished with Buffers - Release it to competing threads
+                    promise->set_value();
                 });
             });
         }
 
+        for(const auto& f : futures)
+        {
+            f.wait();
+        }
+
+/*
         // Join worker threads
         if (!warmup)
             GetResources()->GetCudaThreadPool().reset();
         if (!warmup)
             GetResources()->GetResponseThreadPool().reset();
-
+*/
         // End timing and report
         auto total_time = std::chrono::duration<float>(elapsed()).count();
         auto inferences = inf_count * batch_size;
@@ -158,6 +172,7 @@ static bool ValidateEngine(const char *flagname, const std::string &value)
 
 DEFINE_string(engine, "/path/to/tensorrt.engine", "TensorRT serialized engine");
 DEFINE_validator(engine, &ValidateEngine);
+DEFINE_string(runtime, "default", "TensorRT Runtime");
 DEFINE_int32(seconds, 5, "Approximate number of seconds for the timing loop");
 DEFINE_int32(contexts, 1, "Number of Execution Contexts");
 DEFINE_int32(buffers, 0, "Number of Buffers (default: 2x contexts)");
@@ -183,12 +198,26 @@ int main(int argc, char *argv[])
         FLAGS_cudathreads,
         FLAGS_respthreads);
 
-    resources->RegisterModel("0", ManagedRuntime::DeserializeEngine(FLAGS_engine));
+    std::shared_ptr<Runtime> runtime;
+    if(FLAGS_runtime == "default")
+    {
+        runtime = std::make_shared<CustomRuntime<StandardAllocator>>();
+    }
+    else if(FLAGS_runtime == "unified")
+    {
+        runtime = std::make_shared<CustomRuntime<ManagedAllocator>>();
+    }
+    else
+    {
+        LOG(FATAL) << "Invalid TensorRT Runtime";
+    }
+
+    resources->RegisterModel("0", runtime->DeserializeEngine(FLAGS_engine));
     resources->AllocateResources();
 
     for (int i = 1; i < FLAGS_replicas; i++)
     {
-        resources->RegisterModel(ModelName(i), ManagedRuntime::DeserializeEngine(FLAGS_engine));
+        resources->RegisterModel(ModelName(i), runtime->DeserializeEngine(FLAGS_engine));
     }
 
     Inference inference(resources);
