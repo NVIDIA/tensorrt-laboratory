@@ -113,6 +113,9 @@ class PyInferenceManager final : public InferenceManager
         manager->RegisterThreadPool("pre", std::make_unique<ThreadPool>(pre_thread_count));
         manager->RegisterThreadPool("cuda", std::make_unique<ThreadPool>(cuda_thread_count));
         manager->RegisterThreadPool("post", std::make_unique<ThreadPool>(post_thread_count));
+        manager->RegisterRuntime("default", std::make_shared<StandardRuntime>());
+        manager->RegisterRuntime("unified", std::make_shared<ManagedRuntime>());
+        manager->SetActiveRuntime("default");
         return manager;
     }
 

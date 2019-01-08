@@ -72,7 +72,7 @@ class InferenceManager : public ::yais::Resources
     void JoinAllThreads();
 
     Runtime& ActiveRuntime();
-    void RegisterRuntime(const std::string&, std::unique_ptr<Runtime>);
+    void RegisterRuntime(const std::string&, std::shared_ptr<Runtime>);
     void SetActiveRuntime(const std::string&);
     void SetActiveRuntimeToDefault();
 
@@ -88,7 +88,7 @@ class InferenceManager : public ::yais::Resources
     Runtime *m_ActiveRuntime;
 
     std::map<std::string, std::unique_ptr<ThreadPool>> m_ThreadPools;
-    std::map<std::string, std::unique_ptr<Runtime>> m_Runtimes;
+    std::map<std::string, std::shared_ptr<Runtime>> m_Runtimes;
     std::map<std::string, std::shared_ptr<Model>> m_Models;
     std::map<const Model *, std::shared_ptr<Pool<::nvinfer1::IExecutionContext>>> m_ModelExecutionContexts;
 

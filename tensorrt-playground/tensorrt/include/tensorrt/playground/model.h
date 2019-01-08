@@ -160,9 +160,6 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
     std::vector<uint32_t> m_OutputBindings;
     std::vector<Weights> m_Weights;
     std::string m_Name;
-
-    friend class Runtime;
-    friend class ManagedRuntime;
 };
 
 

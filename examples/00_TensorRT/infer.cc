@@ -47,9 +47,8 @@ using yais::TensorRT::Bindings;
 using yais::TensorRT::InferenceManager;
 using yais::TensorRT::InferRunner;
 using yais::TensorRT::Runtime;
-using yais::TensorRT::CustomRuntime;
-using yais::TensorRT::StandardAllocator;
-using yais::TensorRT::ManagedAllocator;
+using yais::TensorRT::StandardRuntime;
+using yais::TensorRT::ManagedRuntime;
 
 static std::string ModelName(int model_id)
 {
@@ -179,11 +178,11 @@ int main(int argc, char* argv[])
     std::shared_ptr<Runtime> runtime;
     if(FLAGS_runtime == "default")
     {
-        runtime = std::make_shared<CustomRuntime<StandardAllocator>>();
+        runtime = std::make_shared<StandardRuntime>();
     }
     else if(FLAGS_runtime == "unified")
     {
-        runtime = std::make_shared<CustomRuntime<ManagedAllocator>>();
+        runtime = std::make_shared<ManagedRuntime>();
     }
     else
     {

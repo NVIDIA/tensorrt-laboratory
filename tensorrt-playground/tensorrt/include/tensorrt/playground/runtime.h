@@ -107,5 +107,8 @@ struct CustomRuntime : public RuntimeWithAllocator
     virtual ~CustomRuntime() override {}
 };
 
+using StandardRuntime = CustomRuntime<StandardAllocator>;
+using ManagedRuntime = CustomRuntime<ManagedAllocator>;
+
 } // namespace TensorRT
 } // namespace yais

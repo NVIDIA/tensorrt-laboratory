@@ -168,7 +168,7 @@ Runtime& InferenceManager::ActiveRuntime()
     return *m_ActiveRuntime;
 }
 
-void InferenceManager::RegisterRuntime(const std::string& name, std::unique_ptr<Runtime> runtime)
+void InferenceManager::RegisterRuntime(const std::string& name, std::shared_ptr<Runtime> runtime)
 {
     auto search = m_Runtimes.find(name);
     CHECK(search == m_Runtimes.end());
