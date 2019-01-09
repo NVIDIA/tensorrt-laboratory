@@ -28,5 +28,7 @@ add_executable(internals.x
     internals.cc
 )
 target_link_libraries(internals.x
-    yais
+    tensorrt-playground::core
+    tensorrt-playground::cuda
+    gflags
 )

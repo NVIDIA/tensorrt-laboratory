@@ -58,5 +58,5 @@ target_link_libraries(inference.x
     ${MPI_C_LIBRARIES}
     ${MPI_CXX_LIBRARIES}
 )
-target_compile_definitions(inference.x PUBLIC YAIS_USE_MPI)
+target_compile_definitions(inference.x PUBLIC PLAYGROUND_USE_MPI)
 endif()

@@ -24,9 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _YAIS_UNARY_H_
-#define _YAIS_UNARY_H_
-
+#pragma once
 #include "nvrpc/interfaces.h"
 
 namespace playground
@@ -173,5 +171,3 @@ void LifeCycleUnary<Request, Response>::SetQueueFunc(ExecutorQueueFuncType queue
 }
 
 } // namespace playground
-
-#endif // _YAIS_UNARY_H_

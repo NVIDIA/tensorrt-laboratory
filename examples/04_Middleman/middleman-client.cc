@@ -29,14 +29,22 @@
 #include <chrono>
 #include <thread>
 
-#include "YAIS/YAIS.h"
-#include "tensorrt/playground/core/memory.h"
-#include "moodycamel/blockingconcurrentqueue.h"
+#include "tensorrt/playground/core/memory/allocator.h"
+#include "tensorrt/playground/core/memory/malloc.h"
+
+using playground::Memory::Allocator;
+using playground::Memory::Malloc;
+
+#include "nvrpc/context.h"
+#include "nvrpc/executor.h"
+#include "nvrpc/server.h"
 
 using playground::Context;
 using playground::Executor;
 using playground::Server;
 using playground::ThreadPool;
+
+#include "moodycamel/blockingconcurrentqueue.h"
 
 using moodycamel::BlockingConcurrentQueue;
 using moodycamel::ConsumerToken;
@@ -302,7 +310,7 @@ class DemoMiddlemanService : public InferMiddlemanService
         using InferMiddlemanService::Resources::Resources;
         void PreprocessRequest(easter::InferRequest *req) override
         {
-            static auto local_data = playground::Allocated<Malloc>::make_unique(10*1024*1024);
+            static auto local_data = std::make_unique<Allocator<Malloc>>(10*1024*1024);
             DLOG(INFO) << "Boom - preprocess request here!";
             auto bytes = req->meta_data().batch_size() * req->meta_data().input(0).byte_size();
             CHECK_EQ(0, req->raw_input_size());

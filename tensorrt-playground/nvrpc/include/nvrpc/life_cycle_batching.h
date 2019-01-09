@@ -24,8 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _YAIS_LIFECYCLE_BATCHING_H_
-#define _YAIS_LIFECYCLE_BATCHING_H_
+#pragma once
 
 #include "nvrpc/interfaces.h"
 
@@ -231,5 +230,3 @@ void LifeCycleBatching<Request, Response>::CancelResponse()
 }
 
 } // namespace playground
-
-#endif // _YAIS_LIFECYCLE_BATCHING_H_

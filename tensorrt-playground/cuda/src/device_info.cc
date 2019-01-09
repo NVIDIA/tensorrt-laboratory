@@ -53,7 +53,7 @@ struct nvmlState
 
 static auto nvmlInstatnce = std::make_unique<nvmlState>();
 
-nvmlDevice_t GetHandleById(int device_id)
+nvmlDevice_t GetHandleById(unsigned int device_id)
 {
     nvmlDevice_t handle;
     CHECK_EQ(nvmlDeviceGetHandleByIndex(device_id, &handle), NVML_SUCCESS);
@@ -66,14 +66,14 @@ namespace playground
 {
 CpuSet DeviceInfo::Affinity(int device_id)
 {
-    CpuSet cpus;
-    unsigned long cpu_mask = 0;
     nvmlDevice_t gpu = GetHandleById(device_id);
+    unsigned long cpu_mask = 0;
+    CpuSet cpus;
 
     CHECK_EQ(nvmlDeviceGetCpuAffinity(gpu, sizeof(cpu_mask), &cpu_mask), NVML_SUCCESS)
         << "Failed to retrieve CpusSet for GPU=" << device_id;
 
-    for(int i = 0; i < 8 * sizeof(cpu_mask); i++)
+    for(unsigned int i = 0; i < 8 * sizeof(cpu_mask); i++)
     {
         if(test_bit(cpu_mask, i))
         {
@@ -82,7 +82,7 @@ CpuSet DeviceInfo::Affinity(int device_id)
     }
 
     DLOG(INFO) << "CPU Affinity for GPU " << device_id << ": " << cpus.GetCpuString();
-    return cpus;
+    return std::move(cpus);
 }
 
 std::size_t DeviceInfo::Alignment()

@@ -25,10 +25,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "tensorrt/playground/core/affinity.h"
-#include "tensorrt/playground/core/thread_pool.h"
-#include "tensorrt/playground/core/memory.h"
-#include "tensorrt/playground/core/memory_stack.h"
 #include "tensorrt/playground/core/pool.h"
+#include "tensorrt/playground/core/thread_pool.h"
+#include "tensorrt/playground/core/memory/memory_stack.h"
+#include "tensorrt/playground/core/memory/allocator.h"
+#include "tensorrt/playground/cuda/memory/cuda_device.h"
+#include "tensorrt/playground/cuda/memory/cuda_managed.h"
+#include "tensorrt/playground/cuda/memory/cuda_pinned_host.h"
+#include "tensorrt/playground/cuda/device_info.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -42,29 +46,34 @@
 
 using playground::Affinity;
 using playground::CpuSet;
+using playground::DeviceInfo;
 using playground::ThreadPool;
-using playground::CudaPinnedHostMemory;
-using playground::CudaDeviceMemory;
-using playground::MemoryStack;
 using playground::Pool;
+using playground::Memory::Allocator;
+using playground::Memory::CudaPinnedHostMemory;
+using playground::Memory::CudaDeviceMemory;
+using playground::Memory::MemoryStack;
 
 
 int main(int argc, char *argv[])
 {
+    FLAGS_alsologtostderr = 1; // Log to console
+    ::google::InitGoogleLogging("example10/internals.x");
+
     auto one_gib = 1024*1024*1024;
     auto zeroMemory = true;
 
-    auto gpu_0 = Affinity::GetDeviceAffinity(0);
+    const auto& gpu_0 = DeviceInfo::Affinity(0);
 
     // Socket 0 - non-hyperthreads on a DGX-1 or Station
-    auto socket_0 = Affinity::GetAffinity().Intersection(
+    const auto& socket_0 = Affinity::GetAffinity().Intersection(
         Affinity::GetCpusBySocket(0).Intersection(
             Affinity::GetCpusByProcessingUnit(0)
     ));
 
     // Socket 1 - non-hyperthreads on a DGX-1, or
     // Socket 0 - hyperthreads on a DGX-Station
-    auto socket_1 = Affinity::GetAffinity().Intersection(
+    const auto& socket_1 = Affinity::GetAffinity().Intersection(
         Affinity::GetCpusFromString("20-39")
     );
 
@@ -74,19 +83,19 @@ int main(int argc, char *argv[])
     std::shared_ptr<CudaPinnedHostMemory> pinned_0, pinned_1;
 
     auto future_0 = workers_0->enqueue([=, &pinned_0]{
-        pinned_0 = Allocated<CudaPinnedHostMemory>::make_shared(one_gib);
-        pinned_0->WriteZeros();
+        pinned_0 = std::make_shared<Allocator<CudaPinnedHostMemory>>(one_gib);
+        pinned_0->Fill(0);
     });
 
     auto future_1 = workers_1->enqueue([=, &pinned_1]{
-        pinned_1 = Allocated<CudaPinnedHostMemory>::make_shared(one_gib);
-        pinned_1->WriteZeros();
+        pinned_1 = std::make_shared<Allocator<CudaPinnedHostMemory>>(one_gib);
+        pinned_1->Fill(0);
     });
 
     LOG(INFO) << socket_0;
 
     future_0.get();
-    CHECK(pinned_0) << "pinned_0 got deallocated - fail";
+    CHECK(pinned_0) << "pinned_0 got deAllocator - fail";
     LOG(INFO) << "pinned_0 (ptr, size): (" 
               << pinned_0->Data() << ", "
               << pinned_0->Size() << ")";
@@ -99,7 +108,7 @@ int main(int argc, char *argv[])
     // this just drives home the point that we want to align CPU worker thread to GPU affinity.
     future_0 = workers_0->enqueue([=, &gpu_stack_on_socket0]{
         CHECK_EQ(cudaSetDevice(0), CUDA_SUCCESS) << "Set Device 0 failed";
-        gpu_stack_on_socket0 = MemoryStack<CudaDeviceMemory>::make_shared(one_gib);
+        gpu_stack_on_socket0 = std::make_shared<MemoryStack<CudaDeviceMemory>>(one_gib);
         gpu_stack_on_socket0->Reset(zeroMemory);
     });
 

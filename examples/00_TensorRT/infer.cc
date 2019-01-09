@@ -35,7 +35,7 @@
 #include "tensorrt/playground/inference_manager.h"
 #include "tensorrt/playground/runtime.h"
 
-#ifdef YAIS_USE_MPI
+#ifdef PLAYGROUND_USE_MPI
 #include "mpi.h"
 #define MPI_CHECK(mpicall) mpicall
 #else

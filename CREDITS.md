@@ -107,7 +107,7 @@ Example gRPC client code was used with modification from the [gRPC project]
 ---
 
 [moodycamel::ConcurrentQueue](https://github.com/cameron314/concurrentqueue) is
-added unmodified to the Docker images and loaded into the `YAIS` namespace.
+added unmodified to the Docker images and loaded into the `playground` namespace.
 
 > Simplified BSD License:
 > 

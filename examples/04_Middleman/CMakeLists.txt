@@ -29,6 +29,7 @@ add_executable(middleman-client.x
 )
 
 target_link_libraries(middleman-client.x
-    yais
+    tensorrt-playground::nvrpc
     nv-inference-protos
+    gflags
 )

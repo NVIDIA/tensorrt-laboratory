@@ -36,7 +36,7 @@ namespace playground
 static cpuaff::affinity_manager s_Manager;
 std::vector<int> ParseIDs(const std::string data);
 
-void Affinity::SetAffinity(const CpuSet cpus)
+void Affinity::SetAffinity(const CpuSet& cpus)
 {
     CHECK(s_Manager.set_affinity(cpus)) << "SetAffinity failed for cpu_set: " << cpus;
 }
@@ -87,7 +87,7 @@ cpuaff::cpu Affinity::GetCpuFromId(int id)
     return cpu;
 }
 
-CpuSet Affinity::GetCpusFromString(std::string ids)
+CpuSet Affinity::GetCpusFromString(const std::string& ids)
 {
     CpuSet cpus;
     auto int_ids = ParseIDs(ids);

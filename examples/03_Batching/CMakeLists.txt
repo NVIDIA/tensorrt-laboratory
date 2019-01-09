@@ -28,8 +28,9 @@ add_executable(streaming-service-echo.x
     streaming-service.cc
 )
 target_link_libraries(streaming-service-echo.x
-    yais
+    tensorrt-playground::nvrpc
     echo-protos
+    gflags
 )
 
 add_executable(batching-service-echo.x
@@ -37,7 +38,8 @@ add_executable(batching-service-echo.x
 )
 
 target_link_libraries(batching-service-echo.x
-    yais
+    tensorrt-playground::nvrpc
     echo-protos
+    gflags
 )
 

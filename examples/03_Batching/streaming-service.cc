@@ -29,10 +29,13 @@
 #include <chrono>
 #include <thread>
 
-#include "YAIS/YAIS.h"
-
-#include "echo.pb.h"
-#include "echo.grpc.pb.h"
+#include "tensorrt/playground/core/resources.h"
+#include "tensorrt/playground/core/thread_pool.h"
+#include "nvrpc/context.h"
+#include "nvrpc/executor.h"
+#include "nvrpc/rpc.h"
+#include "nvrpc/service.h"
+#include "nvrpc/server.h"
 
 using playground::AsyncService;
 using playground::AsyncRPC;
@@ -41,6 +44,9 @@ using playground::Executor;
 using playground::Server;
 using playground::Resources;
 using playground::ThreadPool;
+
+#include "echo.pb.h"
+#include "echo.grpc.pb.h"
 
 
 class SimpleContext final : public BatchingContext<simple::Input, simple::Output, Resources>

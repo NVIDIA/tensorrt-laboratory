@@ -28,16 +28,16 @@
 
 #include "cpuaff/cpuaff.hpp"
 
-namespace playground
-{
-class CpuSet : public cpuaff::cpu_set
+namespace playground {
+
+struct CpuSet : public cpuaff::cpu_set
 {
   public:
+    using cpuaff::cpu_set::cpu_set;
+
     CpuSet Intersection(const CpuSet& other) const;
     CpuSet Union(const CpuSet& other) const;
     CpuSet Difference(const CpuSet& other) const;
-
-    // CpuSet Pop();
 
     auto GetAllocator() const -> cpuaff::round_robin_allocator
     {
@@ -47,20 +47,17 @@ class CpuSet : public cpuaff::cpu_set
     std::string GetCpuString() const;
 };
 
-class Affinity
+struct Affinity
 {
-  public:
-    Affinity() = default;
-
     static CpuSet GetAffinity();
-    static void SetAffinity(const CpuSet cpus);
+    static void SetAffinity(const CpuSet& cpus);
 
     static CpuSet GetCpusByNuma(int numa_id);
     static CpuSet GetCpusBySocket(int socket_id);
     static CpuSet GetCpusByCore(int core_id);
     static CpuSet GetCpusByProcessingUnit(int thread_id);
 
-    static CpuSet GetCpusFromString(std::string ids);
+    static CpuSet GetCpusFromString(const std::string& ids);
     static cpuaff::cpu GetCpuFromId(int);
 };
 
