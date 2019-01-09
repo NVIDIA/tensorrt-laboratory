@@ -30,7 +30,7 @@
 #include "tensorrt/playground/core/memory/host_memory.h"
 #include "tensorrt/playground/cuda/memory/device_memory.h"
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 void Copy(HostMemory& dst, size_t dst_offset, const DeviceMemory& src, size_t src_offset, size_t size);
@@ -38,4 +38,4 @@ void Copy(DeviceMemory& dst, size_t dst_offset, const HostMemory& src, size_t sr
 void Copy(DeviceMemory& dst, size_t dst_offset, const DeviceMemory& src, size_t src_offset, size_t size);
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

@@ -46,8 +46,8 @@ using simple::Input;
 using simple::Output;
 using simple::Inference;
 
-using yais::Memory::CyclicAllocator;
-using yais::Memory::SystemV;
+using playground::Memory::CyclicAllocator;
+using playground::Memory::SystemV;
 
 static constexpr size_t one_mb = 1024*1024;
 

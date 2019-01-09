@@ -32,8 +32,8 @@
 
 #include "gtest/gtest.h"
 
-using namespace yais;
-using namespace yais::Memory;
+using namespace playground;
+using namespace playground::Memory;
 
 namespace
 {

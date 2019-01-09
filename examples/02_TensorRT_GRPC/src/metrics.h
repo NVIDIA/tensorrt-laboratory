@@ -32,7 +32,7 @@
 using prometheus::Exposer;
 using prometheus::Registry;
 
-namespace yais {
+namespace playground {
 
 class Metrics
 {
@@ -50,4 +50,4 @@ class Metrics
     std::shared_ptr<Registry> m_Registry;
 };
 
-} // namespace yais
+} // namespace playground

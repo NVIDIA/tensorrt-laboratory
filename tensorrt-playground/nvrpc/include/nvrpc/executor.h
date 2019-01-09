@@ -38,7 +38,7 @@
 
 #include <glog/logging.h>
 
-namespace yais
+namespace playground
 {
 
 class Executor : public IExecutor
@@ -109,4 +109,4 @@ class Executor : public IExecutor
     std::unique_ptr<ThreadPool> m_ThreadPool;
 };
 
-} // end namespace yais
+} // end namespace playground

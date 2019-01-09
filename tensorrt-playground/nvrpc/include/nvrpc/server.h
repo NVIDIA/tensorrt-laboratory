@@ -32,7 +32,7 @@
 
 #include "nvrpc/service.h"
 
-namespace yais
+namespace playground
 {
 
 using std::chrono::milliseconds;
@@ -85,6 +85,6 @@ AsyncService<typename ServiceType::AsyncService>* Server::RegisterAsyncService()
 
 
 
-} // end namespace yais
+} // end namespace playground
 
 #endif // NVIS_SERVER_H_

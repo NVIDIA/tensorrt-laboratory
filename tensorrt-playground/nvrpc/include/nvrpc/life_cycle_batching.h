@@ -29,7 +29,7 @@
 
 #include "nvrpc/interfaces.h"
 
-namespace yais
+namespace playground
 {
 
 /**
@@ -230,6 +230,6 @@ void LifeCycleBatching<Request, Response>::CancelResponse()
     m_Stream->Finish(::grpc::Status::CANCELLED, IContext::Tag());
 }
 
-} // namespace yais
+} // namespace playground
 
 #endif // _YAIS_LIFECYCLE_BATCHING_H_

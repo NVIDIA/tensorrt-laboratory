@@ -32,7 +32,7 @@
 
 #include "tensorrt/playground/cuda/device_info.h"
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 size_t DeviceMemory::DefaultAlignment() const
@@ -52,4 +52,4 @@ const std::string& DeviceMemory::Type() const
 }
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

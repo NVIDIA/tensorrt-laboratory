@@ -30,8 +30,8 @@
 #include "tensorrt/playground/core/memory/malloc.h"
 #include "tensorrt/playground/core/memory/system_v.h"
 
-using namespace yais;
-using namespace yais::Memory;
+using namespace playground;
+using namespace playground::Memory;
 
 static void BM_Memory_SystemMalloc(benchmark::State &state)
 {

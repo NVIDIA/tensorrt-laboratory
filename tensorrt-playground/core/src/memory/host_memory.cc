@@ -30,7 +30,7 @@
 
 #include <glog/logging.h>
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 // HostMemory
@@ -52,4 +52,4 @@ void HostMemory::Fill(char fill_value)
 }
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

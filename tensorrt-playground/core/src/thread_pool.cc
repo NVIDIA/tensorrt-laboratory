@@ -54,6 +54,6 @@
 //
 #include "tensorrt/playground/core/thread_pool.h"
 
-namespace yais
+namespace playground
 {
-} // end namespace yais
+} // end namespace playground

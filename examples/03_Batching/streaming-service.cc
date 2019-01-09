@@ -34,13 +34,13 @@
 #include "echo.pb.h"
 #include "echo.grpc.pb.h"
 
-using yais::AsyncService;
-using yais::AsyncRPC;
-using yais::BatchingContext;
-using yais::Executor;
-using yais::Server;
-using yais::Resources;
-using yais::ThreadPool;
+using playground::AsyncService;
+using playground::AsyncRPC;
+using playground::BatchingContext;
+using playground::Executor;
+using playground::Server;
+using playground::Resources;
+using playground::ThreadPool;
 
 
 class SimpleContext final : public BatchingContext<simple::Input, simple::Output, Resources>

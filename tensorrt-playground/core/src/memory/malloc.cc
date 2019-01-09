@@ -28,7 +28,7 @@
 
 #include <glog/logging.h>
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 // Malloc
@@ -52,4 +52,4 @@ const std::string& Malloc::Type() const
 }
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

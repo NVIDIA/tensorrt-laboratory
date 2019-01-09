@@ -28,7 +28,7 @@
 #include "gtest/gtest.h"
 #include "glog/logging.h"
 
-using namespace yais;
+using namespace playground;
 
 struct Object
 {

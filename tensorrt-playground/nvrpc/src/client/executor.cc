@@ -29,7 +29,7 @@
 
 #include <glog/logging.h>
 
-using yais::ThreadPool;
+using playground::ThreadPool;
 
 namespace nvrpc {
 namespace client {

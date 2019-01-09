@@ -42,12 +42,12 @@
 #include "tensorrt/playground/buffers.h"
 #include "tensorrt/playground/execution_context.h"
 
-namespace yais
+namespace playground
 {
 namespace TensorRT
 {
 
-class InferenceManager : public ::yais::Resources
+class InferenceManager : public ::playground::Resources
 {
   public:
     InferenceManager(int max_executions, int max_buffers);
@@ -104,4 +104,4 @@ class InferenceManager : public ::yais::Resources
 };
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground

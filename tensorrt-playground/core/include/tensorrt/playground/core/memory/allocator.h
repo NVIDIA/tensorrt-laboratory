@@ -27,7 +27,7 @@
 #pragma once
 #include <cstddef>
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 template<class MemoryType>
@@ -45,6 +45,6 @@ class Allocator final : public MemoryType
 };
 
 } // end namespace Memory
-} // end namespace yais
+} // end namespace playground
 
 #include "tensorrt/playground/core/impl/memory/allocator.h"

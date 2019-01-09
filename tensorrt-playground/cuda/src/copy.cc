@@ -33,7 +33,7 @@
 
 #include "tensorrt/playground/core/memory/memory.h"
 
-using yais::Memory::CoreMemory;
+using playground::Memory::CoreMemory;
 
 namespace {
 
@@ -46,7 +46,7 @@ void Copy(CoreMemory& dst, size_t dst_offset, const CoreMemory& src, size_t src_
 
 }
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 void Copy(HostMemory& dst, size_t dst_offset, const DeviceMemory& src, size_t src_offset, size_t size)
@@ -65,4 +65,4 @@ void Copy(DeviceMemory& dst, size_t dst_offset, const DeviceMemory& src, size_t 
 }
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

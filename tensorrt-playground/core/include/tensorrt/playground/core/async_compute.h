@@ -29,7 +29,7 @@
 #include <future>
 #include <memory>
 
-namespace yais {
+namespace playground {
 
 template<typename CompleterFn>
 struct AsyncCompute;
@@ -107,4 +107,4 @@ struct AsyncCompute<ResultType(Args...)>
     std::promise<ResultType> m_Promise;
 };
 
-} // namespace yais
+} // namespace playground

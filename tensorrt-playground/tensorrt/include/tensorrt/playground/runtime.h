@@ -36,7 +36,7 @@
 #include "tensorrt/playground/allocator.h"
 #include "tensorrt/playground/model.h"
 
-namespace yais {
+namespace playground {
 namespace TensorRT {
 /**
  * @brief Convenience class wrapping nvinfer1::IRuntime.
@@ -111,4 +111,4 @@ using StandardRuntime = CustomRuntime<StandardAllocator>;
 using ManagedRuntime = CustomRuntime<ManagedAllocator>;
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground

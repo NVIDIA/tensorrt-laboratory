@@ -29,7 +29,7 @@
 #include <glog/logging.h>
 #include <ostream>
 
-namespace yais {
+namespace playground {
 
 void Metrics::Initialize(uint32_t port)
 {
@@ -61,4 +61,4 @@ Metrics::Metrics() : m_Registry(std::make_shared<Registry>()) {}
 
 Metrics::~Metrics() {}
 
-} // namespace yais
+} // namespace playground

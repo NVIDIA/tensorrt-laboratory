@@ -207,7 +207,7 @@ class GreeterClient {
 
 static bool ValidateBytes(const char *flagname, const std::string &value)
 {
-    yais::StringToBytes(value);
+    playground::StringToBytes(value);
     return true;
 }
 
@@ -231,10 +231,10 @@ int main(int argc, char** argv) {
 
     g_BatchSize = FLAGS_batch_size;
 
-    auto bytes = yais::StringToBytes(FLAGS_bytes);
+    auto bytes = playground::StringToBytes(FLAGS_bytes);
     char extra_bytes[bytes];
     if (bytes)
-        LOG(INFO) << "Sending an addition " << yais::BytesToString(bytes) << " bytes in request payload";
+        LOG(INFO) << "Sending an addition " << playground::BytesToString(bytes) << " bytes in request payload";
 
     // using a fixed rate of 15us per rpc call.  i could adjust dynamically as i'm tracking
     // the call overhead, but it's close enough.

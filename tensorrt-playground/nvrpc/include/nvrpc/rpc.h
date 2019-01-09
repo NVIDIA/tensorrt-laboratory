@@ -29,7 +29,7 @@
 
 #include "nvrpc/context.h"
 
-namespace yais
+namespace playground
 {
 
 template <class ContextType, class ServiceType>
@@ -58,7 +58,7 @@ AsyncRPC<ContextType, ServiceType>::AsyncRPC(ServiceQueueFuncType req_fn)
 
 template <class ContextType, class ServiceType>
 std::unique_ptr<IContext> AsyncRPC<ContextType, ServiceType>::CreateContext(
-    ::grpc::ServerCompletionQueue *cq, std::shared_ptr<yais::Resources> r)
+    ::grpc::ServerCompletionQueue *cq, std::shared_ptr<playground::Resources> r)
 {
     auto ctx_resources = std::dynamic_pointer_cast<typename ContextType::ResourcesType::element_type>(r);
     if (!ctx_resources)
@@ -70,6 +70,6 @@ std::unique_ptr<IContext> AsyncRPC<ContextType, ServiceType>::CreateContext(
     return ctx;
 }
 
-} // end namespace yais
+} // end namespace playground
 
 #endif // NVIS_RPC_H_

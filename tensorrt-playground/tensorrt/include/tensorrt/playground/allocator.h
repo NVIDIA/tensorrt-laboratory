@@ -32,7 +32,7 @@
 
 #include <NvInfer.h>
 
-namespace yais {
+namespace playground {
 namespace TensorRT {
 
 class NvAllocator : public ::nvinfer1::IGpuAllocator
@@ -93,4 +93,4 @@ class ManagedAllocator : public NvAllocator
 };
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground

@@ -37,7 +37,7 @@
 #include "tensorrt/playground/cuda/memory/cuda_device.h"
 #include "tensorrt/playground/cuda/memory/cuda_pinned_host.h"
 
-namespace yais {
+namespace playground {
 namespace TensorRT {
 
 /**
@@ -155,4 +155,4 @@ class CyclicBuffers : public Buffers
 };
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground

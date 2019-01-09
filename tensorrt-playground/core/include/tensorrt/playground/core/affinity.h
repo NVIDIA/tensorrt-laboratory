@@ -28,7 +28,7 @@
 
 #include "cpuaff/cpuaff.hpp"
 
-namespace yais
+namespace playground
 {
 class CpuSet : public cpuaff::cpu_set
 {
@@ -64,4 +64,4 @@ class Affinity
     static cpuaff::cpu GetCpuFromId(int);
 };
 
-} // end namespace yais
+} // end namespace playground

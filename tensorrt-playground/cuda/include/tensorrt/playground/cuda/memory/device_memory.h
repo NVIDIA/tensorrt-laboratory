@@ -29,7 +29,7 @@
 
 #include "tensorrt/playground/core/memory/memory.h"
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 class DeviceMemory : public BaseMemory<DeviceMemory>
@@ -43,4 +43,4 @@ class DeviceMemory : public BaseMemory<DeviceMemory>
 };
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

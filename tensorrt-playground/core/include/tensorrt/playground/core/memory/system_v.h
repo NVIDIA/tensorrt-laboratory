@@ -31,7 +31,7 @@
 #include "tensorrt/playground/core/memory/host_memory.h"
 #include "tensorrt/playground/core/memory/descriptor.h"
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 class SystemV : public HostMemory, public IAllocatable
@@ -64,4 +64,4 @@ class SystemV : public HostMemory, public IAllocatable
 };
 
 } // end namespace Memory
-} // end namespace yais
+} // end namespace playground

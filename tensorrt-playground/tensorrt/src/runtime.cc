@@ -34,7 +34,7 @@
 
 #include <glog/logging.h>
 
-namespace yais {
+namespace playground {
 namespace TensorRT {
 
 Runtime::Runtime()
@@ -146,4 +146,4 @@ std::shared_ptr<Model>
 }
 
 } // end namespace TensorRT
-} // end namespace yais
+} // end namespace playground

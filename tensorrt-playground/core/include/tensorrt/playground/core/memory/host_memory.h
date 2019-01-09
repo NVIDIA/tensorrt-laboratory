@@ -29,7 +29,7 @@
 
 #include "tensorrt/playground/core/memory/memory.h"
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 class HostMemory : public BaseMemory<HostMemory>
@@ -43,4 +43,4 @@ class HostMemory : public BaseMemory<HostMemory>
 };
 
 } // end namespace Memory
-} // end namespace yais
+} // end namespace playground

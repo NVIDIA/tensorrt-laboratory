@@ -48,22 +48,22 @@
 
 #include "metrics.h"
 
-using yais::Affinity;
-using yais::AsyncRPC;
-using yais::AsyncService;
-using yais::Context;
-using yais::DeviceInfo;
-using yais::Executor;
-using yais::Metrics;
-using yais::Server;
-using yais::ThreadPool;
-using yais::Memory::Allocator;
-using yais::Memory::CudaPinnedHostMemory;
-using yais::TensorRT::Model;
-using yais::TensorRT::InferenceManager;
-using yais::TensorRT::Runtime;
-using yais::TensorRT::StandardRuntime;
-using yais::TensorRT::ManagedRuntime;
+using playground::Affinity;
+using playground::AsyncRPC;
+using playground::AsyncService;
+using playground::Context;
+using playground::DeviceInfo;
+using playground::Executor;
+using playground::Metrics;
+using playground::Server;
+using playground::ThreadPool;
+using playground::Memory::Allocator;
+using playground::Memory::CudaPinnedHostMemory;
+using playground::TensorRT::Model;
+using playground::TensorRT::InferenceManager;
+using playground::TensorRT::Runtime;
+using playground::TensorRT::StandardRuntime;
+using playground::TensorRT::ManagedRuntime;
 
 // Flowers Protos
 #include "inference.pb.h"
@@ -219,7 +219,7 @@ static bool ValidateEngine(const char *flagname, const std::string &value)
 
 static bool ValidateBytes(const char *flagname, const std::string &value)
 {
-    yais::StringToBytes(value);
+    playground::StringToBytes(value);
     return true;
 }
 
@@ -257,9 +257,9 @@ int main(int argc, char *argv[])
     Server server(ip_port.str());
 
     // Modify MaxReceiveMessageSize
-    auto bytes = yais::StringToBytes(FLAGS_max_recv_bytes);
+    auto bytes = playground::StringToBytes(FLAGS_max_recv_bytes);
     server.Builder().SetMaxReceiveMessageSize(bytes);
-    LOG(INFO) << "gRPC MaxReceiveMessageSize = " << yais::BytesToString(bytes);
+    LOG(INFO) << "gRPC MaxReceiveMessageSize = " << playground::BytesToString(bytes);
 
     // A server can host multiple services
     LOG(INFO) << "Register Service (flowers::Inference) with Server";

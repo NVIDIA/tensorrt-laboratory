@@ -28,7 +28,7 @@
 #include "tensorrt/playground/core/thread_pool.h"
 #include "gtest/gtest.h"
 
-using namespace yais;
+using namespace playground;
 
 class TestThreadPool : public ::testing::Test
 {

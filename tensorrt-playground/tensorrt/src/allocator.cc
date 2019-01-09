@@ -31,7 +31,7 @@
 
 #include <glog/logging.h>
 
-namespace yais {
+namespace playground {
 namespace TensorRT {
 
 void* NvAllocator::allocate(size_t size, uint64_t alignment, uint32_t flags)
@@ -76,4 +76,4 @@ void ManagedAllocator::WeightAllocator(void** ptr, size_t size)
 }
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground

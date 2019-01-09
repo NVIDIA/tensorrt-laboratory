@@ -29,7 +29,7 @@
 
 #include "nvrpc/interfaces.h"
 
-namespace yais
+namespace playground
 {
 
 template <class Request, class Response>
@@ -172,6 +172,6 @@ void LifeCycleUnary<Request, Response>::SetQueueFunc(ExecutorQueueFuncType queue
     m_QueuingFunc = queue_fn;
 }
 
-} // namespace yais
+} // namespace playground
 
 #endif // _YAIS_UNARY_H_

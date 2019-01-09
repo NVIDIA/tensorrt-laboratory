@@ -40,7 +40,7 @@ class Executor : public std::enable_shared_from_this<Executor>
   public:
     Executor();
     Executor(int numThreads);
-    Executor(std::unique_ptr<::yais::ThreadPool> threadpool);
+    Executor(std::unique_ptr<::playground::ThreadPool> threadpool);
 
     Executor(Executor&& other) noexcept = delete;
     Executor& operator=(Executor&& other) noexcept = delete;
@@ -57,7 +57,7 @@ class Executor : public std::enable_shared_from_this<Executor>
     void ProgressEngine(::grpc::CompletionQueue&);
 
     size_t m_Counter;
-    std::unique_ptr<::yais::ThreadPool> m_ThreadPool;
+    std::unique_ptr<::playground::ThreadPool> m_ThreadPool;
     std::vector<std::unique_ptr<::grpc::CompletionQueue>> m_CQs;
 };
 

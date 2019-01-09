@@ -49,7 +49,7 @@ size_t SegSize(int shm_id)
 }
 } // namespace
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 // SystemV
@@ -142,4 +142,4 @@ int SystemV::ShmID() const
 }
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

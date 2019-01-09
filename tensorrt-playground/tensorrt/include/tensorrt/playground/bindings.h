@@ -38,7 +38,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-namespace yais {
+namespace playground {
 namespace TensorRT {
 
 class Model;
@@ -139,4 +139,4 @@ class Workspace
 */
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground

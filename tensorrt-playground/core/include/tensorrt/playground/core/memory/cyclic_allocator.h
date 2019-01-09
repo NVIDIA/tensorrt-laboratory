@@ -34,7 +34,7 @@
 
 #include <glog/logging.h>
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 /**
@@ -224,4 +224,4 @@ class CyclicAllocator
 };
 
 } // end namespace Memory
-} // end namespace yais
+} // end namespace playground

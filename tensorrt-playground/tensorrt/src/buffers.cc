@@ -32,11 +32,11 @@
 
 #include <glog/logging.h>
 
-using yais::Memory::CudaDeviceMemory;
-using yais::Memory::CudaPinnedHostMemory;
-using yais::Memory::MemoryStack;
+using playground::Memory::CudaDeviceMemory;
+using playground::Memory::CudaPinnedHostMemory;
+using playground::Memory::MemoryStack;
 
-namespace yais {
+namespace playground {
 namespace TensorRT {
 
 Buffers::Buffers()
@@ -79,4 +79,4 @@ void Buffers::Synchronize()
 
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground

@@ -29,7 +29,7 @@
 
 #include <list>
 
-using namespace yais;
+using namespace playground;
 
 namespace
 {

@@ -28,7 +28,7 @@
 
 #include <memory>
 
-namespace yais
+namespace playground
 {
 
 struct Resources : public std::enable_shared_from_this<Resources>

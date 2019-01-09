@@ -35,7 +35,7 @@
 
 #include "NvInfer.h"
 
-namespace yais
+namespace playground
 {
 namespace TensorRT
 {
@@ -74,4 +74,4 @@ namespace TensorRT
     };
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground

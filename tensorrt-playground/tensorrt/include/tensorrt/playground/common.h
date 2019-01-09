@@ -30,7 +30,7 @@
 
 #include <NvInfer.h>
 
-namespace yais {
+namespace playground {
 namespace TensorRT {
 
 class Runtime;
@@ -110,4 +110,4 @@ std::unique_ptr<T, NvInferDeleter> nv_unique(T* obj)
 }
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground

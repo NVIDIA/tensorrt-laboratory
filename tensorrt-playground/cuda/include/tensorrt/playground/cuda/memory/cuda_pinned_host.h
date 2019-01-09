@@ -30,7 +30,7 @@
 #include "tensorrt/playground/core/memory/allocatable.h"
 #include "tensorrt/playground/core/memory/host_memory.h"
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 /**
@@ -51,4 +51,4 @@ class CudaPinnedHostMemory : public HostMemory, public IAllocatable
 };
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

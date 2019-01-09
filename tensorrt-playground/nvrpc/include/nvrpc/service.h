@@ -31,7 +31,7 @@
 #include "nvrpc/interfaces.h"
 #include "nvrpc/rpc.h"
 
-namespace yais
+namespace playground
 {
 
 template <class ServiceType>
@@ -63,6 +63,6 @@ class AsyncService : public IService
     std::vector<std::unique_ptr<IRPC>> m_RPCs;
 };
 
-} // end namespace yais
+} // end namespace playground
 
 #endif // NVIS_SERVICE_H_

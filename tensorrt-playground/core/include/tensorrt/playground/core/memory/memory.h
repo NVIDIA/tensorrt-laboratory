@@ -27,7 +27,7 @@
 #pragma once
 #include <string>
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 /**
@@ -134,4 +134,4 @@ class BaseMemory : public CoreMemory
 };
 
 } // end namespace Memory
-} // end namespace yais
+} // end namespace playground

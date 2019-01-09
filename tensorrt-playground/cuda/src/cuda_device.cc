@@ -30,7 +30,7 @@
 #include <cuda_runtime.h>
 #include <glog/logging.h>
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 void* CudaDeviceMemory::Allocate(size_t size)
@@ -53,4 +53,4 @@ const std::string& CudaDeviceMemory::Type() const
 
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

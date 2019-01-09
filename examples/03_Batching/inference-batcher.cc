@@ -32,10 +32,10 @@
 #include "YAIS/YAIS.h"
 #include "moodycamel/blockingconcurrentqueue.h"
 
-using yais::Context;
-using yais::Executor;
-using yais::Server;
-using yais::ThreadPool;
+using playground::Context;
+using playground::Executor;
+using playground::Server;
+using playground::ThreadPool;
 
 using moodycamel::BlockingConcurrentQueue;
 using moodycamel::ConsumerToken;
@@ -286,7 +286,7 @@ struct BatchingService
         std::vector<std::unique_ptr<::grpc::CompletionQueue>> m_CQs;
     };
 
-    class Resources : public ::yais::Resources
+    class Resources : public ::playground::Resources
     {
       public:
         Resources(uint32_t max_batch_size, uint64_t timeout, std::shared_ptr<Client> client)
@@ -339,7 +339,7 @@ struct BatchingService
         BlockingConcurrentQueue<MessageType> m_MessageQueue;
     };
 
-    class ReceiveContext final : public ::yais::Context<Request, Response, Resources>
+    class ReceiveContext final : public ::playground::Context<Request, Response, Resources>
     {
         void ExecuteRPC(Request &request, Response &response) final override
         {

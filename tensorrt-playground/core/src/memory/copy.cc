@@ -29,7 +29,7 @@
 #include <cstring>
 #include <glog/logging.h>
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 void Copy(HostMemory& dst, size_t dst_offset, const HostMemory& src, size_t src_offset, size_t size)
@@ -40,4 +40,4 @@ void Copy(HostMemory& dst, size_t dst_offset, const HostMemory& src, size_t src_
 }
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

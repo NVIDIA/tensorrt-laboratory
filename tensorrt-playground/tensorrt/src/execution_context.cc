@@ -36,10 +36,10 @@
 #include "tensorrt/playground/core/memory/allocator.h"
 #include "tensorrt/playground/cuda/memory/cuda_device.h"
 
-using yais::Memory::Allocator;
-using yais::Memory::CudaDeviceMemory;
+using playground::Memory::Allocator;
+using playground::Memory::CudaDeviceMemory;
 
-namespace yais
+namespace playground
 {
 namespace TensorRT
 {
@@ -117,7 +117,7 @@ auto ExecutionContext::Synchronize() -> double
  * a reference to the IExecutionContext, which could eventually starve resources and cause a deadlock.
  * 
  * See the implementation of TensorRT::Resources::GetExecutionContext for an example on how to use
- * with a yais::Pool<ExecutionContext>.
+ * with a playground::Pool<ExecutionContext>.
  */
 void ExecutionContext::Reset()
 {
@@ -127,4 +127,4 @@ void ExecutionContext::Reset()
 }
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground

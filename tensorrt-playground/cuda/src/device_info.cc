@@ -62,7 +62,7 @@ nvmlDevice_t GetHandleById(int device_id)
 
 } // namespace
 
-namespace yais
+namespace playground
 {
 CpuSet DeviceInfo::Affinity(int device_id)
 {
@@ -113,4 +113,4 @@ std::string DeviceInfo::UUID(int device_id)
     return buffer;
 }
 
-} // namespace yais
+} // namespace playground

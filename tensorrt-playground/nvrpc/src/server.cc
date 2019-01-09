@@ -29,7 +29,7 @@
 #include <thread>
 #include <glog/logging.h>
 
-namespace yais
+namespace playground
 {
 
 Server::Server(std::string server_address)
@@ -70,4 +70,4 @@ Server::Run(std::chrono::milliseconds timeout, std::function<void()> control_fn)
 
 }
 
-} // end namespace yais
+} // end namespace playground

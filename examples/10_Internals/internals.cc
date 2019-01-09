@@ -40,13 +40,13 @@
 #include <memory>
 #include <chrono>
 
-using yais::Affinity;
-using yais::CpuSet;
-using yais::ThreadPool;
-using yais::CudaPinnedHostMemory;
-using yais::CudaDeviceMemory;
-using yais::MemoryStack;
-using yais::Pool;
+using playground::Affinity;
+using playground::CpuSet;
+using playground::ThreadPool;
+using playground::CudaPinnedHostMemory;
+using playground::CudaDeviceMemory;
+using playground::MemoryStack;
+using playground::Pool;
 
 
 int main(int argc, char *argv[])

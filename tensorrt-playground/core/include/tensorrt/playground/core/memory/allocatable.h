@@ -27,7 +27,7 @@
 #pragma once
 #include <cstddef>
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 class IAllocatable
@@ -37,4 +37,4 @@ class IAllocatable
 };
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

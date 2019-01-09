@@ -33,10 +33,10 @@
 #include "tensorrt/playground/core/memory.h"
 #include "moodycamel/blockingconcurrentqueue.h"
 
-using yais::Context;
-using yais::Executor;
-using yais::Server;
-using yais::ThreadPool;
+using playground::Context;
+using playground::Executor;
+using playground::Server;
+using playground::ThreadPool;
 
 using moodycamel::BlockingConcurrentQueue;
 using moodycamel::ConsumerToken;
@@ -211,7 +211,7 @@ struct MiddlemanService
     };
 
   public:
-    class Resources : public ::yais::Resources
+    class Resources : public ::playground::Resources
     {
       public:
         Resources(uint32_t max_batch_size, uint64_t timeout, std::shared_ptr<Client> client)
@@ -265,7 +265,7 @@ struct MiddlemanService
         BlockingConcurrentQueue<MessageType> m_MessageQueue;
     };
 
-    class ReceiveContext final : public ::yais::Context<Request, Response, Resources>
+    class ReceiveContext final : public ::playground::Context<Request, Response, Resources>
     {
         void ExecuteRPC(Request &request, Response &response) final override
         {
@@ -302,7 +302,7 @@ class DemoMiddlemanService : public InferMiddlemanService
         using InferMiddlemanService::Resources::Resources;
         void PreprocessRequest(easter::InferRequest *req) override
         {
-            static auto local_data = yais::Allocated<Malloc>::make_unique(10*1024*1024);
+            static auto local_data = playground::Allocated<Malloc>::make_unique(10*1024*1024);
             DLOG(INFO) << "Boom - preprocess request here!";
             auto bytes = req->meta_data().batch_size() * req->meta_data().input(0).byte_size();
             CHECK_EQ(0, req->raw_input_size());
@@ -357,9 +357,9 @@ int main(int argc, char *argv[])
         FLAGS_max_batch_size, FLAGS_timeout_usecs, status_client);
 
     Server server("0.0.0.0:50049");
-    auto bytes = yais::StringToBytes("100MiB");
+    auto bytes = playground::StringToBytes("100MiB");
     server.Builder().SetMaxReceiveMessageSize(bytes);
-    LOG(INFO) << "gRPC MaxReceiveMessageSize = " << yais::BytesToString(bytes);
+    LOG(INFO) << "gRPC MaxReceiveMessageSize = " << playground::BytesToString(bytes);
 
     auto recvService = server.RegisterAsyncService<::easter::GRPCService>();
     auto rpcCompute = recvService->RegisterRPC<DemoMiddlemanService::ReceiveContext>(

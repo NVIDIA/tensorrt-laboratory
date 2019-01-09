@@ -31,7 +31,7 @@
 
 #include "tensorrt/playground/core/resources.h"
 
-namespace yais
+namespace playground
 {
 
 class IContext;
@@ -124,6 +124,6 @@ class IExecutor
     }
 };
 
-} // end namespace yais
+} // end namespace playground
 
 #endif // NVIS_INTERFACES_H_

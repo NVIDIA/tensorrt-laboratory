@@ -30,7 +30,7 @@
 #include "tensorrt/playground/core/memory/allocatable.h"
 #include "tensorrt/playground/core/memory/host_memory.h"
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 class Malloc : public HostMemory, public IAllocatable
@@ -45,4 +45,4 @@ class Malloc : public HostMemory, public IAllocatable
 };
 
 } // end namespace Memory
-} // end namespace yais
+} // end namespace playground

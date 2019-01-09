@@ -29,7 +29,7 @@
 
 #include <glog/logging.h>
 
-using namespace yais;
+using namespace playground;
 
 namespace {
 

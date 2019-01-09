@@ -31,7 +31,7 @@
 
 #define test_bit(_n, _p) (_n & (1UL << _p))
 
-namespace yais
+namespace playground
 {
 static cpuaff::affinity_manager s_Manager;
 std::vector<int> ParseIDs(const std::string data);
@@ -183,4 +183,4 @@ std::vector<int> ParseIDs(const std::string data)
     return result;
 }
 
-} // namespace yais
+} // namespace playground

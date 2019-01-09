@@ -30,7 +30,7 @@
 
 namespace py = pybind11;
 
-namespace yais
+namespace playground
 {
 namespace TensorRT
 {
@@ -53,4 +53,4 @@ py::dtype DataTypeToNumpy(::nvinfer1::DataType dtype)
 }
 
 } // end namespace TensorRT
-} // end namespace yais
+} // end namespace playground

@@ -30,7 +30,7 @@
 
 #include <glog/logging.h>
 
-namespace yais
+namespace playground
 {
 namespace TensorRT
 {
@@ -52,4 +52,4 @@ std::size_t SizeofDataType(::nvinfer1::DataType dtype)
 }
 
 } // end namespace TensorRT
-} // end namespace yais
+} // end namespace playground

@@ -29,7 +29,7 @@
 
 #include <NvInfer.h>
 
-namespace yais
+namespace playground
 {
 namespace TensorRT
 {
@@ -40,4 +40,4 @@ namespace TensorRT
 std::size_t SizeofDataType(::nvinfer1::DataType dtype);
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground

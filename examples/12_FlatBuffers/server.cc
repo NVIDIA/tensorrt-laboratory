@@ -37,12 +37,12 @@
 #include "example.grpc.fb.h"
 #include "example_generated.h"
 
-using yais::AsyncRPC;
-using yais::AsyncService;
-using yais::Context;
-using yais::Executor;
-using yais::Resources;
-using yais::Server;
+using playground::AsyncRPC;
+using playground::AsyncService;
+using playground::Context;
+using playground::Executor;
+using playground::Resources;
+using playground::Server;
 
 using Request = flatbuffers::grpc::Message<HelloRequest>;
 using Response = flatbuffers::grpc::Message<HelloReply>;

@@ -34,7 +34,7 @@
 #include "YAIS/Metrics.h"
 #endif
 
-namespace yais
+namespace playground
 {
 template<class LifeCycle, class Resources>
 class BaseContext;
@@ -161,4 +161,4 @@ std::unique_ptr<ContextType> ContextFactory(typename ContextType::QueueFuncType 
     return ctx;
 }
 
-} // end namespace yais
+} // end namespace playground

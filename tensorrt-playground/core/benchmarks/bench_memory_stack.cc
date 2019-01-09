@@ -32,8 +32,8 @@
 #include "tensorrt/playground/core/memory/smart_stack.h"
 #include "tensorrt/playground/core/memory/cyclic_allocator.h"
 
-using namespace yais;
-using namespace yais::Memory;
+using namespace playground;
+using namespace playground::Memory;
 
 template <typename MemoryType>
 struct StackWithInternalDescriptor

@@ -32,16 +32,16 @@
 #include "tensorrt/playground/cuda/memory/cuda_device.h"
 #include "tensorrt/playground/cuda/memory/cuda_pinned_host.h"
 
-using yais::Memory::CudaDeviceMemory;
-using yais::Memory::CudaPinnedHostMemory;
+using playground::Memory::CudaDeviceMemory;
+using playground::Memory::CudaPinnedHostMemory;
 
-namespace yais {
+namespace playground {
 namespace TensorRT {
 
 /**
  * @brief General TensorRT Resource class
  *
- * Derived from yais::Resources, this InferenceManager object provides the basic memory and compute
+ * Derived from playground::Resources, this InferenceManager object provides the basic memory and compute
  * resources needed for using with a TensorRT Context.  Limited quanity resources such as Buffers
  * and ExecutionContexts are managed by thead-safe Pools.  In general, the compute is always limited
  * by the number of resources. For example, limiting the number of ExecutionContexts to 1 will
@@ -330,4 +330,4 @@ void InferenceManager::JoinAllThreads()
 }
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground

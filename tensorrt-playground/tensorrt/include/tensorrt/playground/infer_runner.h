@@ -31,7 +31,7 @@
 #include "tensorrt/playground/model.h"
 #include "tensorrt/playground/bindings.h"
 
-namespace yais {
+namespace playground {
 namespace TensorRT {
 
 struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)>

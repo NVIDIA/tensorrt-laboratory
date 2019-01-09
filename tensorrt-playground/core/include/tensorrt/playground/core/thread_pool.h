@@ -67,7 +67,7 @@
 
 #include <glog/logging.h>
 
-namespace yais
+namespace playground
 {
 
 template<typename MutexType, typename ConditionType>
@@ -153,7 +153,7 @@ class BaseThreadPool
     // The name of the executor
     std::string get_name() const final override
     {
-        return "yais::BaseThreadPool";
+        return "playground::BaseThreadPool";
     }
 
     // Only ever called on the thread of the caller to schedule()
@@ -278,4 +278,4 @@ int BaseThreadPool<MutexType, ConditionType>::Size()
     return workers.size();
 }
 
-} // namespace yais
+} // namespace playground

@@ -51,8 +51,8 @@ change the following lines to a range that works with your CPU.
     * `Enqueue` launches the inference calculuation and adds a `cudaEvent_t` to the stream to be triggered
       when the inference calcuation is finished and the `ExecutionContext` can be released.
   * `Resources`
-    * Combines the above set of resources into a single `yais::Resources` class capable of being associated
-      with a `yais::Context`.
+    * Combines the above set of resources into a single `playground::Resources` class capable of being associated
+      with a `playground::Context`.
 
 
 ## Examples

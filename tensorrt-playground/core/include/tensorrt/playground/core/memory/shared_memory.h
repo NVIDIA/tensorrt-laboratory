@@ -31,7 +31,7 @@
 
 #include "tensorrt/playground/core/utils.h"
 
-namespace yais {
+namespace playground {
 namespace Memory {
 /**
  * @brief Abstract base Memory class
@@ -202,6 +202,6 @@ class SystemV : public HostMemory, public IAllocatable
 };
 
 } // end namespace Memory
-} // end namespace yais
+} // end namespace playground
 
 #include "tensorrt/playground/core/impl/memory.h"

@@ -30,7 +30,7 @@
 #include <cuda_runtime.h>
 #include <glog/logging.h>
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 void* CudaPinnedHostMemory::Allocate(size_t size)
@@ -52,4 +52,4 @@ const std::string& CudaPinnedHostMemory::Type() const
 }
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

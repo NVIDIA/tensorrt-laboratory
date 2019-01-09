@@ -31,7 +31,7 @@
 
 #include "tensorrt/playground/core/memory/allocator.h"
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 /**
@@ -185,4 +185,4 @@ void MemoryStack<MemoryType>::Reset(bool writeZeros)
 }
 
 } // end namespace Memory
-} // end namespace yais
+} // end namespace playground

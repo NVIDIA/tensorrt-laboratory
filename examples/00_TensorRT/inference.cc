@@ -41,12 +41,12 @@
 #define MPI_CHECK(mpicall)
 #endif
 
-using yais::ThreadPool;
-using yais::TensorRT::InferenceManager;
-using yais::TensorRT::Runtime;
-using yais::TensorRT::CustomRuntime;
-using yais::TensorRT::StandardAllocator;
-using yais::TensorRT::ManagedAllocator;
+using playground::ThreadPool;
+using playground::TensorRT::InferenceManager;
+using playground::TensorRT::Runtime;
+using playground::TensorRT::CustomRuntime;
+using playground::TensorRT::StandardAllocator;
+using playground::TensorRT::ManagedAllocator;
 
 static int g_Concurrency = 0;
 

@@ -28,7 +28,7 @@
 
 #include <glog/logging.h>
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 // Descriptor
@@ -77,4 +77,4 @@ const std::string& Descriptor<MemoryType>::Type() const
 }
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

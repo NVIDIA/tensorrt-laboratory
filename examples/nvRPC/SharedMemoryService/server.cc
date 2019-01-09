@@ -45,16 +45,16 @@
 #include "echo.grpc.pb.h"
 #include "echo.pb.h"
 
-using yais::AsyncRPC;
-using yais::AsyncService;
-using yais::Context;
-using yais::Executor;
-using yais::Resources;
-using yais::Server;
-using yais::ThreadPool;
+using playground::AsyncRPC;
+using playground::AsyncService;
+using playground::Context;
+using playground::Executor;
+using playground::Resources;
+using playground::Server;
+using playground::ThreadPool;
 
-using yais::Memory::SystemV;
-namespace Memory = yais::Memory;
+using playground::Memory::SystemV;
+namespace Memory = playground::Memory;
 
 // CLI Options
 DEFINE_int32(thread_count, 1, "Size of thread pool");

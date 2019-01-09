@@ -38,7 +38,7 @@
 using ::nvinfer1::ICudaEngine;
 using ::nvinfer1::IExecutionContext;
 
-namespace yais {
+namespace playground {
 namespace TensorRT {
 
 /**
@@ -180,4 +180,4 @@ auto Model::GetBindingMemorySize() const -> const size_t
 }
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground

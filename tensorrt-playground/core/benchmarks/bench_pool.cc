@@ -29,7 +29,7 @@
 
 static void BM_Pool_Pop(benchmark::State &state)
 {
-    using yais::Pool;
+    using playground::Pool;
     struct Object {};
     auto pool = Pool<Object>::Create();
     pool->EmplacePush(new Object);

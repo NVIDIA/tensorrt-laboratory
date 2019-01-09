@@ -31,7 +31,7 @@
 
 static void BM_ThreadPool_Enqueue(benchmark::State &state)
 {
-    using yais::ThreadPool;
+    using playground::ThreadPool;
     auto pool = std::make_unique<ThreadPool>(1);
 
     for (auto _ : state)
@@ -44,7 +44,7 @@ BENCHMARK(BM_ThreadPool_Enqueue);
 
 static void BM_HybridThreadPool_Enqueue(benchmark::State &state)
 {
-    using yais::BaseThreadPool;
+    using playground::BaseThreadPool;
     auto pool = std::make_unique<BaseThreadPool<hybrid_mutex, hybrid_condition>>(1);
 
     for (auto _ : state)

@@ -29,7 +29,7 @@
 #include "tensorrt/playground/core/memory/cyclic_allocator.h"
 #include "gtest/gtest.h"
 
-using namespace yais;
+using namespace playground;
 using namespace Memory;
 
 namespace

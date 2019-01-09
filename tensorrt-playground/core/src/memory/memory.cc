@@ -30,7 +30,7 @@
 
 #include <glog/logging.h>
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 CoreMemory::CoreMemory(void* ptr, size_t size, bool allocated)
@@ -67,4 +67,4 @@ const void* CoreMemory::operator[](size_t offset) const
 }
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

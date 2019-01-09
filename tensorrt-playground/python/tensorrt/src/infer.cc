@@ -47,9 +47,9 @@ namespace py = pybind11;
 
 #include "tensorrt/playground/python/tensorrt/utils.h"
 
-using namespace yais;
-using namespace yais::Memory;
-using namespace yais::TensorRT;
+using namespace playground;
+using namespace playground::Memory;
+using namespace playground::TensorRT;
 
 class PyInferRunner;
 

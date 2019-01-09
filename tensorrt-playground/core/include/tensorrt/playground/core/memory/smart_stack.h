@@ -33,7 +33,7 @@
 #include "tensorrt/playground/core/memory/memory.h"
 #include "tensorrt/playground/core/memory/memory_stack.h"
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 template<typename MemoryType>
@@ -111,4 +111,4 @@ class SmartStack : public MemoryStack<MemoryType>,
 };
 
 } // end namespace Memory
-} // end namespace yais
+} // end namespace playground

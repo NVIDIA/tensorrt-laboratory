@@ -34,7 +34,7 @@
 
 #include "tensorrt/playground/runtime.h"
 
-namespace yais {
+namespace playground {
 namespace TensorRT {
 
 /**
@@ -165,4 +165,4 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
 
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground

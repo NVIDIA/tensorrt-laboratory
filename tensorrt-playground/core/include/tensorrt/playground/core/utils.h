@@ -36,8 +36,8 @@
     foo(foo&&) noexcept = delete;        \
     foo& operator=(foo&& other) noexcept= delete;
 
-namespace yais
+namespace playground
 {
 std::string BytesToString(std::size_t bytes);
 std::size_t StringToBytes(const std::string);
-} // namespace yais
+} // namespace playground

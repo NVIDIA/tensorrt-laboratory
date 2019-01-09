@@ -31,7 +31,7 @@
 #include <mutex>
 #include <queue>
 
-namespace yais
+namespace playground
 {
 /**
  * @brief Templated Thread-safe Queue
@@ -232,4 +232,4 @@ class Pool : public Queue<std::shared_ptr<ResourceType>>
     }
 };
 
-} // namespace yais
+} // namespace playground

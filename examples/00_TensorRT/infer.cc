@@ -42,13 +42,13 @@
 #define MPI_CHECK(mpicall)
 #endif
 
-using yais::ThreadPool;
-using yais::TensorRT::Bindings;
-using yais::TensorRT::InferenceManager;
-using yais::TensorRT::InferRunner;
-using yais::TensorRT::Runtime;
-using yais::TensorRT::StandardRuntime;
-using yais::TensorRT::ManagedRuntime;
+using playground::ThreadPool;
+using playground::TensorRT::Bindings;
+using playground::TensorRT::InferenceManager;
+using playground::TensorRT::InferRunner;
+using playground::TensorRT::Runtime;
+using playground::TensorRT::StandardRuntime;
+using playground::TensorRT::ManagedRuntime;
 
 static std::string ModelName(int model_id)
 {

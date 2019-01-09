@@ -27,7 +27,7 @@
 #pragma once
 #include <memory>
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 template<typename MemoryType>
@@ -55,6 +55,6 @@ template<typename MemoryType>
 using DescriptorHandle = std::unique_ptr<MemoryType>;
 
 } // end namespace Memory
-} // end namespace yais
+} // end namespace playground
 
 #include "tensorrt/playground/core/impl/memory/descriptor.h"

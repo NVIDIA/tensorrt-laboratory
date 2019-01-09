@@ -28,7 +28,7 @@
 
 #include <glog/logging.h>
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 // Allocator
@@ -66,4 +66,4 @@ Allocator<MemoryType>::~Allocator()
 }
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

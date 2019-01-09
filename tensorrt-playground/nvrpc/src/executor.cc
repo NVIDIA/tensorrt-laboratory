@@ -28,7 +28,7 @@
 
 #include <glog/logging.h>
 
-namespace yais
+namespace playground
 {
 
 Executor::Executor()
@@ -91,4 +91,4 @@ void Executor::SetTimeout(time_point deadline, std::function<void()> callback)
     m_TimeoutCallback = callback;
 }
 
-} // namespace yais
+} // namespace playground

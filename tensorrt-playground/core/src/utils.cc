@@ -31,7 +31,7 @@
 
 #include <glog/logging.h>
 
-namespace yais
+namespace playground
 {
 /**
  * @brief Converts bytes into a more friend human readable format
@@ -74,4 +74,4 @@ std::uint64_t StringToBytes(const std::string str)
     return (std::uint64_t)(scalar * pow(base, exponent));
 }
 
-} // namespace yais
+} // namespace playground

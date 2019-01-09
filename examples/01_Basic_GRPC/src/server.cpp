@@ -39,13 +39,13 @@
 #include "echo.pb.h"
 #include "echo.grpc.pb.h"
 
-using yais::AsyncService;
-using yais::AsyncRPC;
-using yais::Context;
-using yais::Executor;
-using yais::Server;
-using yais::Resources;
-using yais::ThreadPool;
+using playground::AsyncService;
+using playground::AsyncRPC;
+using playground::Context;
+using playground::Executor;
+using playground::Server;
+using playground::Resources;
+using playground::ThreadPool;
 
 // CLI Options
 DEFINE_int32(thread_count, 1, "Size of thread pool");

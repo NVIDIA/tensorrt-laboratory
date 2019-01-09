@@ -30,7 +30,7 @@
 #include "tensorrt/playground/core/memory/allocatable.h"
 #include "tensorrt/playground/cuda/memory/device_memory.h"
 
-namespace yais {
+namespace playground {
 namespace Memory {
 
 /**
@@ -50,4 +50,4 @@ class CudaManagedMemory : public DeviceMemory, public IAllocatable
 };
 
 } // namespace Memory
-} // namespace yais
+} // namespace playground

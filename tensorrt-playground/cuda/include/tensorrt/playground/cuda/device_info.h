@@ -28,7 +28,7 @@
 
 #include "tensorrt/playground/core/affinity.h"
 
-namespace yais
+namespace playground
 {
 
 struct DeviceInfo
@@ -41,4 +41,4 @@ struct DeviceInfo
     static auto UUID(int device_id) -> std::string;
 };
 
-} // end namespace yais
+} // end namespace playground

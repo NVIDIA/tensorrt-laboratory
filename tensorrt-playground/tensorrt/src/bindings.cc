@@ -30,10 +30,10 @@
 
 #include "tensorrt/playground/core/memory/descriptor.h"
 
-using yais::Memory::Descriptor;
-using yais::Memory::HostMemory;
-using yais::Memory::DeviceMemory;
-using yais::Memory::DescriptorHandle;
+using playground::Memory::Descriptor;
+using playground::Memory::HostMemory;
+using playground::Memory::DeviceMemory;
+using playground::Memory::DescriptorHandle;
 
 namespace
 {
@@ -45,7 +45,7 @@ namespace
     };
 }
 
-namespace yais {
+namespace playground {
 namespace TensorRT {
 
 Bindings::Bindings(const std::shared_ptr<Model> model, const std::shared_ptr<Buffers> buffers)
@@ -174,4 +174,4 @@ size_t Bindings::BindingSize(uint32_t binding_id) const
 }
 
 } // namespace TensorRT
-} // namespace yais
+} // namespace playground
