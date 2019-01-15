@@ -14,7 +14,7 @@ option(ENABLE_TESTING "Build tests" ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS Off)
 
-set(CMAKE_DEBUG_POSTFIX "-d")
+#set(CMAKE_DEBUG_POSTFIX "-d")
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 set(default_build_type "Release")
 
