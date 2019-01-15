@@ -30,5 +30,11 @@ def main():
             r = val.reshape((1,10))
             np.testing.assert_almost_equal(r, e, decimal=3) 
 
+    mnist_model = models.get_model("mnist")
+    benchmark = infer.InferBench(models)
+    benchmark.run(mnist_model, 1, 0.1)
+    #print(results)
+ 
+
 if __name__ == "__main__":
     main()
