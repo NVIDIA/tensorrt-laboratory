@@ -31,8 +31,9 @@
 #include <glog/logging.h>
 
 #include "tensorrt/playground/core/thread_pool.h"
-#include "tensorrt/playground/infer_runner.h"
+#include "tensorrt/playground/infer_bench.h"
 #include "tensorrt/playground/inference_manager.h"
+#include "tensorrt/playground/model.h"
 #include "tensorrt/playground/runtime.h"
 
 #ifdef PLAYGROUND_USE_MPI
@@ -43,12 +44,12 @@
 #endif
 
 using playground::ThreadPool;
-using playground::TensorRT::Bindings;
+using playground::TensorRT::InferBench;
 using playground::TensorRT::InferenceManager;
-using playground::TensorRT::InferRunner;
+using playground::TensorRT::ManagedRuntime;
+using playground::TensorRT::Model;
 using playground::TensorRT::Runtime;
 using playground::TensorRT::StandardRuntime;
-using playground::TensorRT::ManagedRuntime;
 
 static std::string ModelName(int model_id)
 {
@@ -56,93 +57,6 @@ static std::string ModelName(int model_id)
     stream << model_id;
     return stream.str();
 }
-
-class InferenceResources : public InferenceManager
-{
-  public:
-    InferenceResources(int max_executions, int max_buffers)
-        : InferenceManager(max_executions, max_buffers)
-    {
-        RegisterThreadPool("pre", std::make_unique<ThreadPool>(1));
-        RegisterThreadPool("cuda", std::make_unique<ThreadPool>(1));
-        RegisterThreadPool("post", std::make_unique<ThreadPool>(3));
-    }
-
-    ~InferenceResources() override {}
-};
-
-class Inference final
-{
-  public:
-    Inference(std::shared_ptr<InferenceResources> resources) : m_Resources(resources) {}
-
-    void Run(float seconds, bool warmup, int replicas, uint32_t requested_batch_size)
-    {
-        int replica = 0;
-        uint64_t inf_count = 0;
-        std::vector<std::shared_future<void>> futures;
-
-        auto start = std::chrono::steady_clock::now();
-        auto elapsed = [start]() -> float {
-            return std::chrono::duration<float>(std::chrono::steady_clock::now() - start).count();
-        };
-
-        auto model = GetResources()->GetModel(ModelName(replica++));
-        auto batch_size = requested_batch_size ? requested_batch_size : model->GetMaxBatchSize();
-        LOG_IF(FATAL, batch_size > model->GetMaxBatchSize())
-            << "Requested batch_size greater than allowed by the compiled TensorRT Engine";
-
-        // Inference Loop - Main thread copies, cuda thread launches, response thread completes
-        if(!warmup)
-        {
-            LOG(INFO) << "-- Inference: Running for ~" << (int)seconds
-                      << " seconds with batch_size " << batch_size << " --";
-        }
-
-        while(elapsed() < seconds && ++inf_count)
-        {
-            if(replica >= replicas)
-                replica = 0;
-
-            // This thread only async copies buffers H2D
-            auto model = GetResources()->GetModel(ModelName(replica++));
-            auto buffers = GetResources()->GetBuffers(); // <=== Limited Resource; May Block !!!
-            auto bindings = buffers->CreateBindings(model);
-            bindings->SetBatchSize(batch_size);
-
-            InferRunner runner(model, GetResources());
-            futures.push_back(
-                runner.Infer(bindings, [](std::shared_ptr<Bindings>& bindings) mutable {
-                    bindings.reset();
-                }));
-        }
-
-        // Join worker threads
-        for(auto& f : futures)
-        {
-            f.wait();
-        }
-
-        // End timing and report
-        auto total_time = std::chrono::duration<float>(elapsed()).count();
-        auto inferences = inf_count * batch_size;
-        if(!warmup)
-            LOG(INFO) << "Inference Results: " << inf_count << "; batches in " << total_time
-                      << " seconds"
-                      << "; sec/batch/stream: " << total_time / (inf_count / m_Resources->MaxExecConcurrency())
-                      << "; batches/sec: " << inf_count / total_time
-                      << "; inf/sec: " << inferences / total_time;
-    }
-
-  protected:
-    inline std::shared_ptr<InferenceResources> GetResources()
-    {
-        return m_Resources;
-    }
-
-  private:
-    std::shared_ptr<InferenceResources> m_Resources;
-};
 
 static bool ValidateEngine(const char* flagname, const std::string& value)
 {
@@ -172,7 +86,10 @@ int main(int argc, char* argv[])
     auto contexts = FLAGS_contexts;
     auto buffers = FLAGS_buffers ? FLAGS_buffers : 2 * FLAGS_contexts;
 
-    auto resources = std::make_shared<InferenceResources>(contexts, buffers);
+    auto resources = std::make_shared<InferenceManager>(contexts, buffers);
+    resources->RegisterThreadPool("pre", std::make_unique<ThreadPool>(1));
+    resources->RegisterThreadPool("cuda", std::make_unique<ThreadPool>(1));
+    resources->RegisterThreadPool("post", std::make_unique<ThreadPool>(3));
 
     //, FLAGS_cudathreads, FLAGS_respthreads);
     std::shared_ptr<Runtime> runtime;
@@ -189,25 +106,37 @@ int main(int argc, char* argv[])
         LOG(FATAL) << "Invalid TensorRT Runtime";
     }
 
-    resources->RegisterModel("0", runtime->DeserializeEngine(FLAGS_engine));
+    std::vector<std::shared_ptr<Model>> models;
+
+    models.push_back(runtime->DeserializeEngine(FLAGS_engine));
+    resources->RegisterModel("0", models.back());
     resources->AllocateResources();
+
+    auto batch_size = FLAGS_batch_size ? FLAGS_batch_size : models.back()->GetMaxBatchSize();
 
     for(int i = 1; i < FLAGS_replicas; i++)
     {
-        resources->RegisterModel(ModelName(i), runtime->DeserializeEngine(FLAGS_engine));
+        models.push_back(runtime->DeserializeEngine(FLAGS_engine));
+        resources->RegisterModel(ModelName(i), models.back());
     }
 
     {
-        Inference inference(resources);
-        inference.Run(0.1, true, 1, 0); // warmup
+        InferBench benchmark(resources);
+        benchmark.Run(models, batch_size, 0.1);
 
         // if testing mps - sync all processes before executing timed loop
         MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
-        inference.Run(FLAGS_seconds, false, FLAGS_replicas, FLAGS_batch_size);
+        auto results = benchmark.Run(models, batch_size, FLAGS_seconds);
         MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
         // todo: perform an mpi_allreduce to collect the per process timings
         //       for a simplified report
         MPI_CHECK(MPI_Finalize());
+
+        LOG(INFO) << "Inference Results: " << results["batch_count"] << " batches in "
+                  << results["total_time"] << " seconds; batch_size: " << results["batch_size"]
+                  << "; inf/sec: " << results["inferences-per-sec"];
+        LOG(INFO) << "; sec/batch/stream: " << results["secs-per-batch-per-stream"]
+                  << "; batches/sec: " << results["secs-per-batch"];
     }
 
     return 0;
