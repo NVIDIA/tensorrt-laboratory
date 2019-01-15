@@ -24,9 +24,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
 #include <pybind11/stl.h>
+#include <pybind11/stl_bind.h>
 
 namespace py = pybind11;
 
@@ -40,6 +41,7 @@ namespace py = pybind11;
 #include "tensorrt/playground/bindings.h"
 #include "tensorrt/playground/core/async_compute.h"
 #include "tensorrt/playground/core/thread_pool.h"
+#include "tensorrt/playground/infer_bench.h"
 #include "tensorrt/playground/infer_runner.h"
 #include "tensorrt/playground/inference_manager.h"
 #include "tensorrt/playground/model.h"
@@ -234,13 +236,17 @@ struct PyInferRunner : public InferRunner
     }
 };
 
+//using InferBenchResult = std::map<std::string, double>;
+// PYBIND11_MAKE_OPAQUE(InferBenchResult);
+
 PYBIND11_MODULE(infer, m)
 {
     py::class_<PyInferenceManager, std::shared_ptr<PyInferenceManager>>(m, "InferenceManager")
         .def(py::init([](py::kwargs kwargs) { return PyInferenceManager::Init(kwargs); }))
         .def("register_tensorrt_engine", &PyInferenceManager::RegisterModelByPath)
         .def("update_resources", &PyInferenceManager::AllocateResources)
-        .def("infer_runner", &PyInferenceManager::InferRunner);
+        .def("infer_runner", &PyInferenceManager::InferRunner)
+        .def("get_model", &PyInferenceManager::GetModel);
 
     py::class_<PyInferRunner, std::shared_ptr<PyInferRunner>>(m, "InferRunner")
         .def("infer", &PyInferRunner::Infer)
@@ -253,4 +259,14 @@ PYBIND11_MODULE(infer, m)
     py::class_<std::shared_future<typename PyInferRunner::InferResults>>(m, "InferFuture")
         .def("wait", &std::shared_future<typename PyInferRunner::InferResults>::wait) // py::call_guard<py::gil_scoped_release>())
         .def("get", &std::shared_future<typename PyInferRunner::InferResults>::get); // py::call_guard<py::gil_scoped_release>());
+
+    py::class_<InferBench, std::shared_ptr<InferBench>>(m, "InferBench")
+        .def(py::init([](std::shared_ptr<PyInferenceManager> man) { return std::make_shared<InferBench>(man); }))
+        .def("run", py::overload_cast<std::shared_ptr<Model>, uint32_t, double>(&InferBench::Run));
+
+    py::class_<Model, std::shared_ptr<Model>>(m, "Model");
+
+    py::class_<typename InferBench::Results>(m, "InferBenchResults");
+
+    //py::bind_map<std::map<std::string, double>>(m, "InferBenchResults");
 }
