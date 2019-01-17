@@ -329,5 +329,14 @@ void InferenceManager::JoinAllThreads()
     DLOG(INFO) << "All Threads Checked-In and Joined";
 }
 
+void InferenceManager::ForEachModel(std::function<void(const Model&)> callback)
+{
+    for(const auto& item : m_Models)
+    {
+        callback(*(item.second));
+    }
+}
+
+
 } // namespace TensorRT
 } // namespace playground

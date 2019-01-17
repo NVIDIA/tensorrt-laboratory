@@ -43,7 +43,7 @@ namespace TensorRT {
  * A Model object holds an instance of ICudaEngine and extracts some basic meta data
  * from the engine to simplify pushing the input/output bindings to a memory stack.
  */
-class Model // TODO: inherit from IModel so we can have non-TensorRT models that conform
+class BaseModel // TODO: inherit from IModel so we can have non-TensorRT models that conform
 {
   public:
 
@@ -54,40 +54,29 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
         Invalid
     };
 
+    struct TensorBindingInfo;
+
     /**
      * @brief Construct a new Model object
      *
      * @param engine
      */
-    Model(std::shared_ptr<::nvinfer1::ICudaEngine> engine); // TODO: Move to protected/private
-    virtual ~Model();
+    BaseModel() = default;
+    virtual ~BaseModel() {}
 
-    auto Name() const -> const std::string
+    auto Name() const -> const std::string&
     {
         return m_Name;
     }
-    void SetName(std::string name)
+
+    void SetName(const std::string& name)
     {
         m_Name = name;
     }
 
-    void AddWeights(void*, size_t); // TODO: Move to protected/private
-    void PrefetchWeights(cudaStream_t) const;
+    virtual int GetMaxBatchSize() const = 0;
 
-    auto CreateExecutionContext() const -> std::shared_ptr<::nvinfer1::IExecutionContext>;
-
-    auto GetMaxBatchSize() const
-    {
-        return m_Engine->getMaxBatchSize();
-    }
-    auto GetActivationsMemorySize() const
-    {
-        return m_Engine->getDeviceMemorySize();
-    }
     auto GetBindingMemorySize() const -> const size_t;
-    auto GetWeightsMemorySize() const -> const size_t;
-
-    struct TensorBindingInfo;
 
     auto BindingId(const std::string&) const -> uint32_t;
 
@@ -142,6 +131,54 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
     };
 
   protected:
+    void AddBinding(TensorBindingInfo&&);
+
+  private:
+    std::vector<TensorBindingInfo> m_Bindings;
+    std::map<std::string, uint32_t> m_BindingIdByName;
+    std::vector<uint32_t> m_InputBindings;
+    std::vector<uint32_t> m_OutputBindings;
+    std::string m_Name;
+};
+
+
+class Model final : public BaseModel
+{
+  public:
+
+    enum BindingType
+    {
+        Input,
+        Output,
+        Invalid
+    };
+
+    /**
+     * @brief Construct a new Model object
+     *
+     * @param engine
+     */
+    Model(std::shared_ptr<::nvinfer1::ICudaEngine> engine); // TODO: Move to protected/private
+    virtual ~Model() override;
+
+    void AddWeights(void*, size_t); // TODO: Move to protected/private
+    void PrefetchWeights(cudaStream_t) const;
+    auto CreateExecutionContext() const -> std::shared_ptr<::nvinfer1::IExecutionContext>;
+
+    int GetMaxBatchSize() const final override
+    {
+        return m_Engine->getMaxBatchSize();
+    }
+
+    auto GetActivationsMemorySize() const
+    {
+        return m_Engine->getDeviceMemorySize();
+    }
+
+    auto GetWeightsMemorySize() const -> const size_t;
+
+
+  protected:
     TensorBindingInfo ConfigureBinding(uint32_t);
 
   private:
@@ -153,15 +190,8 @@ class Model // TODO: inherit from IModel so we can have non-TensorRT models that
 
     std::shared_ptr<::nvinfer1::ICudaEngine> m_Engine;
     std::shared_ptr<const Runtime> m_Runtime;
-    std::vector<TensorBindingInfo> m_Bindings;
-    std::map<std::string, TensorBindingInfo> m_BindingsByName;
-    std::map<std::string, uint32_t> m_BindingIdByName;
-    std::vector<uint32_t> m_InputBindings;
-    std::vector<uint32_t> m_OutputBindings;
     std::vector<Weights> m_Weights;
-    std::string m_Name;
 };
-
 
 
 } // namespace TensorRT

@@ -33,7 +33,10 @@ target_link_libraries(infer
   PUBLIC
     core
     cuda
+    nvrpc
+    nvrpc-client
     tensorrt
+    nv-inference-protos
 )
 
 target_include_directories(infer

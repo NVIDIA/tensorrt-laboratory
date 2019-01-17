@@ -79,6 +79,8 @@ class InferenceManager : public ::playground::Resources
     int MaxExecConcurrency() const;
     int MaxCopyConcurrency() const;
 
+    void ForEachModel(std::function<void(const Model&)>);
+
   private:
     int m_MaxExecutions;
     int m_MaxBuffers;

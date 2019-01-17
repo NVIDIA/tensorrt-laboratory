@@ -41,35 +41,34 @@ using ::nvinfer1::IExecutionContext;
 namespace playground {
 namespace TensorRT {
 
-/**
- * @brief Construct a new Model object
- */
-Model::Model(std::shared_ptr<ICudaEngine> engine) : m_Engine(engine)
+void BaseModel::AddBinding(TensorBindingInfo&& binding)
+{
+    const std::string name = binding.name;
+    m_Bindings.push_back(std::move(binding));
+    auto id = m_Bindings.size() - 1;
+    m_BindingIdByName[name] = id;
+    if(binding.isInput) {
+        m_InputBindings.push_back(id);
+    } else {
+        m_OutputBindings.push_back(id);
+    }
+}
+
+
+Model::Model(std::shared_ptr<ICudaEngine> engine) : BaseModel(), m_Engine(engine)
 {
     CHECK(m_Engine) << "Model required an initialzed ICudaEngine*";
     DLOG(INFO) << "Initializing Bindings from Engine";
-    for(uint32_t i = 0; i < m_Engine->getNbBindings(); i++)
+    for(int i=0; i<m_Engine->getNbBindings(); i++)
     {
-        const auto& binding = ConfigureBinding(i);
-        m_BindingsByName[binding.name] = std::move(binding);
-        m_BindingIdByName[binding.name] = i;
-        DLOG(INFO) << binding.name << " maps to " << i;
-        m_Bindings.push_back(std::move(ConfigureBinding(i)));
-        if(m_Bindings[i].isInput)
-        {
-            m_InputBindings.push_back(i);
-        }
-        else
-        {
-            m_OutputBindings.push_back(i);
-        }
+        AddBinding(ConfigureBinding(i));
     }
-    CHECK_EQ(m_Bindings.size(), m_Engine->getNbBindings());
+    CHECK_EQ(GetBindingsCount(), m_Engine->getNbBindings());
 }
 
 Model::~Model()
 {
-    DLOG(INFO) << "Destroying Model: " << m_Name;
+    DLOG(INFO) << "Destroying Model: " << Name();
 }
 
 Model::TensorBindingInfo Model::ConfigureBinding(uint32_t i)
@@ -96,28 +95,29 @@ Model::TensorBindingInfo Model::ConfigureBinding(uint32_t i)
     return binding;
 }
 
-auto Model::BindingId(const std::string& name) const -> uint32_t
+auto BaseModel::BindingId(const std::string& name) const -> uint32_t
 {
     auto search = m_BindingIdByName.find(name);
     CHECK(search != m_BindingIdByName.end());
     return search->second;
 }
 
-auto Model::GetBinding(uint32_t id) const -> const TensorBindingInfo&
+auto BaseModel::GetBinding(uint32_t id) const -> const TensorBindingInfo&
 {
     CHECK_LT(id, m_Bindings.size())
         << "Invalid BindingId; given: " << id << "; max: " << m_Bindings.size();
     return m_Bindings[id];
 }
 
-Model::BindingType Model::GetBindingType(const std::string& name) const
+BaseModel::BindingType BaseModel::GetBindingType(const std::string& name) const
 {
-    auto search = m_BindingsByName.find(name);
-    if(search == m_BindingsByName.end())
+    auto search = m_BindingIdByName.find(name);
+    if(search == m_BindingIdByName.end())
     {
         return BindingType::Invalid;
     }
-    if(search->second.isInput)
+    const auto& binding = m_Bindings[search->second];
+    if(binding.isInput)
     {
         return BindingType::Input;
     }
@@ -128,17 +128,17 @@ Model::BindingType Model::GetBindingType(const std::string& name) const
     return BindingType::Invalid;
 }
 
-auto Model::GetBinding(const std::string& name) const -> const TensorBindingInfo&
+auto BaseModel::GetBinding(const std::string& name) const -> const TensorBindingInfo&
 {
-    auto search = m_BindingsByName.find(name);
-    CHECK(search != m_BindingsByName.end());
-    return search->second;
+    auto search = m_BindingIdByName.find(name);
+    CHECK(search != m_BindingIdByName.end());
+    return m_Bindings[search->second];
 }
 
 auto Model::CreateExecutionContext() const -> std::shared_ptr<IExecutionContext>
 {
     return nv_shared<IExecutionContext>(m_Engine->createExecutionContextWithoutDeviceMemory(),
-                                        [engine = m_Engine, name = m_Name]() mutable {
+                                        [engine = m_Engine, name = Name()]() mutable {
                                             DLOG(INFO) << "Destroying IExecutionContext for Model: "
                                                        << name;
                                         });
@@ -168,7 +168,7 @@ auto Model::GetWeightsMemorySize() const -> const size_t
     return total;
 }
 
-auto Model::GetBindingMemorySize() const -> const size_t
+auto BaseModel::GetBindingMemorySize() const -> const size_t
 {
     size_t bytes = 0;
     for(auto const& binding : m_Bindings)

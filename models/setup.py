@@ -31,19 +31,19 @@ import subprocess
 
 models = [
     ("ResNet-50-deploy.prototxt", "prob"),
-    ("ResNet-152-deploy.prototxt", "prob"),
+#   ("ResNet-152-deploy.prototxt", "prob"),
 ]
 
 precisions = [
-    ("fp32", ""),
+#   ("fp32", ""),
     ("fp16", "--fp16"),
-    ("int8", "--int8")
+#   ("int8", "--int8")
 ]
 
 def main():
     for model, o in models:
         for name, p in precisions:
-            for b in [1, 8]: #, 2, 4, 8]:
+            for b in [6, 7, 8, 9, 10, 11, 12, 13, 14]: #, 2, 4, 8]:
                 n = "b{}-{}".format(b, name)
                 e = model.replace("prototxt", "engine")
                 e = e.replace("deploy", n)

@@ -23,13 +23,14 @@ def main():
     results = [mnist.infer(Input3=input) for input in inputs]
     results = [r.get() for r in results]
     print("Compute Time: {}".format(time.process_time() - start))
-    
+
     for r, e in zip(results, expected):
         for key, val in r.items():
             print("Output Binding Name: {}; shape{}".format(key, val.shape))
             r = val.reshape((1,10))
             np.testing.assert_almost_equal(r, e, decimal=3) 
 
+    models.serve()
     #mnist_model = models.get_model("mnist")
     #benchmark = infer.InferBench(models)
     #benchmark.run(mnist_model, 1, 0.1)
