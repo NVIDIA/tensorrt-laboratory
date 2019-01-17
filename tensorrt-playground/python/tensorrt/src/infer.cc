@@ -216,7 +216,7 @@ class PyRemoteInferenceManager
         return models;
     }
 
-    std::shared_ptr<PyInferRemoteRunner> Runner(const std::string& model_name)
+    std::shared_ptr<PyInferRemoteRunner> InferRunner(const std::string& model_name)
     {
         auto infer_prepare_fn = [this](::grpc::ClientContext * context,
                                        const ::trtis::InferRequest& request,
@@ -703,7 +703,7 @@ PYBIND11_MODULE(infer, m)
         .def(py::init(
             [](py::kwargs kwargs) { return std::make_shared<PyRemoteInferenceManager>(kwargs); }))
         .def("get_models", &PyRemoteInferenceManager::Models)
-        .def("get_model", &PyRemoteInferenceManager::Runner);
+        .def("infer_runner", &PyRemoteInferenceManager::InferRunner);
 
     py::class_<PyInferRunner, std::shared_ptr<PyInferRunner>>(m, "InferRunner")
         .def("infer", &PyInferRunner::Infer)
