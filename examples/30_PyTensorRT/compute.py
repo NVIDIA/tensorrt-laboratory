@@ -9,7 +9,7 @@ import infer_test_utils as utils
 
 
 def main():
-    models = infer.InferenceManager(max_executions=2)
+    models = infer.InferenceManager(max_exec_concurrency=2)
     mnist = models.register_tensorrt_engine("mnist", "/work/models/onnx/mnist-v1.3/mnist-v1.3.engine")
     models.update_resources()
 

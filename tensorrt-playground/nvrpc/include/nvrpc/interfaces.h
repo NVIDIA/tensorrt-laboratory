@@ -109,7 +109,7 @@ class IExecutor
     virtual void Initialize(::grpc::ServerBuilder &) = 0;
     virtual void Run() = 0;
     virtual void RegisterContexts(IRPC *rpc, std::shared_ptr<Resources> resources, int numContextsPerThread) = 0;
-    //virtual void Shutdown() = 0;
+    virtual void Shutdown() = 0;
 
   protected:
     using time_point = std::chrono::system_clock::time_point;

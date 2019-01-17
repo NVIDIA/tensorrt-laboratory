@@ -83,67 +83,16 @@ class PyInferRemoteRunner;
 class PyInferenceManager final : public InferenceManager
 {
   public:
-    PyInferenceManager(int max_executions, int max_buffers)
+    PyInferenceManager(int max_executions, int max_buffers, int pre_threads, int cuda_threads,
+                       int post_threads)
         : InferenceManager(max_executions, max_buffers)
     {
-    }
-
-    static std::shared_ptr<PyInferenceManager> Init(py::kwargs kwargs)
-    {
-        int max_executions = 1;
-        int max_buffers = 0;
-        size_t max_allocation_size = 0;
-
-        int pre_thread_count = 1;
-        int cuda_thread_count = 1;
-        int post_thread_count = 3;
-
-        for(const auto& item : kwargs)
-        {
-            auto key = py::cast<std::string>(item.first);
-            if(key == "max_executions")
-            {
-                max_executions = py::cast<int>(item.second);
-            }
-            else if(key == "max_buffers")
-            {
-                max_buffers = py::cast<int>(item.second);
-            }
-            else if(key == "max_allocation_size")
-            {
-                max_allocation_size = py::cast<size_t>(item.second);
-            }
-            else if(key == "pre_thread_count")
-            {
-                pre_thread_count = py::cast<int>(item.second);
-            }
-            else if(key == "cuda_thread_count")
-            {
-                cuda_thread_count = py::cast<int>(item.second);
-            }
-            else if(key == "post_thread_count")
-            {
-                post_thread_count = py::cast<int>(item.second);
-            }
-            else
-            {
-                throw std::runtime_error("Unknown keyword: " + key);
-            }
-        }
-
-        if(max_buffers == 0)
-        {
-            max_buffers = max_executions + 3;
-        }
-
-        auto manager = std::make_unique<PyInferenceManager>(max_executions, max_buffers);
-        manager->RegisterThreadPool("pre", std::make_unique<ThreadPool>(pre_thread_count));
-        manager->RegisterThreadPool("cuda", std::make_unique<ThreadPool>(cuda_thread_count));
-        manager->RegisterThreadPool("post", std::make_unique<ThreadPool>(post_thread_count));
-        manager->RegisterRuntime("default", std::make_shared<StandardRuntime>());
-        manager->RegisterRuntime("unified", std::make_shared<ManagedRuntime>());
-        manager->SetActiveRuntime("default");
-        return manager;
+        RegisterThreadPool("pre", std::make_unique<ThreadPool>(pre_threads));
+        RegisterThreadPool("cuda", std::make_unique<ThreadPool>(cuda_threads));
+        RegisterThreadPool("post", std::make_unique<ThreadPool>(post_threads));
+        RegisterRuntime("default", std::make_shared<StandardRuntime>());
+        RegisterRuntime("unified", std::make_shared<ManagedRuntime>());
+        SetActiveRuntime("default");
     }
 
     ~PyInferenceManager() override {}
@@ -162,9 +111,9 @@ class PyInferenceManager final : public InferenceManager
                                                casted_shared_from_this<PyInferenceManager>());
     }
 
-    void Serve()
+    void Serve(int port)
     {
-        BasicInferService(casted_shared_from_this<PyInferenceManager>());
+        BasicInferService(casted_shared_from_this<PyInferenceManager>(), port);
     }
 };
 
@@ -389,8 +338,8 @@ struct PyInferRemoteRunner
         // Submit to TRTIS
         return m_Runner->Enqueue(std::move(request),
                                  [this](::trtis::InferRequest& request,
-                                    ::trtis::InferResponse& response,
-                                    ::grpc::Status& status) -> py::dict {
+                                        ::trtis::InferResponse& response,
+                                        ::grpc::Status& status) -> py::dict {
                                      // Convert InferResponse to py::dict
                                      LOG(INFO) << response.DebugString();
                                      return ConvertResponseToNumpy(response);
@@ -422,7 +371,7 @@ struct PyInferRemoteRunner
     {
         py::dict results;
         const auto& meta_data = response.meta_data();
-        for(int i=0; i<meta_data.output_size(); i++)
+        for(int i = 0; i < meta_data.output_size(); i++)
         {
             const auto& out = meta_data.output(i);
             const auto& binding = GetModel().GetBinding(out.name());
@@ -682,7 +631,7 @@ void BasicInferService(std::shared_ptr<InferenceManager> resources, int port,
     executor->RegisterContexts(rpcStatus, resources, 10);
 
     LOG(INFO) << "Running Server";
-    server.Run(std::chrono::milliseconds(2000), [] {});
+    server.Run(std::chrono::milliseconds(1000), [] {});
 }
 
 // using InferBenchResult = std::map<std::string, double>;
@@ -691,12 +640,15 @@ void BasicInferService(std::shared_ptr<InferenceManager> resources, int port,
 PYBIND11_MODULE(infer, m)
 {
     py::class_<PyInferenceManager, std::shared_ptr<PyInferenceManager>>(m, "InferenceManager")
-        .def(py::init([](py::kwargs kwargs) { return PyInferenceManager::Init(kwargs); }))
+        .def(py::init<int, int, int, int, int>(), py::arg("max_exec_concurrency") = 1,
+             py::arg("max_copy_concurrency") = 0, py::arg("pre_threads") = 1,
+             py::arg("cuda_threads") = 1, py::arg("post_threads") = 3)
         .def("register_tensorrt_engine", &PyInferenceManager::RegisterModelByPath)
         .def("update_resources", &PyInferenceManager::AllocateResources)
         .def("infer_runner", &PyInferenceManager::InferRunner)
         .def("get_model", &PyInferenceManager::GetModel)
-        .def("serve", &PyInferenceManager::Serve);
+        .def("serve", &PyInferenceManager::Serve, py::arg("port") = 50052);
+          // py::call_guard<py::gil_scoped_release>());
 
     py::class_<PyRemoteInferenceManager, std::shared_ptr<PyRemoteInferenceManager>>(
         m, "RemoteInferenceManager")

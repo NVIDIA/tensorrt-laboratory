@@ -27,47 +27,60 @@
 #include "nvrpc/server.h"
 
 #include <thread>
+#include <csignal>
+
 #include <glog/logging.h>
 
-namespace playground
-{
+namespace {
+std::function<void(int)> shutdown_handler;
+void signal_handler(int signal) { shutdown_handler(signal); }
+} // namespace
 
-Server::Server(std::string server_address)
-    : m_ServerAddress(server_address), m_Running(false)
+namespace playground {
+
+Server::Server(std::string server_address) : m_ServerAddress(server_address), m_Running(false)
 {
     LOG(INFO) << "gRPC listening on: " << m_ServerAddress;
     m_Builder.AddListeningPort(m_ServerAddress, ::grpc::InsecureServerCredentials());
 }
 
-::grpc::ServerBuilder &
-Server::Builder()
+::grpc::ServerBuilder& Server::Builder()
 {
     LOG_IF(FATAL, m_Running) << "Unable to access Builder after the Server is running.";
     return m_Builder;
 }
 
-void 
-Server::Run()
+void Server::Run()
 {
-    Run(std::chrono::milliseconds(5000), [] {});
+    Run(std::chrono::milliseconds(1000), [] {});
 }
 
-void
-Server::Run(std::chrono::milliseconds timeout, std::function<void()> control_fn)
+void Server::Run(std::chrono::milliseconds timeout, std::function<void()> control_fn)
 {
     m_Running = true;
     auto server = m_Builder.BuildAndStart();
-    for (int i = 0; i < m_Executors.size(); i++)
+    volatile bool running = true;
+
+    shutdown_handler = [this, &running](int signal) {
+        LOG(INFO) << "Trapped Signal: " << signal;
+        running = false;
+        for(int i = 0; i < m_Executors.size(); i++)
+        {
+            m_Executors[i]->Shutdown();
+        }
+        //exit(911);
+    };
+    std::signal(SIGINT, signal_handler);
+
+    for(int i = 0; i < m_Executors.size(); i++)
     {
         m_Executors[i]->Run();
     }
-    for (;;)
+    while(running)
     {
         control_fn();
         std::this_thread::sleep_for(timeout);
     }
-    // TODO: gracefully shutdown each service and join threads
-
 }
 
 } // end namespace playground

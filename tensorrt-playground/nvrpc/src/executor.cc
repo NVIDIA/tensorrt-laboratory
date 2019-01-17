@@ -28,57 +28,38 @@
 
 #include <glog/logging.h>
 
-namespace playground
-{
+#include <grpc/support/time.h>
+#include <grpcpp/support/time.h>
 
-Executor::Executor()
-    : Executor(1)
-{
-}
+namespace playground {
 
-Executor::Executor(int numThreads)
-    : Executor(std::make_unique<ThreadPool>(numThreads))
-{
-}
+Executor::Executor() : Executor(1) {}
+
+Executor::Executor(int numThreads) : Executor(std::make_unique<ThreadPool>(numThreads)) {}
 
 Executor::Executor(std::unique_ptr<ThreadPool> threadpool)
     : IExecutor(), m_ThreadPool(std::move(threadpool))
-      // m_TimeoutDeadline(::grpc::Timespec2Timepoint(gpr_inf_future(GPR_CLOCK_REALTIME)))
 {
-    m_TimeoutCallback = []{};
+    m_TimeoutCallback = [] {};
 }
 
 void Executor::ProgressEngine(int thread_id)
 {
     bool ok;
-    void *tag;
+    void* tag;
     auto myCQ = m_ServerCompletionQueues[thread_id].get();
     using NextStatus = ::grpc::ServerCompletionQueue::NextStatus;
 
-    while (true)
+    while(true)
     {
-        /*
-        auto status = myCQ->AsyncNext(&tag, &ok, m_TimeoutDeadline);
-        if (status == NextStatus::SHUTDOWN)
-            return;
-        else if (status == NextStatus::TIMEOUT)
-        {
-            m_TimeoutDeadline = ::grpc::Timespec2Timepoint(gpr_inf_future(GPR_CLOCK_REALTIME));
-            m_TimeoutCallback(); // the callback function is allowed to set the dealine
-        }
-        else if (status == NextStatus::GOT_EVENT)
-        {
-            auto ctx = IContext::Detag(tag);
-            if (!RunContext(ctx, ok))
-            {
-                ResetContext(ctx);
-            }
-        }
-        */
         auto status = myCQ->Next(&tag, &ok);
-        if (!status) return; // Shutdown
+        if(!status)
+        {
+            LOG(INFO) << "CQ Received Shutdown";
+            return;
+        }
         auto ctx = IContext::Detag(tag);
-        if (!RunContext(ctx, ok))
+        if(!RunContext(ctx, ok))
         {
             ResetContext(ctx);
         }

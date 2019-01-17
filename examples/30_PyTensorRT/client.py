@@ -13,7 +13,7 @@ def main():
     models = manager.get_models()
     print(models)
 
-    mnist = manager.get_model("mnist")
+    mnist = manager.infer_runner("mnist")
 
     print("Input Bindings: {}".format(mnist.input_bindings()))
     print("Output Bindings: {}".format(mnist.output_bindings()))

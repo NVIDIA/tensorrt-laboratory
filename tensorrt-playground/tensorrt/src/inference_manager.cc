@@ -56,7 +56,7 @@ namespace TensorRT {
  * @see Pool for more details on how limited quantity Resources are managed.
  */
 InferenceManager::InferenceManager(int max_executions, int max_buffers)
-    : m_MaxExecutions(max_executions), m_MaxBuffers(max_buffers), m_HostStackSize(0),
+    : m_MaxExecutions(max_executions), m_MaxBuffers(max_buffers ? max_buffers : max_executions * 2), m_HostStackSize(0),
       m_DeviceStackSize(0), m_ActivationsSize(0), m_Buffers{nullptr}, m_ActiveRuntime{nullptr}
 {
     // RegisterRuntime("default", std::make_unique<CustomRuntime<StandardAllocator>>());

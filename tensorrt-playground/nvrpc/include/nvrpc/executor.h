@@ -73,6 +73,17 @@ class Executor : public IExecutor
         }
     }
 
+    void Shutdown() final override
+    {
+        for(auto& cq : m_ServerCompletionQueues)
+        {
+            LOG(INFO) << "Telling CQ to Shutdown";
+            cq->Shutdown();
+        }
+        exit(911);
+        LOG(INFO) << "Joining Executor Threads";
+        m_ThreadPool.reset();
+    }
     void Run() final override
     {
         // Launch the threads polling on their CQs
@@ -102,7 +113,6 @@ class Executor : public IExecutor
 
     time_point m_TimeoutDeadline;
     std::function<void()> m_TimeoutCallback;
-    std::vector<std::thread> m_Threads;
     std::vector<std::unique_ptr<IContext>> m_Contexts;
     std::vector<std::unique_ptr<::grpc::ServerCompletionQueue>> m_ServerCompletionQueues;
     // std::vector<std::unique_ptr<PerThreadState>> m_ShutdownState;

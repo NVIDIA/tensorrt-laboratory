@@ -38,6 +38,7 @@ target_link_libraries(nvrpc
   PUBLIC
     ${PROJECT_NAME}::core
     ${_GRPC_GRPCPP_UNSECURE}
+    gRPC::gpr
 )
 
 target_link_libraries(nvrpc-client
