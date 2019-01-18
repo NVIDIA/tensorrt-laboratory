@@ -336,6 +336,7 @@ struct PyInferRemoteRunner
         meta_data->set_batch_size(batch_size);
 
         // Submit to TRTIS
+        py::gil_scoped_release release;
         return m_Runner->Enqueue(std::move(request),
                                  [this](::trtis::InferRequest& request,
                                         ::trtis::InferResponse& response,
@@ -369,6 +370,7 @@ struct PyInferRemoteRunner
   protected:
     py::dict ConvertResponseToNumpy(const ::trtis::InferResponse& response)
     {
+        py::gil_scoped_acquire acquire;
         py::dict results;
         const auto& meta_data = response.meta_data();
         for(int i = 0; i < meta_data.output_size(); i++)
@@ -415,6 +417,7 @@ struct PyInferRunner : public InferRunner
         auto bindings = InitializeBindings();
         int batch_size = -1;
         DLOG(INFO) << "Processing Python kwargs - holding the GIL";
+        py::gil_scoped_acquire acquire;
         for(auto item : kwargs)
         {
             auto key = py::cast<std::string>(item.first);
@@ -443,11 +446,11 @@ struct PyInferRunner : public InferRunner
                 std::memcpy(host, data.data(), data.nbytes());
             }
         }
-        // py::gil_scoped_release release;
+        py::gil_scoped_release release;
         bindings->SetBatchSize(batch_size);
         return InferRunner::Infer(
             bindings, [](std::shared_ptr<Bindings>& bindings) -> InferResults {
-                // py::gil_scoped_acquire acquire;
+                py::gil_scoped_acquire acquire;
                 auto results = InferResults();
                 DLOG(INFO) << "Copying Output Bindings to Numpy arrays";
                 for(const auto& id : bindings->OutputBindings())
@@ -634,8 +637,8 @@ void BasicInferService(std::shared_ptr<InferenceManager> resources, int port,
     server.Run(std::chrono::milliseconds(1000), [] {});
 }
 
-// using InferBenchResult = std::map<std::string, double>;
-// PYBIND11_MAKE_OPAQUE(InferBenchResult);
+using PyInferFuture = std::shared_future<typename PyInferRunner::InferResults>;
+PYBIND11_MAKE_OPAQUE(PyInferFuture);
 
 PYBIND11_MODULE(infer, m)
 {
@@ -648,7 +651,7 @@ PYBIND11_MODULE(infer, m)
         .def("infer_runner", &PyInferenceManager::InferRunner)
         .def("get_model", &PyInferenceManager::GetModel)
         .def("serve", &PyInferenceManager::Serve, py::arg("port") = 50052);
-          // py::call_guard<py::gil_scoped_release>());
+    // py::call_guard<py::gil_scoped_release>());
 
     py::class_<PyRemoteInferenceManager, std::shared_ptr<PyRemoteInferenceManager>>(
         m, "RemoteInferenceManager")
@@ -658,7 +661,7 @@ PYBIND11_MODULE(infer, m)
         .def("infer_runner", &PyRemoteInferenceManager::InferRunner);
 
     py::class_<PyInferRunner, std::shared_ptr<PyInferRunner>>(m, "InferRunner")
-        .def("infer", &PyInferRunner::Infer)
+        .def("infer", &PyInferRunner::Infer, py::call_guard<py::gil_scoped_release>())
         .def("input_bindings", &PyInferRunner::InputBindings)
         .def("output_bindings", &PyInferRunner::OutputBindings);
     //      .def("__repr__", [](const PyInferRunner& obj) {
@@ -670,21 +673,23 @@ PYBIND11_MODULE(infer, m)
         .def("input_bindings", &PyInferRemoteRunner::InputBindings)
         .def("output_bindings", &PyInferRemoteRunner::OutputBindings);
 
-    py::class_<std::shared_future<typename PyInferRunner::InferResults>>(m, "InferFuture")
-        .def("wait", &std::shared_future<typename PyInferRunner::InferResults>::
-                         wait) // py::call_guard<py::gil_scoped_release>())
-        .def("get", &std::shared_future<typename PyInferRunner::InferResults>::
-                        get); // py::call_guard<py::gil_scoped_release>());
+    py::class_<PyInferFuture, std::shared_ptr<PyInferFuture>>(m, "InferFuture")
+        .def("wait", &std::shared_future<typename PyInferRunner::InferResults>::wait,
+             py::call_guard<py::gil_scoped_release>())
+        .def("get", &std::shared_future<typename PyInferRunner::InferResults>::get,
+             py::call_guard<py::gil_scoped_release>());
 
-    py::class_<InferBench, std::shared_ptr<InferBench>>(m, "InferBench")
-        .def(py::init([](std::shared_ptr<PyInferenceManager> man) {
-            return std::make_shared<InferBench>(man);
-        }))
-        .def("run", py::overload_cast<std::shared_ptr<Model>, uint32_t, double>(&InferBench::Run));
+    /*
+        py::class_<InferBench, std::shared_ptr<InferBench>>(m, "InferBench")
+            .def(py::init([](std::shared_ptr<PyInferenceManager> man) {
+                return std::make_shared<InferBench>(man);
+            }))
+            .def("run", py::overload_cast<std::shared_ptr<Model>, uint32_t,
+       double>(&InferBench::Run));
 
-    py::class_<Model, std::shared_ptr<Model>>(m, "Model");
+        py::class_<Model, std::shared_ptr<Model>>(m, "Model");
 
-    py::class_<typename InferBench::Results>(m, "InferBenchResults");
-
+        py::class_<typename InferBench::Results>(m, "InferBenchResults");
+    */
     // py::bind_map<std::map<std::string, double>>(m, "InferBenchResults");
 }
