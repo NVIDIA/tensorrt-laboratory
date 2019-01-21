@@ -28,6 +28,7 @@
 
 add_executable(test_cuda
   test_memory.cc
+  test_device_info.cc
 )
 
 target_link_libraries(test_cuda
