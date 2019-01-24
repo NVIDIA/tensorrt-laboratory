@@ -45,6 +45,7 @@
 
 using playground::ThreadPool;
 using playground::TensorRT::InferBench;
+using playground::TensorRT::InferBenchKey;
 using playground::TensorRT::InferenceManager;
 using playground::TensorRT::ManagedRuntime;
 using playground::TensorRT::Model;
@@ -132,11 +133,13 @@ int main(int argc, char* argv[])
         //       for a simplified report
         MPI_CHECK(MPI_Finalize());
 
-        LOG(INFO) << "Inference Results: " << results["batch_count"] << " batches in "
-                  << results["total_time"] << " seconds; batch_size: " << results["batch_size"]
-                  << "; inf/sec: " << results["inferences-per-sec"];
-        LOG(INFO) << "; sec/batch/stream: " << results["secs-per-batch-per-stream"]
-                  << "; batches/sec: " << results["secs-per-batch"];
+        using namespace playground::TensorRT;
+        LOG(INFO) << "Inference Results: " << results[kBatchesComputed] << " batches computed in "
+                  << results[kWalltime] << " seconds on " << results[kMaxExecConcurrency]
+                  << " compute streams using batch_size: " << results[kBatchSize]
+                  << "; inf/sec: " << results[kInferencesPerSecond]
+                  << "; batches/sec: " << results[kBatchesPerSecond]
+                  << "; execution time per batch: " << results[kExecutionTimePerBatch];
     }
 
     return 0;
