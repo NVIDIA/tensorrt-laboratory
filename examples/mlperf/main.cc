@@ -79,6 +79,11 @@ int main(int argc, char*argv[])
     resources->RegisterThreadPool("post", std::move(post_thread_pool));
 
     std::vector<std::string> engine_files = {
+        "/work/models/ResNet-50-b24-fp16.engine",
+        "/work/models/ResNet-50-b22-fp16.engine",
+        "/work/models/ResNet-50-b20-fp16.engine",
+        "/work/models/ResNet-50-b18-fp16.engine",
+        "/work/models/ResNet-50-b16-fp16.engine",
         "/work/models/ResNet-50-b14-fp16.engine",
         "/work/models/ResNet-50-b12-fp16.engine",
         "/work/models/ResNet-50-b10-fp16.engine",
@@ -96,7 +101,6 @@ int main(int argc, char*argv[])
         auto model = runtime->DeserializeEngine(file);
         resources->RegisterModel(file, model);
         runners_by_batch_size[model->GetMaxBatchSize()] = std::make_shared<InferRunner>(model, resources);
-        max_batch_size = std::max(max_batch_size, model->GetMaxBatchSize());
     }
 
     resources->AllocateResources();
@@ -115,7 +119,12 @@ int main(int argc, char*argv[])
         auto time_per_batch = result->at(kExecutionTimePerBatch);
 
         auto batching_window = std::chrono::duration<double>(latency_bound).count() - time_per_batch * FLAGS_alpha;
+        if (batching_window <= 0.0) {
+            LOG(INFO) << "Batch Sizes >= " << batch_size << " exceed latency threshold";
+            break;
+        }
         runners_by_batching_window[batching_window] = runner;
+        max_batch_size = std::max(max_batch_size, batch_size);
 
         LOG(INFO) << runner->GetModel().Name() << " exec per batch:  " << result->at(kExecutionTimePerBatch);
         LOG(INFO) << runner->GetModel().Name() << " batching window: " << batching_window;
@@ -158,10 +167,10 @@ int main(int argc, char*argv[])
             {
                 auto count = work_queue.wait_dequeue_bulk_timed(token, &work_packets[total_count], max_deque, quanta);
                 total_count += count;
-                max_deque -= count;
                 elapsed = elapsed_time();
                 auto runner = runners_by_batching_window.lower_bound(elapsed)->second;
                 adjustable_max_batch_size = runner->GetModel().GetMaxBatchSize();
+                max_deque = adjustable_max_batch_size - total_count;
                 // TODO: update timeout with load-penalty
             } while (total_count && total_count < adjustable_max_batch_size && elapsed < timeout);
 
