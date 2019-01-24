@@ -43,7 +43,7 @@ precisions = [
 def main():
     for model, o in models:
         for name, p in precisions:
-            for b in [6, 7, 8, 9, 10, 11, 12, 13, 14]: #, 2, 4, 8]:
+            for b in [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]: #, 2, 4, 8]:
                 n = "b{}-{}".format(b, name)
                 e = model.replace("prototxt", "engine")
                 e = e.replace("deploy", n)
