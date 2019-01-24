@@ -145,10 +145,13 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
     }
 */
 
+  public:
     const Model& GetModel() const
     {
         return *m_Model;
     }
+
+    const std::shared_ptr<Model> GetModelSmartPtr() const { return m_Model; }
 
     InferenceManager& Resources()
     {

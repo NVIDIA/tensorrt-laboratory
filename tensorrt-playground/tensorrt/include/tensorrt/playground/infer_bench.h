@@ -34,6 +34,19 @@
 namespace playground {
 namespace TensorRT {
 
+enum InferBenchKey
+{
+   kMaxExecConcurrency = 0,
+   kMaxCopyConcurrency,
+   kBatchSize,
+   kWalltime,
+   kBatchesComputed,
+   kBatchesPerSecond,
+   kInferencesPerSecond,
+   kSecondsPerBatch,
+   kExecutionTimePerBatch
+};
+
 class InferBench
 {
   public:
@@ -41,10 +54,10 @@ class InferBench
     virtual ~InferBench();
 
     using ModelsList = std::vector<std::shared_ptr<Model>>;
-    using Results = std::map<std::string, double>;
+    using Results = std::map<InferBenchKey, double>;
 
-    Results Run(std::shared_ptr<Model> model, uint32_t batch_size, double seconds = 5.0);
-    Results Run(const ModelsList& models, uint32_t batch_size, double seconds = 5.0);
+    std::unique_ptr<Results> Run(const std::shared_ptr<Model> model, uint32_t batch_size, double seconds = 5.0);
+    std::unique_ptr<Results> Run(const ModelsList& models, uint32_t batch_size, double seconds = 5.0);
 
   protected:
     InferenceManager& InferResources() { return *m_Resources; }
