@@ -3,7 +3,6 @@
 ```
 git clone ssh://git@gitlab-master.nvidia.com:12051/rolson/tensorrt-playground.git
 cd tensorrt-playground
-git submodule update --init third_party/pybind11
 make
 ./devel.sh
 ./build.sh
