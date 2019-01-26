@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,15 +29,15 @@
 #include <chrono>
 #include <thread>
 
-#include "tensorrt/playground/core/thread_pool.h"
+#include "tensorrt/laboratory/core/thread_pool.h"
 #include "nvrpc/context.h"
 #include "nvrpc/executor.h"
 #include "nvrpc/server.h"
 
-using playground::Context;
-using playground::Executor;
-using playground::Server;
-using playground::ThreadPool;
+using trtlab::Context;
+using trtlab::Executor;
+using trtlab::Server;
+using trtlab::ThreadPool;
 
 #include "moodycamel/blockingconcurrentqueue.h"
 
@@ -290,7 +290,7 @@ struct BatchingService
         std::vector<std::unique_ptr<::grpc::CompletionQueue>> m_CQs;
     };
 
-    class Resources : public ::playground::Resources
+    class Resources : public ::trtlab::Resources
     {
       public:
         Resources(uint32_t max_batch_size, uint64_t timeout, std::shared_ptr<Client> client)
@@ -343,7 +343,7 @@ struct BatchingService
         BlockingConcurrentQueue<MessageType> m_MessageQueue;
     };
 
-    class ReceiveContext final : public ::playground::Context<Request, Response, Resources>
+    class ReceiveContext final : public ::trtlab::Context<Request, Response, Resources>
     {
         void ExecuteRPC(Request &request, Response &response) final override
         {

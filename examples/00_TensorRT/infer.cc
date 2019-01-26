@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,11 +30,11 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "tensorrt/playground/core/thread_pool.h"
-#include "tensorrt/playground/infer_bench.h"
-#include "tensorrt/playground/inference_manager.h"
-#include "tensorrt/playground/model.h"
-#include "tensorrt/playground/runtime.h"
+#include "tensorrt/laboratory/core/thread_pool.h"
+#include "tensorrt/laboratory/infer_bench.h"
+#include "tensorrt/laboratory/inference_manager.h"
+#include "tensorrt/laboratory/model.h"
+#include "tensorrt/laboratory/runtime.h"
 
 #ifdef PLAYGROUND_USE_MPI
 #include "mpi.h"
@@ -43,14 +43,14 @@
 #define MPI_CHECK(mpicall)
 #endif
 
-using playground::ThreadPool;
-using playground::TensorRT::InferBench;
-using playground::TensorRT::InferBenchKey;
-using playground::TensorRT::InferenceManager;
-using playground::TensorRT::ManagedRuntime;
-using playground::TensorRT::Model;
-using playground::TensorRT::Runtime;
-using playground::TensorRT::StandardRuntime;
+using trtlab::ThreadPool;
+using trtlab::TensorRT::InferBench;
+using trtlab::TensorRT::InferBenchKey;
+using trtlab::TensorRT::InferenceManager;
+using trtlab::TensorRT::ManagedRuntime;
+using trtlab::TensorRT::Model;
+using trtlab::TensorRT::Runtime;
+using trtlab::TensorRT::StandardRuntime;
 
 static std::string ModelName(int model_id)
 {
@@ -133,13 +133,13 @@ int main(int argc, char* argv[])
         //       for a simplified report
         MPI_CHECK(MPI_Finalize());
 
-        using namespace playground::TensorRT;
-        LOG(INFO) << "Inference Results: " << results[kBatchesComputed] << " batches computed in "
-                  << results[kWalltime] << " seconds on " << results[kMaxExecConcurrency]
-                  << " compute streams using batch_size: " << results[kBatchSize]
-                  << "; inf/sec: " << results[kInferencesPerSecond]
-                  << "; batches/sec: " << results[kBatchesPerSecond]
-                  << "; execution time per batch: " << results[kExecutionTimePerBatch];
+        using namespace trtlab::TensorRT;
+        LOG(INFO) << "Inference Results: " << (*results)[kBatchesComputed] << " batches computed in "
+                  << (*results)[kWalltime] << " seconds on " << (*results)[kMaxExecConcurrency]
+                  << " compute streams using batch_size: " << (*results)[kBatchSize]
+                  << "; inf/sec: " << (*results)[kInferencesPerSecond]
+                  << "; batches/sec: " << (*results)[kBatchesPerSecond]
+                  << "; execution time per batch: " << (*results)[kExecutionTimePerBatch];
     }
 
     return 0;

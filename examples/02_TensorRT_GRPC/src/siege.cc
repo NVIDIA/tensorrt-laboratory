@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,7 +58,7 @@
 
 #include "inference.grpc.pb.h"
 
-#include "tensorrt/playground/core/utils.h"
+#include "tensorrt/laboratory/core/utils.h"
 
 using grpc::Channel;
 using grpc::ClientAsyncResponseReader;
@@ -207,7 +207,7 @@ class GreeterClient {
 
 static bool ValidateBytes(const char *flagname, const std::string &value)
 {
-    playground::StringToBytes(value);
+    trtlab::StringToBytes(value);
     return true;
 }
 
@@ -231,10 +231,10 @@ int main(int argc, char** argv) {
 
     g_BatchSize = FLAGS_batch_size;
 
-    auto bytes = playground::StringToBytes(FLAGS_bytes);
+    auto bytes = trtlab::StringToBytes(FLAGS_bytes);
     char extra_bytes[bytes];
     if (bytes)
-        LOG(INFO) << "Sending an addition " << playground::BytesToString(bytes) << " bytes in request payload";
+        LOG(INFO) << "Sending an addition " << trtlab::BytesToString(bytes) << " bytes in request payload";
 
     // using a fixed rate of 15us per rpc call.  i could adjust dynamically as i'm tracking
     // the call overhead, but it's close enough.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,7 +32,7 @@
 using prometheus::Exposer;
 using prometheus::Registry;
 
-namespace playground {
+namespace trtlab {
 
 class Metrics
 {
@@ -50,4 +50,4 @@ class Metrics
     std::shared_ptr<Registry> m_Registry;
 };
 
-} // namespace playground
+} // namespace trtlab
