@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,26 +35,26 @@
 #include "nvrpc/executor.h"
 #include "nvrpc/server.h"
 #include "nvrpc/service.h"
-#include "tensorrt/playground/core/memory/descriptor.h"
-#include "tensorrt/playground/core/memory/system_v.h"
-#include "tensorrt/playground/core/pool.h"
-#include "tensorrt/playground/core/resources.h"
-#include "tensorrt/playground/core/thread_pool.h"
-#include "tensorrt/playground/core/utils.h"
+#include "tensorrt/laboratory/core/memory/descriptor.h"
+#include "tensorrt/laboratory/core/memory/system_v.h"
+#include "tensorrt/laboratory/core/pool.h"
+#include "tensorrt/laboratory/core/resources.h"
+#include "tensorrt/laboratory/core/thread_pool.h"
+#include "tensorrt/laboratory/core/utils.h"
 
 #include "echo.grpc.pb.h"
 #include "echo.pb.h"
 
-using playground::AsyncRPC;
-using playground::AsyncService;
-using playground::Context;
-using playground::Executor;
-using playground::Resources;
-using playground::Server;
-using playground::ThreadPool;
+using trtlab::AsyncRPC;
+using trtlab::AsyncService;
+using trtlab::Context;
+using trtlab::Executor;
+using trtlab::Resources;
+using trtlab::Server;
+using trtlab::ThreadPool;
 
-using playground::Memory::SystemV;
-namespace Memory = playground::Memory;
+using trtlab::Memory::SystemV;
+namespace Memory = trtlab::Memory;
 
 // CLI Options
 DEFINE_int32(thread_count, 1, "Size of thread pool");

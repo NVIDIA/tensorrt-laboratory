@@ -51,15 +51,15 @@ change the following lines to a range that works with your CPU.
     * `Enqueue` launches the inference calculuation and adds a `cudaEvent_t` to the stream to be triggered
       when the inference calcuation is finished and the `ExecutionContext` can be released.
   * `Resources`
-    * Combines the above set of resources into a single `playground::Resources` class capable of being associated
-      with a `playground::Context`.
+    * Combines the above set of resources into a single `trtlab::Resources` class capable of being associated
+      with a `trtlab::Context`.
 
 
 ## Examples
 
 ### Affinity
 
-  * [Definition: tensorrt/playground/core/affinity.h](../../yais/include/tensorrt/playground/core/affinity.h)
+  * [Definition: tensorrt/laboratory/core/affinity.h](../../yais/include/tensorrt/laboratory/core/affinity.h)
   * [Implementation: YAIS/Affinity.cc](../../yais/src/Affinity.cc)
 
 In this, we request the all logical CPUs from Socket 0 that are not hyperthreads, then we get either all 
@@ -95,7 +95,7 @@ Single line output reformatted to per-line-indented output for readability.
 
 ### ThreadPool
 
-  * [Definition: tensorrt/playground/core/thread_pool.h](../../yais/include/tensorrt/playground/core/thread_pool.h)
+  * [Definition: tensorrt/laboratory/core/thread_pool.h](../../yais/include/tensorrt/laboratory/core/thread_pool.h)
   * [Implementation: YAIS/ThreadPool.cc](../../yais/src/ThreadPool.cc)
 
 The ThreadPool class creates a pool of worker threads that pull work from a queue.  The work queue can
@@ -136,7 +136,7 @@ has a nice [write-up on memory affinity and first touch policies](http://www.ner
 In this section, we'll show how to properly use the `Memory` and `Allocator` classes in a NUMA friendly
 way using `ThreadPool`s.
 
-  * [Definition: tensorrt/playground/core/memory.h](../../yais/include/tensorrt/playground/core/memory.h)
+  * [Definition: tensorrt/laboratory/core/memory.h](../../yais/include/tensorrt/laboratory/core/memory.h)
 
 The `Memory` class and its derived classes, see below, are the core memory classes in YAIS; however,
 these classes are not direclty used.  Instead, they provide the implmentation details on how memory of
@@ -151,7 +151,7 @@ Derived `Memory` Classes:
 
 ### Allocator<MemoryType>
 
-  * [Definition: tensorrt/playground/core/memory.h](../../yais/include/tensorrt/playground/core/memory.h)
+  * [Definition: tensorrt/laboratory/core/memory.h](../../yais/include/tensorrt/laboratory/core/memory.h)
 
 The templated `Allocator<MemoryType>` class performs memory allocations and freeing operations.  This
 class does not have a public constructor, instead, you are required to use either the `make_shared`
@@ -187,7 +187,7 @@ I0515 08:36:56.619297 13260 test_affinity.cc:59] pinned_0 (ptr, size): (0x1005e0
 
 ### MemoryStack<AllocatorType>
 
-  * [Definition: tensorrt/playground/core/memory_stack.h](../../yais/include/tensorrt/playground/core/memory_stack.h)
+  * [Definition: tensorrt/laboratory/core/memory_stack.h](../../yais/include/tensorrt/laboratory/core/memory_stack.h)
 
 Generic `MemoryStack` that takes an `AllocatorType`.  The memory stack advances the stack pointer
 via `Allocate` and resets the stack pointer via `ResetAllocations`.  `MemoryStackWithTracking`
@@ -220,7 +220,7 @@ I0515 09:46:55.159710 14176 test_affinity.cc:80] Push Binding 1 - 128MB - stack_
 
 ### Pool<ResourceType>
 
-  * [Definition: tensorrt/playground/core/pool.h](../../yais/include/tensorrt/playground/core/pool.h)
+  * [Definition: tensorrt/laboratory/core/pool.h](../../yais/include/tensorrt/laboratory/core/pool.h)
 
 A `Pool<ResourceType>` is a generic of `Queue<std::shared_ptr<ResourceType>>` with a special `Pop`
 method.  The class inherits from `std::enabled_shared_from_this` meaning it must be constructed using

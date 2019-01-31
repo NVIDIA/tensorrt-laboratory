@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,17 +32,17 @@
 #include "nvrpc/executor.h"
 #include "nvrpc/server.h"
 #include "nvrpc/service.h"
-#include "tensorrt/playground/core/resources.h"
+#include "tensorrt/laboratory/core/resources.h"
 
 #include "example.grpc.fb.h"
 #include "example_generated.h"
 
-using playground::AsyncRPC;
-using playground::AsyncService;
-using playground::Context;
-using playground::Executor;
-using playground::Resources;
-using playground::Server;
+using trtlab::AsyncRPC;
+using trtlab::AsyncService;
+using trtlab::Context;
+using trtlab::Executor;
+using trtlab::Resources;
+using trtlab::Server;
 
 using Request = flatbuffers::grpc::Message<HelloRequest>;
 using Response = flatbuffers::grpc::Message<HelloReply>;

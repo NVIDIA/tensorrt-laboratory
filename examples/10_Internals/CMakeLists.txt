@@ -1,4 +1,4 @@
-# Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@ add_executable(internals.x
     internals.cc
 )
 target_link_libraries(internals.x
-    tensorrt-playground::core
-    tensorrt-playground::cuda
+    trtlab::core
+    trtlab::cuda
     gflags
 )

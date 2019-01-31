@@ -1,4 +1,4 @@
-# Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@ add_executable(streaming-service-echo.x
     streaming-service.cc
 )
 target_link_libraries(streaming-service-echo.x
-    tensorrt-playground::nvrpc
+    trtlab::nvrpc
     echo-protos
     gflags
 )
@@ -38,7 +38,7 @@ add_executable(batching-service-echo.x
 )
 
 target_link_libraries(batching-service-echo.x
-    tensorrt-playground::nvrpc
+    trtlab::nvrpc
     echo-protos
     gflags
 )

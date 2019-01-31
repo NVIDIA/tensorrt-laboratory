@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -36,14 +36,14 @@ models = [
 
 precisions = [
 #   ("fp32", ""),
-    ("fp16", "--fp16"),
-#   ("int8", "--int8")
+#   ("fp16", "--fp16"),
+    ("int8", "--int8 --fp16")
 ]
 
 def main():
     for model, o in models:
         for name, p in precisions:
-            for b in [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]: #, 2, 4, 8]:
+            for b in [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]: #, 2, 4, 8]:
                 n = "b{}-{}".format(b, name)
                 e = model.replace("prototxt", "engine")
                 e = e.replace("deploy", n)

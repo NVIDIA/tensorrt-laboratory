@@ -1,4 +1,4 @@
-# Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -164,7 +164,7 @@ RUN wget https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/ba
  && rm -f bazel-$BAZEL_VERSION-installer-linux-x86_64.sh
 
 # ===================
-# TensorRT Playground
+# TensorRT Laboratory
 # ===================
 
 COPY requirements.txt /tmp/requirements.txt
@@ -172,7 +172,7 @@ COPY requirements.txt /tmp/requirements.txt
 RUN python3 -m pip install -r /tmp/requirements.txt \
  && rm -f /tmp/requirements.txt
 
-WORKDIR /work
-COPY . .
-RUN ./build.sh
+#WORKDIR /work
+#COPY . .
+#RUN ./build.sh
 

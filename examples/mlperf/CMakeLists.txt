@@ -10,15 +10,15 @@ add_executable(mlperf-infer.x
 )
 
 target_link_libraries(mlperf-infer.x
-   tensorrt-playground::tensorrt
+   trtlab::tensorrt
    gflags
 )
 
-add_executable(mlperf-test.x
-    test.cc
-)
+#add_executable(mlperf-test.x
+#    test.cc
+#)
 
-target_link_libraries(mlperf-test.x
-   tensorrt-playground::tensorrt
-   gflags
-)
+#target_link_libraries(mlperf-test.x
+#   trtlab::tensorrt
+#   gflags
+#)

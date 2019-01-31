@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,8 +34,8 @@
 #include <glog/logging.h>
 #include <grpcpp/grpcpp.h>
 
-#include "tensorrt/playground/core/memory/cyclic_allocator.h"
-#include "tensorrt/playground/core/memory/system_v.h"
+#include "tensorrt/laboratory/core/memory/cyclic_allocator.h"
+#include "tensorrt/laboratory/core/memory/system_v.h"
 
 #include "echo.grpc.pb.h"
 
@@ -46,8 +46,8 @@ using simple::Input;
 using simple::Output;
 using simple::Inference;
 
-using playground::Memory::CyclicAllocator;
-using playground::Memory::SystemV;
+using trtlab::Memory::CyclicAllocator;
+using trtlab::Memory::SystemV;
 
 static constexpr size_t one_mb = 1024*1024;
 
