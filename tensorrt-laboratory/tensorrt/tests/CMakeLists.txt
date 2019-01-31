@@ -24,22 +24,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-pybind11_add_module(trtlab 
-  src/infer.cc
-  src/utils.cc
+#include_directories(${GTEST_INCLUDE_DIRS})
+
+add_executable(test_tensorrt
+  test_buffers.cc
 )
 
-target_link_libraries(trtlab
-  PUBLIC
-    core
-    cuda
-    nvrpc
-    nvrpc-client
-    tensorrt
-    nv-inference-protos
+target_link_libraries(test_tensorrt
+    ${PROJECT_NAME}::tensorrt
+    ${GTEST_BOTH_LIBRARIES}
 )
 
-target_include_directories(trtlab
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+add_test(
+  NAME tensorrt
+  COMMAND $<TARGET_FILE:test_tensorrt
 )

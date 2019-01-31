@@ -91,9 +91,6 @@ Reduce memory footprint by using IExeuctionContexts that do not hold internal me
 
 (-- end new intro --)
 
-# YAIS
-
-(Pronounced: Yaz!)
 
 C++ library for developing compute intensive asynchronous services built on gRPC.
 
