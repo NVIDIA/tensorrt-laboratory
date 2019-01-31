@@ -14,24 +14,24 @@
 
 #include "glog/logging.h"
 
-#include "tensorrt/playground/core/affinity.h"
-#include "tensorrt/playground/core/thread_pool.h"
-#include "tensorrt/playground/inference_manager.h"
-#include "tensorrt/playground/infer_runner.h"
-#include "tensorrt/playground/infer_bench.h"
+#include "tensorrt/laboratory/core/affinity.h"
+#include "tensorrt/laboratory/core/thread_pool.h"
+#include "tensorrt/laboratory/inference_manager.h"
+#include "tensorrt/laboratory/infer_runner.h"
+#include "tensorrt/laboratory/infer_bench.h"
 
-using playground::Affinity;
-using playground::ThreadPool;
-using playground::TensorRT::Runtime;
-using playground::TensorRT::StandardRuntime;
-using playground::TensorRT::InferenceManager;
-using playground::TensorRT::Bindings;
-using playground::TensorRT::InferRunner;
-using playground::TensorRT::InferBench;
+using trtlab::Affinity;
+using trtlab::ThreadPool;
+using trtlab::TensorRT::Runtime;
+using trtlab::TensorRT::StandardRuntime;
+using trtlab::TensorRT::InferenceManager;
+using trtlab::TensorRT::Bindings;
+using trtlab::TensorRT::InferRunner;
+using trtlab::TensorRT::InferBench;
 
-#include "tensorrt/playground/core/hybrid_mutex.h"
-#include "tensorrt/playground/core/hybrid_condition.h"
-using playground::BaseThreadPool;
+#include "tensorrt/laboratory/core/hybrid_mutex.h"
+#include "tensorrt/laboratory/core/hybrid_condition.h"
+using trtlab::BaseThreadPool;
 using HybridThreadPool = BaseThreadPool<hybrid_mutex, hybrid_condition>;
 
 #include "moodycamel/blockingconcurrentqueue.h"
@@ -46,7 +46,7 @@ using moodycamel::ProducerToken;
 
 DEFINE_int32(concurrency, 4, "Number of concurrency execution streams");
 DEFINE_double(alpha, 1.5, "Scaling Parameter to account for overheads and queue depth");
-DEFINE_int32(latency, 12000, "Latency Threshold in microseconds");
+DEFINE_int32(latency, 10000, "Latency Threshold in microseconds");
 DEFINE_int32(timeout,  3000, "Batching Timeout in microseconds");
 
 int main(int argc, char*argv[])
@@ -62,6 +62,7 @@ int main(int argc, char*argv[])
     std::chrono::microseconds latency_bound(FLAGS_latency);
 
     // Batching timeout
+    volatile bool running = true;
     constexpr uint64_t quanta = 100; // microseconds
     const double timeout = static_cast<double>(FLAGS_timeout - quanta) / 1000000.0; // microseconds
 
@@ -79,16 +80,17 @@ int main(int argc, char*argv[])
     resources->RegisterThreadPool("post", std::move(post_thread_pool));
 
     std::vector<std::string> engine_files = {
-        "/work/models/ResNet-50-b24-fp16.engine",
-        "/work/models/ResNet-50-b22-fp16.engine",
-        "/work/models/ResNet-50-b20-fp16.engine",
-        "/work/models/ResNet-50-b18-fp16.engine",
-        "/work/models/ResNet-50-b16-fp16.engine",
-        "/work/models/ResNet-50-b14-fp16.engine",
-        "/work/models/ResNet-50-b12-fp16.engine",
-        "/work/models/ResNet-50-b10-fp16.engine",
-        "/work/models/ResNet-50-b8-fp16.engine",
-        "/work/models/ResNet-50-b6-fp16.engine"
+        "/work/models/ResNet-50-b20-int8.engine",
+        "/work/models/ResNet-50-b18-int8.engine",
+        "/work/models/ResNet-50-b16-int8.engine",
+        "/work/models/ResNet-50-b14-int8.engine",
+        "/work/models/ResNet-50-b12-int8.engine",
+        "/work/models/ResNet-50-b10-int8.engine",
+        "/work/models/ResNet-50-b8-int8.engine",
+        "/work/models/ResNet-50-b6-int8.engine",
+        "/work/models/ResNet-50-b4-int8.engine",
+        "/work/models/ResNet-50-b2-int8.engine",
+        "/work/models/ResNet-50-b1-int8.engine"
     };
 
     std::shared_ptr<Runtime> runtime = std::make_shared<StandardRuntime>();
@@ -115,7 +117,7 @@ int main(int argc, char*argv[])
         auto warmup = benchmark.Run(model, batch_size, 0.2);
         auto result = benchmark.Run(model, batch_size, 5.0);
 
-        using namespace playground::TensorRT;
+        using namespace trtlab::TensorRT;
         auto time_per_batch = result->at(kExecutionTimePerBatch);
 
         auto batching_window = std::chrono::duration<double>(latency_bound).count() - time_per_batch * FLAGS_alpha;
@@ -142,7 +144,7 @@ int main(int argc, char*argv[])
     std::vector<std::shared_future<size_t>> futures;
     futures.reserve(1048576);
 
-    batcher_thread_pool->enqueue([&work_queue, &runners_by_batch_size, &runners_by_batching_window, &futures, 
+    batcher_thread_pool->enqueue([&work_queue, &runners_by_batch_size, &runners_by_batching_window, &futures, &running,
                                   resources, max_batch_size, timeout]() mutable {
         size_t total_count;
         size_t max_deque;
@@ -152,7 +154,7 @@ int main(int argc, char*argv[])
         double elapsed;
 
         // Batching Loop
-        for (;;)
+        for (;running;)
         {
             total_count = 0;
             max_deque = max_batch_size;
@@ -260,5 +262,8 @@ int main(int argc, char*argv[])
               << std::roundl(100 * latency_bound_percentile) << "% latency bound: " << max_qps
               << "\n";
 
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    running = false;
+    std::this_thread::sleep_for(std::chrono::seconds(5));
     return 0;
 }
