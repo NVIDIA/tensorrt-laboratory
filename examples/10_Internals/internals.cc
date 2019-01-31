@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,15 +24,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/playground/core/affinity.h"
-#include "tensorrt/playground/core/pool.h"
-#include "tensorrt/playground/core/thread_pool.h"
-#include "tensorrt/playground/core/memory/memory_stack.h"
-#include "tensorrt/playground/core/memory/allocator.h"
-#include "tensorrt/playground/cuda/memory/cuda_device.h"
-#include "tensorrt/playground/cuda/memory/cuda_managed.h"
-#include "tensorrt/playground/cuda/memory/cuda_pinned_host.h"
-#include "tensorrt/playground/cuda/device_info.h"
+#include "tensorrt/laboratory/core/affinity.h"
+#include "tensorrt/laboratory/core/pool.h"
+#include "tensorrt/laboratory/core/thread_pool.h"
+#include "tensorrt/laboratory/core/memory/memory_stack.h"
+#include "tensorrt/laboratory/core/memory/allocator.h"
+#include "tensorrt/laboratory/cuda/memory/cuda_device.h"
+#include "tensorrt/laboratory/cuda/memory/cuda_managed.h"
+#include "tensorrt/laboratory/cuda/memory/cuda_pinned_host.h"
+#include "tensorrt/laboratory/cuda/device_info.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -44,15 +44,15 @@
 #include <memory>
 #include <chrono>
 
-using playground::Affinity;
-using playground::CpuSet;
-using playground::DeviceInfo;
-using playground::ThreadPool;
-using playground::Pool;
-using playground::Memory::Allocator;
-using playground::Memory::CudaPinnedHostMemory;
-using playground::Memory::CudaDeviceMemory;
-using playground::Memory::MemoryStack;
+using trtlab::Affinity;
+using trtlab::CpuSet;
+using trtlab::DeviceInfo;
+using trtlab::ThreadPool;
+using trtlab::Pool;
+using trtlab::Memory::Allocator;
+using trtlab::Memory::CudaPinnedHostMemory;
+using trtlab::Memory::CudaDeviceMemory;
+using trtlab::Memory::MemoryStack;
 
 
 int main(int argc, char *argv[])

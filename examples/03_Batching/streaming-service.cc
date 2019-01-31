@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,21 +29,21 @@
 #include <chrono>
 #include <thread>
 
-#include "tensorrt/playground/core/resources.h"
-#include "tensorrt/playground/core/thread_pool.h"
+#include "tensorrt/laboratory/core/resources.h"
+#include "tensorrt/laboratory/core/thread_pool.h"
 #include "nvrpc/context.h"
 #include "nvrpc/executor.h"
 #include "nvrpc/rpc.h"
 #include "nvrpc/service.h"
 #include "nvrpc/server.h"
 
-using playground::AsyncService;
-using playground::AsyncRPC;
-using playground::BatchingContext;
-using playground::Executor;
-using playground::Server;
-using playground::Resources;
-using playground::ThreadPool;
+using trtlab::AsyncService;
+using trtlab::AsyncRPC;
+using trtlab::BatchingContext;
+using trtlab::Executor;
+using trtlab::Server;
+using trtlab::Resources;
+using trtlab::ThreadPool;
 
 #include "echo.pb.h"
 #include "echo.grpc.pb.h"

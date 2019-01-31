@@ -1,7 +1,7 @@
 #BASE_IMAGE ?= nvcr.io/nvidia/tensorrt:18.11-py3
 BASE_IMAGE ?= gitlab-master.nvidia.com:5005/dl/dgx/tensorrt:19.01-py3-devel
-IMAGE_NAME ?= tensorrt-playground
-RELEASE_IMAGE ?= ryanolson/tensorrt-playground
+IMAGE_NAME ?= tensorrt-laboratory
+RELEASE_IMAGE ?= ryanolson/tensorrt-laboratory
 
 .PHONY: build tag push release clean distclean
 

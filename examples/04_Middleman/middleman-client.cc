@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,20 +29,20 @@
 #include <chrono>
 #include <thread>
 
-#include "tensorrt/playground/core/memory/allocator.h"
-#include "tensorrt/playground/core/memory/malloc.h"
+#include "tensorrt/laboratory/core/memory/allocator.h"
+#include "tensorrt/laboratory/core/memory/malloc.h"
 
-using playground::Memory::Allocator;
-using playground::Memory::Malloc;
+using trtlab::Memory::Allocator;
+using trtlab::Memory::Malloc;
 
 #include "nvrpc/context.h"
 #include "nvrpc/executor.h"
 #include "nvrpc/server.h"
 
-using playground::Context;
-using playground::Executor;
-using playground::Server;
-using playground::ThreadPool;
+using trtlab::Context;
+using trtlab::Executor;
+using trtlab::Server;
+using trtlab::ThreadPool;
 
 #include "moodycamel/blockingconcurrentqueue.h"
 
@@ -219,7 +219,7 @@ struct MiddlemanService
     };
 
   public:
-    class Resources : public ::playground::Resources
+    class Resources : public ::trtlab::Resources
     {
       public:
         Resources(uint32_t max_batch_size, uint64_t timeout, std::shared_ptr<Client> client)
@@ -273,7 +273,7 @@ struct MiddlemanService
         BlockingConcurrentQueue<MessageType> m_MessageQueue;
     };
 
-    class ReceiveContext final : public ::playground::Context<Request, Response, Resources>
+    class ReceiveContext final : public ::trtlab::Context<Request, Response, Resources>
     {
         void ExecuteRPC(Request &request, Response &response) final override
         {
@@ -365,9 +365,9 @@ int main(int argc, char *argv[])
         FLAGS_max_batch_size, FLAGS_timeout_usecs, status_client);
 
     Server server("0.0.0.0:50049");
-    auto bytes = playground::StringToBytes("100MiB");
+    auto bytes = trtlab::StringToBytes("100MiB");
     server.Builder().SetMaxReceiveMessageSize(bytes);
-    LOG(INFO) << "gRPC MaxReceiveMessageSize = " << playground::BytesToString(bytes);
+    LOG(INFO) << "gRPC MaxReceiveMessageSize = " << trtlab::BytesToString(bytes);
 
     auto recvService = server.RegisterAsyncService<::easter::GRPCService>();
     auto rpcCompute = recvService->RegisterRPC<DemoMiddlemanService::ReceiveContext>(

@@ -1,4 +1,4 @@
-# Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -35,8 +35,8 @@ add_executable(inference.x
     ${PROTO_GRPC_SRCS})
 
 target_link_libraries(inference.x
-    tensorrt-playground::nvrpc
-    tensorrt-playground::tensorrt
+    trtlab::nvrpc
+    trtlab::tensorrt
     gflags
 )
 
@@ -46,8 +46,8 @@ add_executable(infer.x
     ${PROTO_GRPC_SRCS})
 
 target_link_libraries(infer.x
-    tensorrt-playground::nvrpc
-    tensorrt-playground::tensorrt
+    trtlab::nvrpc
+    trtlab::tensorrt
     gflags
 )
 

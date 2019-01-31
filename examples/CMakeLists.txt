@@ -1,4 +1,4 @@
-# Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -38,4 +38,4 @@ add_subdirectory(11_Protos)
 add_subdirectory(12_FlatBuffers)
 add_subdirectory(mlperf)
 #add_subdirectory(12_ConfigGenerator)
-add_subdirectory(30_PyTensorRT)
+#add_subdirectory(30_PyTensorRT)

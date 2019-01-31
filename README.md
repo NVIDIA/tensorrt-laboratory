@@ -1,6 +1,6 @@
-# TensorRT Playground
+# TensorRT Laboratory
 
-The TensorRT Playground is a place where you can explore and build high-level inference 
+The TensorRT Laboratory is a place where you can explore and build high-level inference 
 examples that extend the scope of the examples provided with each of the NVIDIA software
 products, i.e. CUDA, TensorRT, TensorRT Inference Server, and DeepStream.  We hope that 
 the examples and ideas found in the playground will resonate and possibly inspire.
@@ -8,10 +8,10 @@ the examples and ideas found in the playground will resonate and possibly inspir
 ## Quickstart
 
 ```
-git clone http://github.com/nvidia/tensorrt-playground
-cd tensorrt-playground
+git clone http://github.com/nvidia/tensorrt-laboratory
+cd tensorrt-laboratory
 make
-nvidia-docker run --rm -ti tensorrt-playground jupyter lab
+nvidia-docker run --rm -ti tensorrt-laboratory jupyter lab
 # navigate to the notebooks folder and open Quickstart.ipynb 
 ```
 
@@ -46,7 +46,7 @@ What do you want to do...
 
 ### Core Components
 
-There are 4 primary folder in the [tensorrt-playground](tensorrt-playground/) folder.  Each of these
+There are 4 primary folder in the [tensorrt-laboratory](tensorrt-laboratory/) folder.  Each of these
 components builds separately and build on each other.  Both CMake and Bazel builds are supported.
 
 Components:
@@ -91,9 +91,6 @@ Reduce memory footprint by using IExeuctionContexts that do not hold internal me
 
 (-- end new intro --)
 
-# YAIS
-
-(Pronounced: Yaz!)
 
 C++ library for developing compute intensive asynchronous services built on gRPC.
 

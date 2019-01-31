@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,7 +38,7 @@
 
 using nvidia::inferenceserver::ModelConfig;
 
-using playground::TensorRT::Runtime;
+using trtlab::TensorRT::Runtime;
 
 static size_t DataTypeToBytes(nvidia::inferenceserver::DataType dataType)
 {
@@ -87,7 +87,7 @@ static nvidia::inferenceserver::DataType ConvertTensorRTDataType(nvinfer1::DataT
 std::string tensorrt_engine(std::string model_name, std::string engine, int concurrency)
 {
     ModelConfig config;
-    auto model = playground::TensorRT::Runtime::DeserializeEngine(engine);
+    auto model = trtlab::TensorRT::Runtime::DeserializeEngine(engine);
     config.set_name(model_name);
     config.set_platform("tensorrt_plan");
     config.set_max_batch_size(model->GetMaxBatchSize());

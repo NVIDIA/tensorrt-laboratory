@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -43,4 +43,4 @@ else
     echo "No GPU container runtime found"
     exit 911
 fi
-NV_GPU=0 $crt -v $PWD:/work $models_cli --workdir /work --name playground --net host tensorrt-playground
+NV_GPU=0 $crt -v $PWD:/work $models_cli --workdir /work --name playground --net host tensorrt-laboratory

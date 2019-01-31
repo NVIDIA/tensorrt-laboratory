@@ -1,4 +1,4 @@
-# Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -26,7 +26,7 @@
 
 cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
 
-project(tensorrt-playground)
+project(tensorrt-laboratory)
 
 include(GNUInstallDirs)
 
@@ -41,5 +41,5 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 add_subdirectory(third_party/pybind11)
-add_subdirectory(tensorrt-playground)
+add_subdirectory(tensorrt-laboratory)
 add_subdirectory(examples)

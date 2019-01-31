@@ -140,13 +140,17 @@ std::chrono::nanoseconds ReplayTrace(const Trace<QueryType> &trace,
 
   // TODO(tjablin): Some sort of user supplied BlockUntilDone method should be
   // called here.
-  // unlike the futures, don't know when the batcher thread is finished
-  // i could spinlock here until the message_queue is empty and the batching
-  // thread returns.  i'd need a trigger to kill the batching thread
+
+  // TODO(ryanolson) - if the enqueue function is blocking or it produces a
+  // future that can be sychronized, then just call the sync lambda.  However,
+  // if enqueue is asynchronous, then we can not immediately call sync as all
+  // the synchronization objects may not be fully instantiated.  We actually
+  // need a second trigger that tells the background engine that the replay
+  // engine is done enqueuing work, so that when the queue has been emptied,
+  // the sync lambda may be finalized.  For now, we just sleep...
   std::this_thread::sleep_for(std::chrono::seconds(8));
   sync();
 
-  LOG(INFO)  << latencies.size();
   std::sort(latencies.begin(), latencies.end());
   return latencies[std::ceil(latency_bound_percentile *
                              (latencies.size() - 1))];
@@ -158,7 +162,7 @@ std::chrono::nanoseconds ReplayTrace(const Trace<QueryType> &trace,
 // bound.
 template <class QueryType>
 double FindMaxQPS(const QueryLibrary<QueryType> &query_library,
-                  EnqueueFn<QueryType> enqueue, 
+                  EnqueueFn<QueryType> enqueue,
                   SyncFn sync,
                   uint64_t seed,
                   std::chrono::nanoseconds latency_bound, int min_queries,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,9 +30,9 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "tensorrt/playground/core/thread_pool.h"
-#include "tensorrt/playground/inference_manager.h"
-#include "tensorrt/playground/runtime.h"
+#include "tensorrt/laboratory/core/thread_pool.h"
+#include "tensorrt/laboratory/inference_manager.h"
+#include "tensorrt/laboratory/runtime.h"
 
 #ifdef PLAYGROUND_USE_MPI
 #include "mpi.h"
@@ -41,12 +41,12 @@
 #define MPI_CHECK(mpicall)
 #endif
 
-using playground::ThreadPool;
-using playground::TensorRT::InferenceManager;
-using playground::TensorRT::Runtime;
-using playground::TensorRT::CustomRuntime;
-using playground::TensorRT::StandardAllocator;
-using playground::TensorRT::ManagedAllocator;
+using trtlab::ThreadPool;
+using trtlab::TensorRT::InferenceManager;
+using trtlab::TensorRT::Runtime;
+using trtlab::TensorRT::CustomRuntime;
+using trtlab::TensorRT::StandardAllocator;
+using trtlab::TensorRT::ManagedAllocator;
 
 static int g_Concurrency = 0;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,20 +32,20 @@
 #include "nvrpc/server.h"
 #include "nvrpc/service.h"
 #include "nvrpc/executor.h"
-#include "tensorrt/playground/core/pool.h"
-#include "tensorrt/playground/core/resources.h"
-#include "tensorrt/playground/core/thread_pool.h"
+#include "tensorrt/laboratory/core/pool.h"
+#include "tensorrt/laboratory/core/resources.h"
+#include "tensorrt/laboratory/core/thread_pool.h"
 
 #include "echo.pb.h"
 #include "echo.grpc.pb.h"
 
-using playground::AsyncService;
-using playground::AsyncRPC;
-using playground::Context;
-using playground::Executor;
-using playground::Server;
-using playground::Resources;
-using playground::ThreadPool;
+using trtlab::AsyncService;
+using trtlab::AsyncRPC;
+using trtlab::Context;
+using trtlab::Executor;
+using trtlab::Server;
+using trtlab::Resources;
+using trtlab::ThreadPool;
 
 // CLI Options
 DEFINE_int32(thread_count, 1, "Size of thread pool");

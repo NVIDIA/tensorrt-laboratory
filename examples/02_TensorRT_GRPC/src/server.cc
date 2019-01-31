@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,12 +34,12 @@
 #include <unistd.h>
 #include "nvml.h"
 
-#include "tensorrt/playground/core/affinity.h"
-#include "tensorrt/playground/core/memory/allocator.h"
-#include "tensorrt/playground/cuda/device_info.h"
-#include "tensorrt/playground/cuda/memory/cuda_pinned_host.h"
-#include "tensorrt/playground/runtime.h"
-#include "tensorrt/playground/inference_manager.h"
+#include "tensorrt/laboratory/core/affinity.h"
+#include "tensorrt/laboratory/core/memory/allocator.h"
+#include "tensorrt/laboratory/cuda/device_info.h"
+#include "tensorrt/laboratory/cuda/memory/cuda_pinned_host.h"
+#include "tensorrt/laboratory/runtime.h"
+#include "tensorrt/laboratory/inference_manager.h"
 
 #include "nvrpc/context.h"
 #include "nvrpc/executor.h"
@@ -48,22 +48,22 @@
 
 #include "metrics.h"
 
-using playground::Affinity;
-using playground::AsyncRPC;
-using playground::AsyncService;
-using playground::Context;
-using playground::DeviceInfo;
-using playground::Executor;
-using playground::Metrics;
-using playground::Server;
-using playground::ThreadPool;
-using playground::Memory::Allocator;
-using playground::Memory::CudaPinnedHostMemory;
-using playground::TensorRT::Model;
-using playground::TensorRT::InferenceManager;
-using playground::TensorRT::Runtime;
-using playground::TensorRT::StandardRuntime;
-using playground::TensorRT::ManagedRuntime;
+using trtlab::Affinity;
+using trtlab::AsyncRPC;
+using trtlab::AsyncService;
+using trtlab::Context;
+using trtlab::DeviceInfo;
+using trtlab::Executor;
+using trtlab::Metrics;
+using trtlab::Server;
+using trtlab::ThreadPool;
+using trtlab::Memory::Allocator;
+using trtlab::Memory::CudaPinnedHostMemory;
+using trtlab::TensorRT::Model;
+using trtlab::TensorRT::InferenceManager;
+using trtlab::TensorRT::Runtime;
+using trtlab::TensorRT::StandardRuntime;
+using trtlab::TensorRT::ManagedRuntime;
 
 // Flowers Protos
 #include "inference.pb.h"
@@ -219,7 +219,7 @@ static bool ValidateEngine(const char *flagname, const std::string &value)
 
 static bool ValidateBytes(const char *flagname, const std::string &value)
 {
-    playground::StringToBytes(value);
+    trtlab::StringToBytes(value);
     return true;
 }
 
@@ -257,9 +257,9 @@ int main(int argc, char *argv[])
     Server server(ip_port.str());
 
     // Modify MaxReceiveMessageSize
-    auto bytes = playground::StringToBytes(FLAGS_max_recv_bytes);
+    auto bytes = trtlab::StringToBytes(FLAGS_max_recv_bytes);
     server.Builder().SetMaxReceiveMessageSize(bytes);
-    LOG(INFO) << "gRPC MaxReceiveMessageSize = " << playground::BytesToString(bytes);
+    LOG(INFO) << "gRPC MaxReceiveMessageSize = " << trtlab::BytesToString(bytes);
 
     // A server can host multiple services
     LOG(INFO) << "Register Service (flowers::Inference) with Server";
