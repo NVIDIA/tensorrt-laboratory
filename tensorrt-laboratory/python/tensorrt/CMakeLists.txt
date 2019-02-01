@@ -43,3 +43,22 @@ target_include_directories(trtlab
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
+
+##find_program(PYTHON "python)
+##
+##if (PYTHON)
+##    set(SETUP_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/setup.py")
+##    set(SETUP_PY    "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
+##    set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/trtlab/__init__.py")
+##    set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/build")
+##
+##    configure_file(${SETUP_PY_IN} ${SETUP_PY})
+##
+##    add_custom_command(OUTPUT ${OUTPUT}
+##                       COMMAND ${PYTHON} ${SETUP_PY} build
+##                       DEPENDS ${DEPS} _trtlab_cpp)
+##
+##    add_custom_target(target ALL DEPENDS ${OUTPUT})
+##
+##    install(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} bdist_wheel)")
+##endif()

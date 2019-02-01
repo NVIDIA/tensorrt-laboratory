@@ -640,7 +640,7 @@ void BasicInferService(std::shared_ptr<InferenceManager> resources, int port,
 using PyInferFuture = std::shared_future<typename PyInferRunner::InferResults>;
 PYBIND11_MAKE_OPAQUE(PyInferFuture);
 
-PYBIND11_MODULE(infer, m)
+PYBIND11_MODULE(trtlab, m)
 {
     py::class_<PyInferenceManager, std::shared_ptr<PyInferenceManager>>(m, "InferenceManager")
         .def(py::init<int, int, int, int, int>(), py::arg("max_exec_concurrency") = 1,

@@ -31,4 +31,6 @@ cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j
+cd /work/notebooks
+ln -f -s /work/build/tensorrt-laboratory/python/tensorrt/trtlab.cpython-35m-x86_64-linux-gnu.so
 #make install
