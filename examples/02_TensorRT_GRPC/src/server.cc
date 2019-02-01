@@ -74,7 +74,7 @@ using ssd::BatchPredictions;
 using ssd::Inference;
 
 /*
- * YAIS Metrics
+ * Prometheus Metrics
  * 
  * It is important to make collect measurements to find bottlenecks, performance issues,
  * and to trigger auto-scaling.
@@ -144,7 +144,7 @@ class FlowersResources : public InferenceManager
 };
 
 /*
- * YAIS Context - Defines the logic of the RPC. 
+ * nvRPC Context - Defines the logic of the RPC. 
  */
 class FlowersContext final : public Context<BatchInput, BatchPredictions, FlowersResources>
 {
