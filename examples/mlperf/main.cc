@@ -71,6 +71,8 @@ using moodycamel::ProducerToken;
 
 #include <iostream>
 
+#define likely(x) __builtin_expect((x),1)
+
 DEFINE_int32(concurrency, 4, "Number of concurrency execution streams");
 DEFINE_double(alpha, 1.5, "Scaling Parameter to account for overheads and queue depth");
 DEFINE_int32(latency, 10000, "Latency Threshold in microseconds");
@@ -183,7 +185,7 @@ int main(int argc, char*argv[])
         // Batching Loop
         for (;running;)
         {
-            if (unlikely(stop_batcher)) { return; }
+            if (likely(running)) { return; }
             total_count = 0;
             max_deque = max_batch_size;
             adjustable_max_batch_size = max_batch_size;
