@@ -153,6 +153,7 @@ std::chrono::nanoseconds ReplayTrace(const Trace<QueryType> &trace,
   for (int i = 0; i < trace.size(); ++i) {
     const auto &trace_entry = trace[i];
     auto query_start_time = start + trace_entry.first;
+//  while(std::chrono::high_resolution_clock::now() < query_start_time) {}
     std::this_thread::sleep_until(query_start_time);
 
     // TODO(tjablin): The completion callback should record the result of the
@@ -175,7 +176,6 @@ std::chrono::nanoseconds ReplayTrace(const Trace<QueryType> &trace,
   // need a second trigger that tells the background engine that the replay
   // engine is done enqueuing work, so that when the queue has been emptied,
   // the sync lambda may be finalized.  For now, we just sleep...
-  std::this_thread::sleep_for(std::chrono::seconds(8));
   sync();
 
   std::sort(latencies.begin(), latencies.end());
@@ -203,7 +203,7 @@ double FindMaxQPS(const QueryLibrary<QueryType> &query_library,
          relative_qps_tolerance) {
     double target_qps;
     if (qps_lower_bound == 0 && qps_upper_bound == INFINITY) {
-      target_qps = 512;
+      target_qps = 2048;
     } else if (qps_upper_bound == INFINITY) {
       target_qps = 2 * qps_lower_bound;
     } else {
@@ -218,7 +218,7 @@ double FindMaxQPS(const QueryLibrary<QueryType> &query_library,
           ReplayTrace(trace, enqueue, sync, latency_bound_percentile);
       std::cout << "QPS: " << trace_qps << "\t"
                 << std::roundl(100 * latency_bound_percentile)
-                << "% latency: " << measured_latency.count() << " ns\n";
+                << "% latency: " << std::chrono::duration<double>(measured_latency).count() * 1000 << " ms\n";
       if (measured_latency > latency_bound) {
         qps_upper_bound = std::min(qps_upper_bound, trace_qps);
       } else {

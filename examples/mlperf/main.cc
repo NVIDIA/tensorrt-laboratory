@@ -74,9 +74,13 @@ using moodycamel::ProducerToken;
 #define likely(x) __builtin_expect((x),1)
 
 DEFINE_int32(concurrency, 4, "Number of concurrency execution streams");
-DEFINE_double(alpha, 1.5, "Scaling Parameter to account for overheads and queue depth");
+DEFINE_double(alpha, 1.5, "Parameter to account for overheads and queue depth - scalar");
+DEFINE_double(beta, 0.0, "Parameter to account for overheads and queue depth - constant in microseconds");
 DEFINE_int32(latency, 10000, "Latency Threshold in microseconds");
 DEFINE_int32(timeout,  3000, "Batching Timeout in microseconds");
+DEFINE_int64(seed, 0, "Random Seed");
+DEFINE_int32(percentile, 95, "Percentile");
+DEFINE_int32(duration, 5, "Min Trace Duration");
 
 int main(int argc, char*argv[])
 {
@@ -92,7 +96,7 @@ int main(int argc, char*argv[])
 
     // Batching timeout
     volatile bool running = true;
-    constexpr uint64_t quanta = 100; // microseconds
+    constexpr uint64_t quanta = 20; // microseconds
     const double timeout = static_cast<double>(FLAGS_timeout - quanta) / 1000000.0; // microseconds
 
     auto resources = std::make_shared<InferenceManager>(FLAGS_concurrency, FLAGS_concurrency + 4);
@@ -109,17 +113,17 @@ int main(int argc, char*argv[])
     resources->RegisterThreadPool("post", std::move(post_thread_pool));
 
     std::vector<std::string> engine_files = {
-        "/work/models/ResNet-50-b20-int8.engine",
-        "/work/models/ResNet-50-b18-int8.engine",
-        "/work/models/ResNet-50-b16-int8.engine",
-        "/work/models/ResNet-50-b14-int8.engine",
-        "/work/models/ResNet-50-b12-int8.engine",
-        "/work/models/ResNet-50-b10-int8.engine",
-        "/work/models/ResNet-50-b8-int8.engine",
-        "/work/models/ResNet-50-b6-int8.engine",
-        "/work/models/ResNet-50-b4-int8.engine",
-        "/work/models/ResNet-50-b2-int8.engine",
-        "/work/models/ResNet-50-b1-int8.engine"
+
+        "/work/models/ResNet-50-b20-fp16.engine",
+        "/work/models/ResNet-50-b18-fp16.engine",
+        "/work/models/ResNet-50-b16-fp16.engine",
+        "/work/models/ResNet-50-b14-fp16.engine",
+        "/work/models/ResNet-50-b12-fp16.engine",
+        "/work/models/ResNet-50-b10-fp16.engine",
+        "/work/models/ResNet-50-b8-fp16.engine",
+        "/work/models/ResNet-50-b6-fp16.engine",
+        "/work/models/ResNet-50-b4-fp16.engine",
+        "/work/models/ResNet-50-b2-fp16.engine",
     };
 
     std::shared_ptr<Runtime> runtime = std::make_shared<StandardRuntime>();
@@ -149,7 +153,7 @@ int main(int argc, char*argv[])
         using namespace trtlab::TensorRT;
         auto time_per_batch = result->at(kExecutionTimePerBatch);
 
-        auto batching_window = std::chrono::duration<double>(latency_bound).count() - time_per_batch * FLAGS_alpha;
+        auto batching_window = std::chrono::duration<double>(latency_bound).count() - (time_per_batch * FLAGS_alpha + 0.000001 * FLAGS_beta);
         if (batching_window <= 0.0) {
             LOG(INFO) << "Batch Sizes >= " << batch_size << " exceed latency threshold";
             break;
@@ -170,6 +174,7 @@ int main(int argc, char*argv[])
 
     BlockingConcurrentQueue<WorkPacket> work_queue;
 
+    size_t global_counter = 0;
     std::vector<std::shared_future<size_t>> futures;
     futures.reserve(1048576);
 
@@ -181,11 +186,13 @@ int main(int argc, char*argv[])
         std::vector<WorkPacket> work_packets(max_batch_size);
         thread_local ConsumerToken token(work_queue);
         double elapsed;
+        double quanta_in_secs = quanta / 1000000.0; // convert microsecs to 
+
+        std::deque<std::pair<size_t, double>> load_tracker;
 
         // Batching Loop
-        for (;running;)
+        for (;likely(running);)
         {
-            if (likely(running)) { return; }
             total_count = 0;
             max_deque = max_batch_size;
             adjustable_max_batch_size = max_batch_size;
@@ -200,7 +207,7 @@ int main(int argc, char*argv[])
                 auto count = work_queue.wait_dequeue_bulk_timed(token, &work_packets[total_count], max_deque, quanta);
                 total_count += count;
                 elapsed = elapsed_time();
-                auto runner = runners_by_batching_window.lower_bound(elapsed)->second;
+                auto runner = runners_by_batching_window.lower_bound(elapsed + quanta_in_secs)->second;
                 adjustable_max_batch_size = runner->GetModel().GetMaxBatchSize();
                 max_deque = adjustable_max_batch_size - total_count;
                 // TODO: update timeout with load-penalty
@@ -223,7 +230,7 @@ int main(int argc, char*argv[])
                             return wps.size();
                     })
                 );
-
+                //load_tracker.emplace_back(total_count, )
                 // reset work_packets
                 CHECK_EQ(work_packets.size(), 0);
                 work_packets.resize(max_batch_size);
@@ -231,23 +238,30 @@ int main(int argc, char*argv[])
         }
     });
 
-    auto sync = [&futures]() mutable {
-        LOG(INFO) << "Syncing " << futures.size() << " futures.";
+    auto sync = [&futures, &global_counter]() mutable {
+        LOG(INFO) << "Syncing futures.";
         std::map<size_t, size_t> histogram;
         size_t count = 0;
-        for (const auto& f : futures) { 
-            auto batch_size = f.get();
+        auto iterator = futures.begin();
+        while (count < global_counter)
+        {
+            auto batch_size = iterator->get();
             count += batch_size;
             histogram[batch_size]++;
+            if (count == global_counter) { break; }
+            while (iterator+1 == futures.end()) { std::this_thread::sleep_for(std::chrono::microseconds(200)); }
+            iterator++;
         }
         LOG(INFO) << "Histogram of batched work:";
         for (const auto& item : histogram )
         {
             LOG(INFO) << "bs " << item.first << ": " << item.second;
         }
+        auto batches = futures.size();
+        global_counter = 0;
         futures.clear();
         CHECK(futures.size() == 0);
-        LOG(INFO) << "Sync Complete - " << count << " work packets completed";
+        LOG(INFO) << "Sync Complete - " << batches << " batches; " << count << " inferences";
     };
 
     // The enqueue function takes a start time, a query, and a
@@ -259,8 +273,9 @@ int main(int argc, char*argv[])
 
     // Immmediately enqueue work packet on the TensorRT batching work_queue
     TraceGenerator::EnqueueFn<int> enqueue =
-        [&work_queue](std::chrono::nanoseconds start, int query, std::function<void(void)> completion_callback) {
+        [&work_queue, &global_counter](std::chrono::nanoseconds start, int query, std::function<void(void)> completion_callback) {
             work_queue.enqueue(WorkPacket{start, query, completion_callback});
+            ++global_counter;
         };
 
     // TODO(tjablin): These parameters should all be read from the command-line or
@@ -273,13 +288,13 @@ int main(int argc, char*argv[])
     uint64_t min_queries = 4096;
 
     // The minimum duration of the trace.
-    std::chrono::seconds min_duration(5);
+    std::chrono::seconds min_duration(FLAGS_duration);
 
     // The minimum percent of queries meeting the latency bound.
-    double latency_bound_percentile = 0.95;
+    double latency_bound_percentile = FLAGS_percentile * 0.01;
 
     // The pseudo-random number generator's seed.
-    uint64_t seed = 0;
+    uint64_t seed = FLAGS_seed;
 
     // Given an enqueue implementation and all other parameters, conduct a series
     // of experiments to determine the maximum QPS.
