@@ -146,6 +146,11 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
 */
 
   public:
+    const int MaxBatchSize() const
+    {
+        return m_Model->GetMaxBatchSize();
+    }
+
     const Model& GetModel() const
     {
         return *m_Model;

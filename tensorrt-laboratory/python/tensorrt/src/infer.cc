@@ -457,7 +457,10 @@ struct PyInferRunner : public InferRunner
                 {
                     const auto& binding = bindings->GetModel()->GetBinding(id);
                     DLOG(INFO) << "Processing binding: " << binding.name << "with index " << id;
-                    auto value = py::array(DataTypeToNumpy(binding.dtype), binding.dims);
+                    std::vector<int> dims;
+                    dims.push_back(bindings->BatchSize());
+                    for(const auto& d : binding.dims) { dims.push_back(d); }
+                    auto value = py::array(DataTypeToNumpy(binding.dtype), dims);
                     // auto value = py::array_t<float>(binding.dims);
                     // auto value = py::array_t<float>(binding.elementsPerBatchItem *
                     // bindings->BatchSize());
@@ -663,7 +666,8 @@ PYBIND11_MODULE(trtlab, m)
     py::class_<PyInferRunner, std::shared_ptr<PyInferRunner>>(m, "InferRunner")
         .def("infer", &PyInferRunner::Infer, py::call_guard<py::gil_scoped_release>())
         .def("input_bindings", &PyInferRunner::InputBindings)
-        .def("output_bindings", &PyInferRunner::OutputBindings);
+        .def("output_bindings", &PyInferRunner::OutputBindings)
+        .def("max_batch_size", &PyInferRunner::MaxBatchSize);
     //      .def("__repr__", [](const PyInferRunner& obj) {
     //          return obj.Description();
     //      });
