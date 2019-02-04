@@ -24,7 +24,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-RUN installTRT.sh 5.1.0.1
+# RUN installTRT.sh 5.1.0.1
+RUN installTRT.sh 5.1.1.0
 
 RUN apt update && apt install -y --no-install-recommends build-essential autoconf libtool git \
         curl wget pkg-config sudo ca-certificates vim-tiny automake libssl-dev bc python3-pip \
