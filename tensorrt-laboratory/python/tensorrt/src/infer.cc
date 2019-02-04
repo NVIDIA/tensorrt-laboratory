@@ -462,8 +462,8 @@ struct PyInferRunner : public InferRunner
                     // auto value = py::array_t<float>(binding.elementsPerBatchItem *
                     // bindings->BatchSize());
                     py::buffer_info buffer = value.request();
-                    CHECK_EQ(value.nbytes(), bindings->BindingSize(id));
-                    std::memcpy(buffer.ptr, bindings->HostAddress(id), value.nbytes());
+                    CHECK_EQ(bindings->BatchSize() * value.nbytes(), bindings->BindingSize(id));
+                    std::memcpy(buffer.ptr, bindings->HostAddress(id), bindings->BindingSize(id));
                     py::str key = binding.name;
                     results[key] = value;
                 }
