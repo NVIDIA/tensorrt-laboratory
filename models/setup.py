@@ -43,14 +43,14 @@ precisions = [
 def main():
     for model, o in models:
         for name, p in precisions:
-            for b in [6, 7, 8, 9, 10, 11, 12, 13, 14]: #, 2, 4, 8]:
+            for b in [1, 8]: #, 2, 4, 8]:
                 n = "b{}-{}".format(b, name)
                 e = model.replace("prototxt", "engine")
                 e = e.replace("deploy", n)
                 m = os.path.join("/work/models", model)
                 if os.path.isfile(e):
                     continue
-                subprocess.call("giexec --deploy={} --batch={} --output={} {} --saveEngine={}".format(
+                subprocess.call("trtexec --deploy={} --batch={} --output={} {} --engine={}".format(
                     m, b, o, p, e
                 ), shell=True)
 
