@@ -31,7 +31,9 @@
 #include <grpc/support/time.h>
 #include <grpcpp/support/time.h>
 
-namespace trtlab {
+using trtlab::ThreadPool;
+
+namespace nvrpc {
 
 Executor::Executor() : Executor(1) {}
 
@@ -72,4 +74,4 @@ void Executor::SetTimeout(time_point deadline, std::function<void()> callback)
     m_TimeoutCallback = callback;
 }
 
-} // namespace trtlab
+} // namespace nvrpc

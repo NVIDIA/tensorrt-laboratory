@@ -1,5 +1,6 @@
 build
 *.engine
+models
 @eaDir
 __pycache__
 bazel-*

@@ -28,14 +28,15 @@
 
 #include "nvrpc/interfaces.h"
 #include "nvrpc/life_cycle_batching.h"
+#include "nvrpc/life_cycle_bidirectional.h"
 #include "nvrpc/life_cycle_unary.h"
 
 #ifdef NVRPC_METRICS_ENABLED
 #include "YAIS/Metrics.h"
 #endif
 
-namespace trtlab
-{
+namespace nvrpc {
+
 template<class LifeCycle, class Resources>
 class BaseContext;
 
@@ -44,6 +45,9 @@ using Context = BaseContext<LifeCycleUnary<Request, Response>, Resources>;
 
 template<class Request, class Response, class Resources>
 using BatchingContext = BaseContext<LifeCycleBatching<Request, Response>, Resources>;
+
+template<class Request, class Response, class Resources>
+using StreamingContext = BaseContext<BidirectionalStreamingLifeCycle<Request, Response>, Resources>;
 
 template<class LifeCycle, class Resources>
 class BaseContext : public LifeCycle
@@ -161,4 +165,4 @@ std::unique_ptr<ContextType> ContextFactory(typename ContextType::QueueFuncType 
     return ctx;
 }
 
-} // namespace trtlab
+} // namespace nvrpc

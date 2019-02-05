@@ -34,9 +34,9 @@
 #include "nvrpc/executor.h"
 #include "nvrpc/server.h"
 
-using trtlab::Context;
-using trtlab::Executor;
-using trtlab::Server;
+using nvrpc::Context;
+using nvrpc::Executor;
+using nvrpc::Server;
 using trtlab::ThreadPool;
 
 #include "moodycamel/blockingconcurrentqueue.h"
@@ -343,7 +343,7 @@ struct BatchingService
         BlockingConcurrentQueue<MessageType> m_MessageQueue;
     };
 
-    class ReceiveContext final : public ::trtlab::Context<Request, Response, Resources>
+    class ReceiveContext final : public ::nvrpc::Context<Request, Response, Resources>
     {
         void ExecuteRPC(Request &request, Response &response) final override
         {

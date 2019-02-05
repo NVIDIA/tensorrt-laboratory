@@ -28,7 +28,7 @@
 
 #include "nvrpc/interfaces.h"
 
-namespace trtlab
+namespace nvrpc
 {
 
 /**
@@ -229,4 +229,4 @@ void LifeCycleBatching<Request, Response>::CancelResponse()
     m_Stream->Finish(::grpc::Status::CANCELLED, IContext::Tag());
 }
 
-} // namespace trtlab
+} // namespace nvrpc

@@ -52,7 +52,7 @@ change the following lines to a range that works with your CPU.
       when the inference calcuation is finished and the `ExecutionContext` can be released.
   * `Resources`
     * Combines the above set of resources into a single `trtlab::Resources` class capable of being associated
-      with a `trtlab::Context`.
+      with a `nvrpc::Context`.
 
 
 ## Examples

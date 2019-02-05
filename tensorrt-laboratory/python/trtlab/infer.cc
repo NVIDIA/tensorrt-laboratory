@@ -62,10 +62,10 @@ using namespace trtlab::TensorRT;
 #include "nvrpc/client/client.h"
 #include "nvrpc/client/executor.h"
 
-using trtlab::AsyncService;
-using trtlab::Context;
-using trtlab::Executor;
-using trtlab::Server;
+using nvrpc::AsyncService;
+using nvrpc::Context;
+using nvrpc::Executor;
+using nvrpc::Server;
 
 // NVIDIA Inference Server Protos
 #include "nvidia_inference.grpc.pb.h"

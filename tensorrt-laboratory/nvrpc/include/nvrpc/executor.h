@@ -38,7 +38,7 @@
 
 #include <glog/logging.h>
 
-namespace trtlab
+namespace nvrpc
 {
 
 class Executor : public IExecutor
@@ -46,7 +46,7 @@ class Executor : public IExecutor
   public:
     Executor();
     Executor(int numThreads);
-    Executor(std::unique_ptr<ThreadPool> threadpool);
+    Executor(std::unique_ptr<::trtlab::ThreadPool> threadpool);
     ~Executor() override {}
 
     void Initialize(::grpc::ServerBuilder &builder) final override
@@ -57,7 +57,7 @@ class Executor : public IExecutor
         }
     }
 
-    void RegisterContexts(IRPC *rpc, std::shared_ptr<Resources> resources, int numContextsPerThread) final override
+    void RegisterContexts(IRPC *rpc, std::shared_ptr<::trtlab::Resources> resources, int numContextsPerThread) final override
     {
         auto base = dynamic_cast<IExecutor *>(this);
         CHECK_EQ(m_ThreadPool->Size(), m_ServerCompletionQueues.size()) << "Incorrect number of CQs";
@@ -116,7 +116,7 @@ class Executor : public IExecutor
     std::vector<std::unique_ptr<IContext>> m_Contexts;
     std::vector<std::unique_ptr<::grpc::ServerCompletionQueue>> m_ServerCompletionQueues;
     // std::vector<std::unique_ptr<PerThreadState>> m_ShutdownState;
-    std::unique_ptr<ThreadPool> m_ThreadPool;
+    std::unique_ptr<::trtlab::ThreadPool> m_ThreadPool;
 };
 
-} // namespace trtlab
+} // namespace nvrpc

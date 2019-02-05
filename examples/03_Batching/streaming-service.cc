@@ -37,11 +37,11 @@
 #include "nvrpc/service.h"
 #include "nvrpc/server.h"
 
-using trtlab::AsyncService;
-using trtlab::AsyncRPC;
-using trtlab::BatchingContext;
-using trtlab::Executor;
-using trtlab::Server;
+using nvrpc::AsyncService;
+using nvrpc::AsyncRPC;
+using nvrpc::BatchingContext;
+using nvrpc::Executor;
+using nvrpc::Server;
 using trtlab::Resources;
 using trtlab::ThreadPool;
 

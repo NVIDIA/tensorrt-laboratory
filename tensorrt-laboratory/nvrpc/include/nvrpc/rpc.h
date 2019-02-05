@@ -27,9 +27,10 @@
 #ifndef NVIS_RPC_H_
 #define NVIS_RPC_H_
 
+#include "tensorrt/laboratory/core/resources.h"
 #include "nvrpc/context.h"
 
-namespace trtlab
+namespace nvrpc
 {
 
 template <class ContextType, class ServiceType>
@@ -44,7 +45,7 @@ class AsyncRPC : public IRPC
     ~AsyncRPC() override {}
 
   protected:
-    std::unique_ptr<IContext> CreateContext(::grpc::ServerCompletionQueue *, std::shared_ptr<Resources>) final override;
+    std::unique_ptr<IContext> CreateContext(::grpc::ServerCompletionQueue *, std::shared_ptr<::trtlab::Resources>) final override;
 
   private:
     ServiceQueueFuncType m_RequestFunc;
@@ -58,7 +59,7 @@ AsyncRPC<ContextType, ServiceType>::AsyncRPC(ServiceQueueFuncType req_fn)
 
 template <class ContextType, class ServiceType>
 std::unique_ptr<IContext> AsyncRPC<ContextType, ServiceType>::CreateContext(
-    ::grpc::ServerCompletionQueue *cq, std::shared_ptr<trtlab::Resources> r)
+    ::grpc::ServerCompletionQueue *cq, std::shared_ptr<::trtlab::Resources> r)
 {
     auto ctx_resources = std::dynamic_pointer_cast<typename ContextType::ResourcesType::element_type>(r);
     if (!ctx_resources)
@@ -70,6 +71,6 @@ std::unique_ptr<IContext> AsyncRPC<ContextType, ServiceType>::CreateContext(
     return ctx;
 }
 
-} // namespace trtlab
+} // namespace nvrpc
 
 #endif // NVIS_RPC_H_

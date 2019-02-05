@@ -49,13 +49,13 @@
 #include "metrics.h"
 
 using trtlab::Affinity;
-using trtlab::AsyncRPC;
-using trtlab::AsyncService;
-using trtlab::Context;
+using nvrpc::AsyncRPC;
+using nvrpc::AsyncService;
+using nvrpc::Context;
 using trtlab::DeviceInfo;
-using trtlab::Executor;
+using nvrpc::Executor;
 using trtlab::Metrics;
-using trtlab::Server;
+using nvrpc::Server;
 using trtlab::ThreadPool;
 using trtlab::Allocator;
 using trtlab::CudaPinnedHostMemory;

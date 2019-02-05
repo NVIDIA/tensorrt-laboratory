@@ -31,7 +31,7 @@
 #include "nvrpc/interfaces.h"
 #include "nvrpc/rpc.h"
 
-namespace trtlab
+namespace nvrpc
 {
 
 template <class ServiceType>
@@ -63,6 +63,6 @@ class AsyncService : public IService
     std::vector<std::unique_ptr<IRPC>> m_RPCs;
 };
 
-} // namespace trtlab
+} // namespace nvrpc
 
 #endif // NVIS_SERVICE_H_

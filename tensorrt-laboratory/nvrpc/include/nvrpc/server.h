@@ -32,7 +32,7 @@
 
 #include "nvrpc/service.h"
 
-namespace trtlab
+namespace nvrpc
 {
 
 using std::chrono::milliseconds;
@@ -85,6 +85,6 @@ AsyncService<typename ServiceType::AsyncService>* Server::RegisterAsyncService()
 
 
 
-} // namespace trtlab
+} // namespace nvrpc
 
 #endif // NVIS_SERVER_H_

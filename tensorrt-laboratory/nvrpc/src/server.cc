@@ -36,7 +36,7 @@ std::function<void(int)> shutdown_handler;
 void signal_handler(int signal) { shutdown_handler(signal); }
 } // namespace
 
-namespace trtlab {
+namespace nvrpc {
 
 Server::Server(std::string server_address) : m_ServerAddress(server_address), m_Running(false)
 {
@@ -83,4 +83,4 @@ void Server::Run(std::chrono::milliseconds timeout, std::function<void()> contro
     }
 }
 
-} // namespace trtlab
+} // namespace nvrpc

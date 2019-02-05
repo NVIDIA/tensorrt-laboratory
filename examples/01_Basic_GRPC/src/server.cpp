@@ -39,11 +39,11 @@
 #include "echo.pb.h"
 #include "echo.grpc.pb.h"
 
-using trtlab::AsyncService;
-using trtlab::AsyncRPC;
-using trtlab::Context;
-using trtlab::Executor;
-using trtlab::Server;
+using nvrpc::AsyncService;
+using nvrpc::AsyncRPC;
+using nvrpc::Context;
+using nvrpc::Executor;
+using nvrpc::Server;
 using trtlab::Resources;
 using trtlab::ThreadPool;
 

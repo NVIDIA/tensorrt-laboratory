@@ -31,7 +31,7 @@
 
 #include "tensorrt/laboratory/core/resources.h"
 
-namespace trtlab
+namespace nvrpc
 {
 
 class IContext;
@@ -39,7 +39,6 @@ class IExecutor;
 class IContextLifeCycle;
 class IRPC;
 class IService;
-
 
 /**
  * The IContext object and it's subsequent derivations are the single more important class
@@ -53,12 +52,16 @@ class IContext
     static IContext *Detag(void *tag) { return static_cast<IContext *>(tag); }
 
   protected:
-    IContext() = default;
+    IContext() : m_MasterContext(this) {}
+    IContext(IContext* master) : m_MasterContext(master) {}
+
     void *Tag() { return reinterpret_cast<void *>(this); }
 
   private:
     virtual bool RunNextState(bool) = 0;
     virtual void Reset() = 0;
+
+    IContext* m_MasterContext;
 
     friend class IRPC;
     friend class IExecutor;
@@ -95,7 +98,7 @@ class IRPC
     virtual ~IRPC() {}
 
   protected:
-    virtual std::unique_ptr<IContext> CreateContext(::grpc::ServerCompletionQueue *, std::shared_ptr<Resources>) = 0;
+    virtual std::unique_ptr<IContext> CreateContext(::grpc::ServerCompletionQueue *, std::shared_ptr<::trtlab::Resources>) = 0;
 
     friend class IExecutor;
 };
@@ -108,7 +111,7 @@ class IExecutor
 
     virtual void Initialize(::grpc::ServerBuilder &) = 0;
     virtual void Run() = 0;
-    virtual void RegisterContexts(IRPC *rpc, std::shared_ptr<Resources> resources, int numContextsPerThread) = 0;
+    virtual void RegisterContexts(IRPC *rpc, std::shared_ptr<::trtlab::Resources> resources, int numContextsPerThread) = 0;
     virtual void Shutdown() = 0;
 
   protected:
@@ -118,12 +121,12 @@ class IExecutor
 
     inline bool RunContext(IContext *ctx, bool ok) { return ctx->RunNextState(ok); }
     inline void ResetContext(IContext *ctx) { ctx->Reset(); }
-    inline std::unique_ptr<IContext> CreateContext(IRPC *rpc, ::grpc::ServerCompletionQueue *cq, std::shared_ptr<Resources> res)
+    inline std::unique_ptr<IContext> CreateContext(IRPC *rpc, ::grpc::ServerCompletionQueue *cq, std::shared_ptr<::trtlab::Resources> res)
     {
         return rpc->CreateContext(cq, res);
     }
 };
 
-} // namespace trtlab
+} // namespace nvrpc
 
 #endif // NVIS_INTERFACES_H_

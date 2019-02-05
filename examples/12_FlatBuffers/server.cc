@@ -37,12 +37,12 @@
 #include "example.grpc.fb.h"
 #include "example_generated.h"
 
-using trtlab::AsyncRPC;
-using trtlab::AsyncService;
-using trtlab::Context;
-using trtlab::Executor;
+using nvrpc::AsyncRPC;
+using nvrpc::AsyncService;
+using nvrpc::Context;
+using nvrpc::Executor;
 using trtlab::Resources;
-using trtlab::Server;
+using nvrpc::Server;
 
 using Request = flatbuffers::grpc::Message<HelloRequest>;
 using Response = flatbuffers::grpc::Message<HelloReply>;

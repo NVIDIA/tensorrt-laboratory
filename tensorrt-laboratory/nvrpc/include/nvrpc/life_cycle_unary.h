@@ -27,7 +27,7 @@
 #pragma once
 #include "nvrpc/interfaces.h"
 
-namespace trtlab
+namespace nvrpc
 {
 
 template <class Request, class Response>
@@ -170,4 +170,4 @@ void LifeCycleUnary<Request, Response>::SetQueueFunc(ExecutorQueueFuncType queue
     m_QueuingFunc = queue_fn;
 }
 
-} // namespace trtlab
+} // namespace nvrpc
