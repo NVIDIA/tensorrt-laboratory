@@ -31,7 +31,7 @@
 #include "tensorrt/laboratory/core/memory/host_memory.h"
 
 namespace trtlab {
-namespace Memory {
+
 
 class Malloc : public HostMemory, public IAllocatable
 {
@@ -44,5 +44,5 @@ class Malloc : public HostMemory, public IAllocatable
     void Free() final override;
 };
 
-} // namespace Memory
+
 } // namespace trtlab

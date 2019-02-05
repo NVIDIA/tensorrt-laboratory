@@ -35,7 +35,7 @@
 #include <glog/logging.h>
 
 namespace trtlab {
-namespace Memory {
+
 
 /**
  * @brief CyclicAllocator
@@ -223,5 +223,5 @@ class CyclicAllocator
     size_t m_Alignment;
 };
 
-} // namespace Memory
+
 } // namespace trtlab

@@ -30,7 +30,7 @@
 #include "tensorrt/laboratory/core/memory/memory.h"
 
 namespace trtlab {
-namespace Memory {
+
 
 class DeviceMemory : public BaseMemory<DeviceMemory>
 {
@@ -42,5 +42,5 @@ class DeviceMemory : public BaseMemory<DeviceMemory>
     size_t DefaultAlignment() const override;
 };
 
-} // namespace Memory
+
 } // namespace trtlab

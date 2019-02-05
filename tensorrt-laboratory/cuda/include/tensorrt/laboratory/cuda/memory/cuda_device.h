@@ -31,7 +31,7 @@
 #include "tensorrt/laboratory/cuda/memory/device_memory.h"
 
 namespace trtlab {
-namespace Memory {
+
 
 /**
  * @brief Allocates CUDA Device Memory
@@ -49,5 +49,5 @@ class CudaDeviceMemory : public DeviceMemory, public IAllocatable
     void Free() final override;
 };
 
-} // namespace Memory
+
 } // namespace trtlab

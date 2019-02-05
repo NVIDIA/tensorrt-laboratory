@@ -32,7 +32,7 @@
 #include "tensorrt/laboratory/core/memory/allocator.h"
 
 namespace trtlab {
-namespace Memory {
+
 
 /**
  * @brief General MemoryStack
@@ -184,5 +184,5 @@ void MemoryStack<MemoryType>::Reset(bool writeZeros)
     }
 }
 
-} // namespace Memory
+
 } // namespace trtlab

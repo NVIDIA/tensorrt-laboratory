@@ -31,7 +31,7 @@
 #include <glog/logging.h>
 
 namespace trtlab {
-namespace Memory {
+
 
 CoreMemory::CoreMemory(void* ptr, size_t size, bool allocated)
     : m_MemoryAddress(ptr), m_BytesAllocated(size), m_Allocated(allocated)
@@ -66,5 +66,5 @@ const void* CoreMemory::operator[](size_t offset) const
     return static_cast<const void*>(static_cast<const char*>(Data()) + offset);
 }
 
-} // namespace Memory
+
 } // namespace trtlab

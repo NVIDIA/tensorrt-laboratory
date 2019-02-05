@@ -32,9 +32,9 @@
 
 #include <glog/logging.h>
 
-using trtlab::Memory::CudaDeviceMemory;
-using trtlab::Memory::CudaPinnedHostMemory;
-using trtlab::Memory::MemoryStack;
+using trtlab::CudaDeviceMemory;
+using trtlab::CudaPinnedHostMemory;
+using trtlab::MemoryStack;
 
 namespace trtlab {
 namespace TensorRT {

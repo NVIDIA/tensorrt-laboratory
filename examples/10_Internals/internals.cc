@@ -49,10 +49,10 @@ using trtlab::CpuSet;
 using trtlab::DeviceInfo;
 using trtlab::ThreadPool;
 using trtlab::Pool;
-using trtlab::Memory::Allocator;
-using trtlab::Memory::CudaPinnedHostMemory;
-using trtlab::Memory::CudaDeviceMemory;
-using trtlab::Memory::MemoryStack;
+using trtlab::Allocator;
+using trtlab::CudaPinnedHostMemory;
+using trtlab::CudaDeviceMemory;
+using trtlab::MemoryStack;
 
 
 int main(int argc, char *argv[])

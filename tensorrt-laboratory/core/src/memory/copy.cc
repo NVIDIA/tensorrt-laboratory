@@ -30,7 +30,7 @@
 #include <glog/logging.h>
 
 namespace trtlab {
-namespace Memory {
+
 
 void Copy(HostMemory& dst, size_t dst_offset, const HostMemory& src, size_t src_offset, size_t size)
 {
@@ -39,5 +39,5 @@ void Copy(HostMemory& dst, size_t dst_offset, const HostMemory& src, size_t src_
     std::memcpy(dst[dst_offset], src[src_offset], size);
 }
 
-} // namespace Memory
+
 } // namespace trtlab

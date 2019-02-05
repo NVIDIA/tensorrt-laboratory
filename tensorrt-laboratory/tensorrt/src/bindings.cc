@@ -30,10 +30,10 @@
 
 #include "tensorrt/laboratory/core/memory/descriptor.h"
 
-using trtlab::Memory::Descriptor;
-using trtlab::Memory::HostMemory;
-using trtlab::Memory::DeviceMemory;
-using trtlab::Memory::DescriptorHandle;
+using trtlab::Descriptor;
+using trtlab::HostMemory;
+using trtlab::DeviceMemory;
+using trtlab::DescriptorHandle;
 
 namespace
 {

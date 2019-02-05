@@ -29,7 +29,7 @@
 #include <glog/logging.h>
 
 namespace trtlab {
-namespace Memory {
+
 
 // Malloc
 
@@ -51,5 +51,5 @@ const std::string& Malloc::Type() const
     return type;
 }
 
-} // namespace Memory
+
 } // namespace trtlab

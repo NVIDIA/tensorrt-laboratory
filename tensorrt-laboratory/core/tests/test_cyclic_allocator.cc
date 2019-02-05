@@ -30,7 +30,6 @@
 #include "gtest/gtest.h"
 
 using namespace trtlab;
-using namespace Memory;
 
 namespace
 {

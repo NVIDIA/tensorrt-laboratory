@@ -28,7 +28,7 @@
 #include <cstddef>
 
 namespace trtlab {
-namespace Memory {
+
 
 template<class MemoryType>
 class Allocator final : public MemoryType
@@ -44,7 +44,7 @@ class Allocator final : public MemoryType
     Allocator& operator=(const Allocator&) = delete;
 };
 
-} // namespace Memory
+
 } // namespace trtlab
 
 #include "tensorrt/laboratory/core/impl/memory/allocator.h"

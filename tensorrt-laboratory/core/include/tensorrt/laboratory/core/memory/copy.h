@@ -29,7 +29,7 @@
 #include "tensorrt/laboratory/core/memory/host_memory.h"
 
 namespace trtlab {
-namespace Memory {
+
 
 void Copy(HostMemory& dst, size_t dst_offset, const HostMemory& src, size_t src_offset, size_t size);
 
@@ -39,5 +39,5 @@ void Copy(D& dst, const S& src, size_t size)
     Copy(dst, 0, src, 0, size);
 }
 
-} // namespace Memory
+
 } // namespace trtlab

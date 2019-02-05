@@ -32,7 +32,7 @@
 #include "tensorrt/laboratory/core/memory/descriptor.h"
 
 namespace trtlab {
-namespace Memory {
+
 
 class SystemV : public HostMemory, public IAllocatable
 {
@@ -63,5 +63,5 @@ class SystemV : public HostMemory, public IAllocatable
     int m_ShmID;
 };
 
-} // namespace Memory
+
 } // namespace trtlab

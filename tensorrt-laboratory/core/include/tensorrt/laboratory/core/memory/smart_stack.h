@@ -34,7 +34,7 @@
 #include "tensorrt/laboratory/core/memory/memory_stack.h"
 
 namespace trtlab {
-namespace Memory {
+
 
 template<typename MemoryType>
 class SmartStack : public MemoryStack<MemoryType>,
@@ -110,5 +110,5 @@ class SmartStack : public MemoryStack<MemoryType>,
     }
 };
 
-} // namespace Memory
+
 } // namespace trtlab

@@ -53,8 +53,8 @@ using trtlab::Resources;
 using trtlab::Server;
 using trtlab::ThreadPool;
 
-using trtlab::Memory::SystemV;
-namespace Memory = trtlab::Memory;
+using trtlab::Descriptor;
+using trtlab::SystemV;
 
 // CLI Options
 DEFINE_int32(thread_count, 1, "Size of thread pool");
@@ -67,16 +67,16 @@ DEFINE_int32(thread_count, 1, "Size of thread pool");
  */
 class ExternalSharedMemoryManager final
 {
-    class PartialSegmentDescriptor final : public Memory::Descriptor<SystemV>
+    class PartialSegmentDescriptor final : public Descriptor<SystemV>
     {
       public:
         PartialSegmentDescriptor(const std::shared_ptr<SystemV>& segment, size_t offset, size_t size)
-            : Memory::Descriptor<SystemV>((*segment)[offset], size, "PartialSysVSegment"), m_Segment(segment)
+            : Descriptor<SystemV>((*segment)[offset], size, "PartialSysVSegment"), m_Segment(segment)
         {
         }
 
         PartialSegmentDescriptor(PartialSegmentDescriptor&& other)
-            : Memory::Descriptor<SystemV>(std::move(other)),
+            : Descriptor<SystemV>(std::move(other)),
               m_Segment{std::exchange(other.m_Segment, nullptr)}
         {
         }

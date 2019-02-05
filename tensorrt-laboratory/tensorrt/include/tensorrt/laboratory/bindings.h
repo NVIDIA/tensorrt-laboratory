@@ -58,8 +58,8 @@ class Buffers;
 class Bindings
 {
   public:
-    using HostDescriptor = Memory::DescriptorHandle<Memory::HostMemory>;
-    using DeviceDescriptor = Memory::DescriptorHandle<Memory::DeviceMemory>;
+    using HostDescriptor = DescriptorHandle<HostMemory>;
+    using DeviceDescriptor = DescriptorHandle<DeviceMemory>;
 
     virtual ~Bindings();
 
@@ -74,7 +74,7 @@ class Bindings
     void SetDeviceAddress(int binding_id, DeviceDescriptor);
 
     HostDescriptor& HostMemoryDescriptor(int binding_id);
-    // const Memory::HostMemory& HostMemory(int binding_id) const;
+    // const HostMemory& HostMemory(int binding_id) const;
 
     void *ActivationsAddress() { return m_ActivationsAddress; }
     void SetActivationsAddress(void *addr) { m_ActivationsAddress = addr; }

@@ -31,7 +31,7 @@
 #include "tensorrt/laboratory/core/memory/system_v.h"
 
 using namespace trtlab;
-using namespace trtlab::Memory;
+using namespace trtlab;
 
 static void BM_Memory_SystemMalloc(benchmark::State &state)
 {

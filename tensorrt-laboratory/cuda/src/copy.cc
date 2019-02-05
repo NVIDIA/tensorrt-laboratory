@@ -33,7 +33,7 @@
 
 #include "tensorrt/laboratory/core/memory/memory.h"
 
-using trtlab::Memory::CoreMemory;
+using trtlab::CoreMemory;
 
 namespace {
 
@@ -47,7 +47,7 @@ void Copy(CoreMemory& dst, size_t dst_offset, const CoreMemory& src, size_t src_
 }
 
 namespace trtlab {
-namespace Memory {
+
 
 void Copy(HostMemory& dst, size_t dst_offset, const DeviceMemory& src, size_t src_offset, size_t size)
 {
@@ -64,5 +64,5 @@ void Copy(DeviceMemory& dst, size_t dst_offset, const DeviceMemory& src, size_t 
     Copy(dst, dst_offset, src, src_offset, size);
 }
 
-} // namespace Memory
+
 } // namespace trtlab

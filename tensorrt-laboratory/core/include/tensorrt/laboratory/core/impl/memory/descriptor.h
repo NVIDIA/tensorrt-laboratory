@@ -29,7 +29,7 @@
 #include <glog/logging.h>
 
 namespace trtlab {
-namespace Memory {
+
 
 // Descriptor
 
@@ -76,5 +76,5 @@ const std::string& Descriptor<MemoryType>::Type() const
     return m_Desc;
 }
 
-} // namespace Memory
+
 } // namespace trtlab

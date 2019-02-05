@@ -36,7 +36,7 @@
 #include <list>
 
 using namespace trtlab;
-using namespace trtlab::Memory;
+using namespace trtlab;
 using namespace trtlab::TensorRT;
 
 namespace {

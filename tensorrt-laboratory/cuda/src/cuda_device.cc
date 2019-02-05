@@ -31,7 +31,7 @@
 #include <glog/logging.h>
 
 namespace trtlab {
-namespace Memory {
+
 
 void* CudaDeviceMemory::Allocate(size_t size)
 {
@@ -51,5 +51,5 @@ const std::string& CudaDeviceMemory::Type() const
     return type;
 }
 
-} // namespace Memory
+
 } // namespace trtlab

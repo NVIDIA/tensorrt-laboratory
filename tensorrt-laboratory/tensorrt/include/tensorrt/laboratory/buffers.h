@@ -65,8 +65,8 @@ class Buffers : public std::enable_shared_from_this<Buffers>
     virtual void Reset(bool writeZeros = false){};
     void ConfigureBindings(const std::shared_ptr<Model>& model, std::shared_ptr<Bindings>);
 
-    virtual std::unique_ptr<Memory::HostMemory> AllocateHost(size_t size) = 0;
-    virtual std::unique_ptr<Memory::DeviceMemory> AllocateDevice(size_t size) = 0;
+    virtual std::unique_ptr<HostMemory> AllocateHost(size_t size) = 0;
+    virtual std::unique_ptr<DeviceMemory> AllocateDevice(size_t size) = 0;
 
   private:
     cudaStream_t m_Stream;
@@ -78,8 +78,8 @@ class FixedBuffers : public Buffers
 {
   public:
     FixedBuffers(size_t host_size, size_t device_size)
-        : m_HostStack(std::make_unique<Memory::MemoryStack<HostMemoryType>>(host_size)),
-          m_DeviceStack(std::make_unique<Memory::MemoryStack<DeviceMemoryType>>(device_size)),
+        : m_HostStack(std::make_unique<MemoryStack<HostMemoryType>>(host_size)),
+          m_DeviceStack(std::make_unique<MemoryStack<DeviceMemoryType>>(device_size)),
           Buffers()
     {
     }
@@ -88,23 +88,23 @@ class FixedBuffers : public Buffers
 
   protected:
     template<typename MemoryType>
-    class BufferStackDescriptor final : public Memory::Descriptor<MemoryType>
+    class BufferStackDescriptor final : public Descriptor<MemoryType>
     {
       public:
         BufferStackDescriptor(void* ptr, size_t size)
-            : Memory::Descriptor<MemoryType>(ptr, size, MemoryType::Type() + "Desc")
+            : Descriptor<MemoryType>(ptr, size, MemoryType::Type() + "Desc")
         {
         }
         ~BufferStackDescriptor() final override {}
     };
 
-    std::unique_ptr<Memory::HostMemory> AllocateHost(size_t size) final override
+    std::unique_ptr<HostMemory> AllocateHost(size_t size) final override
     {
         return std::move(std::make_unique<BufferStackDescriptor<HostMemoryType>>(
             m_HostStack->Allocate(size), size));
     }
 
-    std::unique_ptr<Memory::DeviceMemory> AllocateDevice(size_t size) final override
+    std::unique_ptr<DeviceMemory> AllocateDevice(size_t size) final override
     {
         return std::move(std::make_unique<BufferStackDescriptor<DeviceMemoryType>>(
             m_DeviceStack->Allocate(size), size));
@@ -117,19 +117,19 @@ class FixedBuffers : public Buffers
     }
 
   private:
-    std::unique_ptr<Memory::MemoryStack<HostMemoryType>> m_HostStack;
-    std::unique_ptr<Memory::MemoryStack<DeviceMemoryType>> m_DeviceStack;
+    std::unique_ptr<MemoryStack<HostMemoryType>> m_HostStack;
+    std::unique_ptr<MemoryStack<DeviceMemoryType>> m_DeviceStack;
 };
 
 template<typename HostMemoryType, typename DeviceMemoryType>
 class CyclicBuffers : public Buffers
 {
   public:
-    using HostAllocatorType = std::unique_ptr<Memory::CyclicAllocator<HostMemoryType>>;
-    using DeviceAllocatorType = std::unique_ptr<Memory::CyclicAllocator<DeviceMemoryType>>;
+    using HostAllocatorType = std::unique_ptr<CyclicAllocator<HostMemoryType>>;
+    using DeviceAllocatorType = std::unique_ptr<CyclicAllocator<DeviceMemoryType>>;
 
-    using HostDescriptor = typename Memory::CyclicAllocator<HostMemoryType>::Descriptor;
-    using DeviceDescriptor = typename Memory::CyclicAllocator<DeviceMemoryType>::Descriptor;
+    using HostDescriptor = typename CyclicAllocator<HostMemoryType>::Descriptor;
+    using DeviceDescriptor = typename CyclicAllocator<DeviceMemoryType>::Descriptor;
 
     CyclicBuffers(HostAllocatorType host, DeviceAllocatorType device)
         : m_HostAllocator{std::move(host)}, m_DeviceAllocator{std::move(device)}
@@ -137,12 +137,12 @@ class CyclicBuffers : public Buffers
     }
     ~CyclicBuffers() override {}
 
-    std::unique_ptr<Memory::HostMemory> AllocateHost(size_t size)
+    std::unique_ptr<HostMemory> AllocateHost(size_t size)
     {
         return m_HostAllocator->Allocate(size);
     }
 
-    std::unique_ptr<Memory::DeviceMemory> AllocateDevice(size_t size)
+    std::unique_ptr<DeviceMemory> AllocateDevice(size_t size)
     {
         return m_DeviceAllocator->Allocate(size);
     }

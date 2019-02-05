@@ -33,7 +33,7 @@
 #include "tensorrt/laboratory/core/memory/cyclic_allocator.h"
 
 using namespace trtlab;
-using namespace trtlab::Memory;
+using namespace trtlab;
 
 template <typename MemoryType>
 struct StackWithInternalDescriptor

@@ -31,7 +31,7 @@
 #include <glog/logging.h>
 
 namespace trtlab {
-namespace Memory {
+
 
 // HostMemory
 
@@ -51,5 +51,5 @@ void HostMemory::Fill(char fill_value)
     std::memset(Data(), fill_value, Size());
 }
 
-} // namespace Memory
+
 } // namespace trtlab

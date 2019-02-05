@@ -32,7 +32,7 @@
 #include "tensorrt/laboratory/core/utils.h"
 
 namespace trtlab {
-namespace Memory {
+
 /**
  * @brief Abstract base Memory class
  *
@@ -201,7 +201,7 @@ class SystemV : public HostMemory, public IAllocatable
     int m_ShmID;
 };
 
-} // namespace Memory
+
 } // namespace trtlab
 
 #include "tensorrt/laboratory/core/impl/memory.h"

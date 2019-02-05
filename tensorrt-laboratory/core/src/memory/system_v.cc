@@ -50,7 +50,7 @@ size_t SegSize(int shm_id)
 } // namespace
 
 namespace trtlab {
-namespace Memory {
+
 
 // SystemV
 
@@ -141,5 +141,5 @@ int SystemV::ShmID() const
     return m_ShmID;
 }
 
-} // namespace Memory
+
 } // namespace trtlab

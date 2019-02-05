@@ -30,7 +30,7 @@
 #include "tensorrt/laboratory/core/memory/memory.h"
 
 namespace trtlab {
-namespace Memory {
+
 
 class HostMemory : public BaseMemory<HostMemory>
 {
@@ -42,5 +42,5 @@ class HostMemory : public BaseMemory<HostMemory>
     size_t DefaultAlignment() const override;
 };
 
-} // namespace Memory
+
 } // namespace trtlab

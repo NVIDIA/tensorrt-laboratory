@@ -33,7 +33,7 @@
 #include "tensorrt/laboratory/cuda/device_info.h"
 
 namespace trtlab {
-namespace Memory {
+
 
 size_t DeviceMemory::DefaultAlignment() const
 {
@@ -51,5 +51,5 @@ const std::string& DeviceMemory::Type() const
     return type;
 }
 
-} // namespace Memory
+
 } // namespace trtlab

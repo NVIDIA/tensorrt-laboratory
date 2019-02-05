@@ -28,7 +28,7 @@
 #include <cstddef>
 
 namespace trtlab {
-namespace Memory {
+
 
 class IAllocatable
 {
@@ -36,5 +36,5 @@ class IAllocatable
     virtual void Free() = 0;
 };
 
-} // namespace Memory
+
 } // namespace trtlab

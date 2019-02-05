@@ -68,7 +68,7 @@ namespace TensorRT
         cudaEvent_t m_ExecutionContextFinished;
         std::shared_ptr<::nvinfer1::IExecutionContext> m_Context;
 
-        std::unique_ptr<Memory::CudaDeviceMemory> m_Workspace;
+        std::unique_ptr<CudaDeviceMemory> m_Workspace;
 
         friend class InferenceManager;
     };

@@ -32,8 +32,8 @@
 #include "tensorrt/laboratory/core/memory/allocator.h"
 #include "tensorrt/laboratory/core/memory/malloc.h"
 
-using trtlab::Memory::Allocator;
-using trtlab::Memory::Malloc;
+using trtlab::Allocator;
+using trtlab::Malloc;
 
 #include "nvrpc/context.h"
 #include "nvrpc/executor.h"

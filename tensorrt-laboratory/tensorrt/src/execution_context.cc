@@ -36,8 +36,8 @@
 #include "tensorrt/laboratory/core/memory/allocator.h"
 #include "tensorrt/laboratory/cuda/memory/cuda_device.h"
 
-using trtlab::Memory::Allocator;
-using trtlab::Memory::CudaDeviceMemory;
+using trtlab::Allocator;
+using trtlab::CudaDeviceMemory;
 
 namespace trtlab
 {

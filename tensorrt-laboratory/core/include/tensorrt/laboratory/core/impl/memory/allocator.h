@@ -29,7 +29,7 @@
 #include <glog/logging.h>
 
 namespace trtlab {
-namespace Memory {
+
 
 // Allocator
 
@@ -65,5 +65,5 @@ Allocator<MemoryType>::~Allocator()
     }
 }
 
-} // namespace Memory
+
 } // namespace trtlab

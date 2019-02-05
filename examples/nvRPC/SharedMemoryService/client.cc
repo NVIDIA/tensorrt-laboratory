@@ -46,8 +46,8 @@ using simple::Input;
 using simple::Output;
 using simple::Inference;
 
-using trtlab::Memory::CyclicAllocator;
-using trtlab::Memory::SystemV;
+using trtlab::CyclicAllocator;
+using trtlab::SystemV;
 
 static constexpr size_t one_mb = 1024*1024;
 

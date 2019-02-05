@@ -28,7 +28,7 @@
 #include <string>
 
 namespace trtlab {
-namespace Memory {
+
 
 /**
  * @brief Abstract base Memory class
@@ -133,5 +133,5 @@ class BaseMemory : public CoreMemory
 
 };
 
-} // namespace Memory
+
 } // namespace trtlab

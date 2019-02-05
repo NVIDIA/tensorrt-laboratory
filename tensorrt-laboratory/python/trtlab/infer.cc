@@ -51,7 +51,7 @@ namespace py = pybind11;
 #include "utils.h"
 
 using namespace trtlab;
-using namespace trtlab::Memory;
+using namespace trtlab;
 using namespace trtlab::TensorRT;
 
 #include "nvrpc/context.h"

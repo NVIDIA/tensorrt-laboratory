@@ -32,8 +32,8 @@
 #include "tensorrt/laboratory/cuda/memory/cuda_device.h"
 #include "tensorrt/laboratory/cuda/memory/cuda_pinned_host.h"
 
-using trtlab::Memory::CudaDeviceMemory;
-using trtlab::Memory::CudaPinnedHostMemory;
+using trtlab::CudaDeviceMemory;
+using trtlab::CudaPinnedHostMemory;
 
 namespace trtlab {
 namespace TensorRT {

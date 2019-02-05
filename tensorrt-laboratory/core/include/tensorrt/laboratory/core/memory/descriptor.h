@@ -28,7 +28,7 @@
 #include <memory>
 
 namespace trtlab {
-namespace Memory {
+
 
 template<typename MemoryType>
 class Descriptor : public MemoryType
@@ -54,7 +54,7 @@ class Descriptor : public MemoryType
 template<typename MemoryType>
 using DescriptorHandle = std::unique_ptr<MemoryType>;
 
-} // namespace Memory
+
 } // namespace trtlab
 
 #include "tensorrt/laboratory/core/impl/memory/descriptor.h"

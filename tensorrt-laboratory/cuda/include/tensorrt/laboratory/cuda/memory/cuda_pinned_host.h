@@ -31,7 +31,7 @@
 #include "tensorrt/laboratory/core/memory/host_memory.h"
 
 namespace trtlab {
-namespace Memory {
+
 
 /**
  * @brief Allocates Page Locked (Pinned) Memory on the Host
@@ -50,5 +50,5 @@ class CudaPinnedHostMemory : public HostMemory, public IAllocatable
     void Free() final override;
 };
 
-} // namespace Memory
+
 } // namespace trtlab
