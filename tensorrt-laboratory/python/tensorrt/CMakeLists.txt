@@ -25,8 +25,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 pybind11_add_module(trtlab 
-  src/infer.cc
-  src/utils.cc
+  infer.cc
+  utils.cc
 )
 
 target_link_libraries(trtlab
@@ -40,8 +40,8 @@ target_link_libraries(trtlab
 )
 
 target_include_directories(trtlab
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
 ##find_program(PYTHON "python)

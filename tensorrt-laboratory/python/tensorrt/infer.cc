@@ -48,7 +48,7 @@ namespace py = pybind11;
 #include "tensorrt/laboratory/runtime.h"
 #include "tensorrt/laboratory/utils.h"
 
-#include "tensorrt/laboratory/python/tensorrt/utils.h"
+#include "utils.h"
 
 using namespace trtlab;
 using namespace trtlab::Memory;
@@ -417,33 +417,63 @@ struct PyInferRunner : public InferRunner
         auto bindings = InitializeBindings();
         int batch_size = -1;
         DLOG(INFO) << "Processing Python kwargs - holding the GIL";
-        py::gil_scoped_acquire acquire;
-        for(auto item : kwargs)
         {
-            auto key = py::cast<std::string>(item.first);
-            DLOG(INFO) << "Processing Python Keyword: " << key;
-            const auto& binding = model.GetBinding(key);
-            // TODO: throw a python exception
-            LOG_IF(FATAL, !binding.isInput) << item.first << " is not an InputBinding";
-            if(binding.isInput)
+            py::gil_scoped_acquire acquire;
+            for(auto item : kwargs)
             {
-                CHECK(py::isinstance<py::array>(item.second));
-                auto data = py::cast<py::array_t<float>>(item.second);
-                CHECK_LE(data.shape(0), model.GetMaxBatchSize());
-                if(batch_size == -1)
+                auto key = py::cast<std::string>(item.first);
+                DLOG(INFO) << "Processing Python Keyword: " << key;
+                const auto& binding = model.GetBinding(key);
+                // TODO: throw a python exception
+                LOG_IF(FATAL, !binding.isInput) << item.first << " is not an InputBinding";
+                if(binding.isInput)
                 {
-                    DLOG(INFO) << "Inferred batch_size=" << batch_size << " from dimensions";
-                    batch_size = data.shape(0);
+                    const void *ptr;
+                    size_t size;
+                    size_t batch;
+                    CHECK(py::isinstance<py::array>(item.second));
+                    switch(binding.dtype)
+                    {
+                        case nvinfer1::DataType::kFLOAT: {
+                            auto data = py::cast<py::array_t<float>>(item.second);
+                            ptr = data.data();
+                            size = data.nbytes();
+                            batch = data.shape(0);
+                            break;
+                        }
+                        case nvinfer1::DataType::kINT8: {
+                            auto data = py::cast<py::array_t<std::int8_t>>(item.second);
+                            ptr = data.data();
+                            size = data.nbytes();
+                            batch = data.shape(0);
+                            break;
+                        }
+                        case nvinfer1::DataType::kINT32: {
+                            auto data = py::cast<py::array_t<std::int32_t>>(item.second);
+                            ptr = data.data();
+                            size = data.nbytes();
+                            batch = data.shape(0);
+                            break;
+                        }
+                        default:
+                            LOG(FATAL) << "Unknown dtype";
+                    }
+                    CHECK_LE(batch, model.GetMaxBatchSize());
+                    if(batch_size == -1)
+                    {
+                        batch_size = batch;
+                        DLOG(INFO) << "Inferred batch_size=" << batch_size << " from dimensions";
+                    }
+                    else
+                    {
+                        CHECK_EQ(batch, batch_size);
+                    }
+                    CHECK_EQ(size, binding.bytesPerBatchItem * batch_size);
+                    auto id = model.BindingId(key);
+                    auto host = bindings->HostAddress(id);
+                    // TODO: enhance the Copy method for py::buffer_info objects
+                    std::memcpy(host, ptr, size);
                 }
-                else
-                {
-                    CHECK_EQ(data.shape(0), batch_size);
-                }
-                CHECK_EQ(data.nbytes(), binding.bytesPerBatchItem * batch_size);
-                auto id = model.BindingId(key);
-                auto host = bindings->HostAddress(id);
-                // TODO: enhance the Copy method for py::buffer_info objects
-                std::memcpy(host, data.data(), data.nbytes());
             }
         }
         py::gil_scoped_release release;
@@ -459,7 +489,10 @@ struct PyInferRunner : public InferRunner
                     DLOG(INFO) << "Processing binding: " << binding.name << "with index " << id;
                     std::vector<int> dims;
                     dims.push_back(bindings->BatchSize());
-                    for(const auto& d : binding.dims) { dims.push_back(d); }
+                    for(const auto& d : binding.dims)
+                    {
+                        dims.push_back(d);
+                    }
                     auto value = py::array(DataTypeToNumpy(binding.dtype), dims);
                     // auto value = py::array_t<float>(binding.dims);
                     // auto value = py::array_t<float>(binding.elementsPerBatchItem *
