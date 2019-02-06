@@ -30,6 +30,8 @@
 
 #include "nvrpc/interfaces.h"
 
+#include <glog/logging.h>
+
 namespace nvrpc {
 
 // A bidirectional streaming version of LifeCycleUnary class
@@ -113,6 +115,7 @@ class BidirectionalStreamingLifeCycle : public IContextLifeCycle
     StateContext<RequestType, ResponseType> m_WriteStateContext;
 
     bool m_Executing;
+    bool m_WritesDone;
 
     std::unique_ptr<::grpc::ServerContext> m_Context;
     std::unique_ptr<::grpc::ServerAsyncReaderWriter<ResponseType, RequestType>> m_ReaderWriter;
@@ -161,7 +164,8 @@ bool BidirectionalStreamingLifeCycle<Request, Response>::RunNextState(bool ok)
 template<class Request, class Response>
 BidirectionalStreamingLifeCycle<Request, Response>::BidirectionalStreamingLifeCycle()
     : m_ReadStateContext(static_cast<IContext*>(this)),
-      m_WriteStateContext(static_cast<IContext*>(this))
+      m_WriteStateContext(static_cast<IContext*>(this)),
+      m_WritesDone(false)
 {
     m_ReadStateContext.m_NextState =
         &BidirectionalStreamingLifeCycle<RequestType, ResponseType>::StateRequestDone;
@@ -224,14 +228,18 @@ bool BidirectionalStreamingLifeCycle<Request, Response>::StateRequestDone(bool o
     // let WriteStateContext handle the reset procedure.
     if(!ok)
     {
+        DLOG(INFO) << "WritesDone received from Client; closing Server Reads";
         {
             std::lock_guard<std::mutex> lock(m_QueueMutex);
             if(m_Executing)
             {
+                m_WritesDone = true;
+                DLOG(INFO) << "Finish delayed until queue is flushed";
                 return true;
             }
+        m_NextState = &BidirectionalStreamingLifeCycle<RequestType, ResponseType>::StateFinishedDone;
+        m_ReaderWriter->Finish(::grpc::Status::OK, IContext::Tag());
         }
-        CancelResponse();
         return true;
     }
 
@@ -282,6 +290,8 @@ bool BidirectionalStreamingLifeCycle<Request, Response>::StateResponseDone(bool 
     // If write didn't go through, then the call is dead. Start reseting
     if(!ok)
     {
+        // this is likely an unrecoverable error on the client
+        // i think we should return a false without trying to cancel;
         CancelResponse();
         return true;
     }
@@ -298,8 +308,15 @@ bool BidirectionalStreamingLifeCycle<Request, Response>::StateResponseDone(bool 
     // the FinishResponse() will call Write() otherwise.
     if(should_write)
     {
+        DLOG(INFO) << "Writing response";
         m_ReaderWriter->Write(m_ResponseWriteBackQueue.front(),
                               m_WriteStateContext.IContext::Tag());
+    }
+    else if(m_WritesDone)
+    {
+        std::lock_guard<std::mutex> lock(m_QueueMutex);
+        m_NextState = &BidirectionalStreamingLifeCycle<RequestType, ResponseType>::StateFinishedDone;
+        m_ReaderWriter->Finish(::grpc::Status::OK, IContext::Tag());
     }
     return true;
 }
@@ -338,19 +355,18 @@ void BidirectionalStreamingLifeCycle<Request, Response>::FinishResponse()
             m_Executing = false;
         }
     }
-    if(!ok)
+    if(should_execute)
     {
-        CancelResponse();
-        return;
+        ExecuteRPC(m_RequestQueue.front(), m_ResponseQueue.front());
     }
     if(should_write)
     {
         m_ReaderWriter->Write(m_ResponseWriteBackQueue.front(),
                               m_WriteStateContext.IContext::Tag());
     }
-    if(should_execute)
+    if(!should_execute && !should_write && !ok)
     {
-        ExecuteRPC(m_RequestQueue.front(), m_ResponseQueue.front());
+       m_ReaderWriter->Finish(::grpc::Status::OK, IContext::Tag());
     }
 }
 
@@ -368,6 +384,7 @@ void BidirectionalStreamingLifeCycle<Request, Response>::CancelResponse()
     // request and response while they are being referenced in the RPC
     if(reset_ready)
     {
+        DLOG(INFO) << "Closing Server Writes";
         m_ReaderWriter->Finish(::grpc::Status::CANCELLED, IContext::Tag());
     }
 }

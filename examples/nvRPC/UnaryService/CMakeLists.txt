@@ -24,6 +24,21 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-add_subdirectory(UnaryService)
-add_subdirectory(BidirectionalService)
-add_subdirectory(SharedMemoryService)
+add_executable(nvrpc-unary-server.x
+    server.cc)
+
+target_link_libraries(nvrpc-unary-server.x
+    nvrpc
+    echo-protos
+    gflags
+)
+
+add_executable(nvrpc-unary-client.x
+    client.cc)
+
+target_link_libraries(nvrpc-unary-client.x
+    nvrpc
+    nvrpc-client
+    echo-protos
+    gflags
+)

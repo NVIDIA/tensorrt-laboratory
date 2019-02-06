@@ -57,11 +57,12 @@ class IContext
 
     void *Tag() { return reinterpret_cast<void *>(this); }
 
+  protected:
+    IContext* m_MasterContext;
+
   private:
     virtual bool RunNextState(bool) = 0;
     virtual void Reset() = 0;
-
-    IContext* m_MasterContext;
 
     friend class IRPC;
     friend class IExecutor;

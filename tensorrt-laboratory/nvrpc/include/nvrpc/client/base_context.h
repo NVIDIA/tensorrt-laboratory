@@ -32,6 +32,9 @@ namespace client {
 class BaseContext
 {
   public:
+    BaseContext() : m_MasterContext(this) {}
+    BaseContext(BaseContext *master) : m_MasterContext(master) {}
+
     virtual ~BaseContext() {}
     virtual bool RunNextState(bool ok) = 0;
 
@@ -44,6 +47,9 @@ class BaseContext
     {
         return static_cast<BaseContext*>(tag);
     }
+
+  protected:
+    BaseContext* m_MasterContext;
 };
 
 } // namespace client
