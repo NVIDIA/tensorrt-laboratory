@@ -114,14 +114,14 @@ class SimpleContext final : public BidirectionalContext<simple::Input, simple::O
         // We could do work here, but we'd block the TPS, i.e. the threads pulling messages 
         // off the incoming recieve queue.  Very quick responses are best done here; however,
         // longer running workload should be offloaded so the TPS can avoid being blocked.
-        GetResources()->AcquireThreadPool().enqueue([this, &input, &output]{
+        // GetResources()->AcquireThreadPool().enqueue([this, &input, &output]{
             // Now running on a worker thread of the ThreadPool defined in SimpleResources.
             // Here we are just echoing back the incoming // batch_id; however, in later 
             // examples, we'll show how to run an async cuda pipline.
             LOG_FIRST_N(INFO, 10) << "BatchID: " << input.batch_id() << " Tag = " << Tag() << " Thread = " << std::this_thread::get_id();
             output.set_batch_id(input.batch_id());
             this->FinishResponse();
-        });
+        // });
         // The TPS thread is now free to continue processing message - async ftw!
     }
 };
