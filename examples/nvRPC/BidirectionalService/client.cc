@@ -80,6 +80,9 @@ int main(int argc, char** argv)
         executor,
         [](Input&& request) {
             LOG_FIRST_N(INFO, 10) << "Sent Request with BatchID: " << request.batch_id();
+            static size_t last = 0;
+            CHECK_EQ(last + 1, request.batch_id());
+            ++last;
             //CHECK(request.batch_id());
         },
         [&mutex, &count](Output&& response) {
