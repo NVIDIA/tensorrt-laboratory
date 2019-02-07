@@ -52,33 +52,6 @@ using nvrpc::Server;
 // CLI Options
 DEFINE_int32(thread_count, 1, "Size of thread pool");
 
-/**
- * Embedding a copy of the Protobuf specification for the gRPC service.
- *
- * Package Name: simple
- * Service Name: Inference
- *     RPC Name: Compute
- * 
- * Incoming Message: Input
- * Outgoing Message: Ouput
- **
-
-syntax = "proto3";
-
-package simple;
-
-service Inference {
-   rpc Compute (Input) returns (Output) {}
-}
-
-message Input {
-    uint64 batch_id = 1;
-}
-
-message Output {
-    uint64 batch_id = 1;
-}
-*/
 
 // Define the resources your RPC will need to execute
 // ==================================================
