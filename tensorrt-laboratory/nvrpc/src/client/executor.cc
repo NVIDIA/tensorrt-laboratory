@@ -72,7 +72,7 @@ void Executor::ProgressEngine(::grpc::CompletionQueue& cq)
 
     while(cq.Next(&tag, &ok))
     {
-        CHECK(ok);
+        // CHECK(ok);
         BaseContext* ctx = BaseContext::Detag(tag);
         if(!ctx->RunNextState(ok))
         {
