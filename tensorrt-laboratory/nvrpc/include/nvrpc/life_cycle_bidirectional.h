@@ -241,6 +241,7 @@ std::tuple<bool, bool, bool> BidirectionalStreamingLifeCycle<Request, Response>:
     {
         should_finish = true;
         m_Finishing = true;
+        m_NextState = &BidirectionalStreamingLifeCycle<RequestType, ResponseType>::StateFinishDone;
     }
 
     DLOG(INFO) << should_write << "; " << should_execute << "; " << should_finish << " -- "
@@ -268,8 +269,6 @@ void BidirectionalStreamingLifeCycle<Request, Response>::ProgressState(bool shou
     if(should_finish)
     {
         DLOG(INFO) << "Triggering Finish";
-        std::lock_guard<std::mutex> lock(m_QueueMutex);
-        m_NextState = &BidirectionalStreamingLifeCycle<RequestType, ResponseType>::StateFinishDone;
         m_ReaderWriter->Finish(::grpc::Status::OK, IContext::Tag());
     }
 }
