@@ -51,7 +51,7 @@ struct ClientBidirectional : public BaseContext
     using WriteCallback = std::function<void(Request&&)>;
 
     ClientBidirectional(PrepareFn, std::shared_ptr<Executor>, WriteCallback, ReadCallback);
-    ~ClientBidirectional() {}
+    ~ClientBidirectional() { DLOG(INFO) << "ClientBidirectional dtor"; }
 
     void Send(Request*);
     void Send(Request&&);
@@ -78,7 +78,7 @@ struct ClientBidirectional : public BaseContext
       private:
         bool RunNextState(bool ok) final override
         {
-            DLOG(INFO) << "Event for Tag: " << Tag();
+            // DLOG(INFO) << "Event for Tag: " << Tag();
             return static_cast<ClientBidirectional*>(m_MasterContext)
                 ->RunNextState(m_NextState, ok);
         }
@@ -127,9 +127,9 @@ ClientBidirectional<Request, Response>::ClientBidirectional(PrepareFn prepare_fn
     m_ReadState.m_NextState = &ClientBidirectional<Request, Response>::StateInvalid;
     m_WriteState.m_NextState = &ClientBidirectional<Request, Response>::StateStreamInitialized;
 
-    DLOG(INFO) << "Read Tag: " << m_ReadState.Tag();
-    DLOG(INFO) << "Write Tag: " << m_WriteState.Tag();
-    DLOG(INFO) << "Master Tag: " << Tag();
+    // DLOG(INFO) << "Read Tag: " << m_ReadState.Tag();
+    // DLOG(INFO) << "Write Tag: " << m_WriteState.Tag();
+    // DLOG(INFO) << "Master Tag: " << Tag();
 
     m_Stream = prepare_fn(&m_Context, m_Executor->GetNextCQ());
     m_Stream->StartCall(m_WriteState.Tag());

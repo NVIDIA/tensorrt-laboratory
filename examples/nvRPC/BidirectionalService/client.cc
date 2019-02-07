@@ -80,9 +80,11 @@ int main(int argc, char** argv)
         executor,
         [](Input&& request) {
             LOG_FIRST_N(INFO, 10) << "Sent Request with BatchID: " << request.batch_id();
+            //CHECK(request.batch_id());
         },
         [&mutex, &count](Output&& response) {
             LOG_FIRST_N(INFO, 10) << "Received Response with BatchID: " << response.batch_id();
+            //CHECK(response.batch_id());
             std::lock_guard<std::mutex> lock(mutex);
             --count;
         });
@@ -92,7 +94,7 @@ int main(int argc, char** argv)
         return std::chrono::duration<float>(std::chrono::steady_clock::now() - start).count();
     };
 
-    for(int i = 0; i < FLAGS_count; i++)
+    for(int i = 1; i < FLAGS_count+1; i++)
     {
         {
             std::lock_guard<std::mutex> lock(mutex);
@@ -106,6 +108,8 @@ int main(int argc, char** argv)
     auto future = stream->Done();
     auto status = future.get();
     executor->ShutdownAndJoin();
+    CHECK_EQ(count, 0UL);
     std::cout << FLAGS_count << " completed in " << elapsed() << "seconds" << std::endl;
+    std::cout << "gRPC Status: " << (status.ok() ? "OK" : "NOT OK") << std::endl;
     return 0;
 }

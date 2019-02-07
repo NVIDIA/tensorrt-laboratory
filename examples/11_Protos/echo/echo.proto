@@ -31,6 +31,7 @@ package simple;
 
 service Inference {
    rpc Compute (Input) returns (Output) {}
+   rpc Bidirectional (stream Input) returns (stream Output) {}
    rpc BatchedCompute (stream Input) returns (stream Output) {}
 }
 
