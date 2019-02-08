@@ -29,6 +29,8 @@
 #include "nvrpc/interfaces.h"
 #include "nvrpc/life_cycle_batching.h"
 #include "nvrpc/life_cycle_bidirectional.h"
+#include "nvrpc/life_cycle_bidirectional.h"
+#include "nvrpc/life_cycle_streaming.h"
 #include "nvrpc/life_cycle_unary.h"
 
 #ifdef NVRPC_METRICS_ENABLED
@@ -48,6 +50,9 @@ using BatchingContext = BaseContext<LifeCycleBatching<Request, Response>, Resour
 
 template<class Request, class Response, class Resources>
 using BidirectionalContext = BaseContext<BidirectionalStreamingLifeCycle<Request, Response>, Resources>;
+
+template<class Request, class Response, class Resources>
+using StreamingContext = BaseContext<StreamingLifeCycle<Request, Response>, Resources>;
 
 template<class LifeCycle, class Resources>
 class BaseContext : public LifeCycle
