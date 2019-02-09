@@ -99,6 +99,17 @@ class StreamingLifeCycle : public IContextLifeCycle
             return m_Master;
         }
 
+        std::uint64_t StreamID()
+        {
+            std::lock_guard<std::recursive_mutex> lock(m_Mutex);
+            if(!IsConnected())
+            {
+                DLOG(WARNING) << "Attempted to get ID of a disconnected stream";
+                return 0UL;
+            }
+            return static_cast<std::uint64_t>(m_Master->Tag());
+        }
+
         bool WriteResponse(ResponseType&& response)
         {
             std::lock_guard<std::recursive_mutex> lock(m_Mutex);
@@ -116,7 +127,7 @@ class StreamingLifeCycle : public IContextLifeCycle
             std::lock_guard<std::recursive_mutex> lock(m_Mutex);
             if(!IsConnected())
             {
-                DLOG(WARNING) << "Attempted to write to a disconnected stream";
+                DLOG(WARNING) << "Attempted to cancel to a disconnected stream";
                 return false;
             }
             m_Master->CancelResponse();
@@ -128,7 +139,7 @@ class StreamingLifeCycle : public IContextLifeCycle
             std::lock_guard<std::recursive_mutex> lock(m_Mutex);
             if(!IsConnected())
             {
-                DLOG(WARNING) << "Attempted to write to a disconnected stream";
+                DLOG(WARNING) << "Attempted to finish to a disconnected stream";
                 return false;
             }
             m_Master->FinishResponse();
