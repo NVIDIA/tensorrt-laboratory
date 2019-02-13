@@ -24,22 +24,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-add_executable(nvrpc-streaming-server.x
-    server.cc)
+set(LIBS nvrpc echo-protos gflags)
 
-target_link_libraries(nvrpc-streaming-server.x
-    nvrpc
-    echo-protos
-    gflags
-)
+add_executable(nvrpc-ping-pong-server.x ping-pong.cc)
+add_executable(nvrpc-even-odds-server.x even-odds.cc)
 
-add_executable(nvrpc-streaming-client.x
-    client.cc
-)
+target_link_libraries(nvrpc-ping-pong-server.x ${LIBS})
+target_link_libraries(nvrpc-even-odds-server.x ${LIBS})
 
-target_link_libraries(nvrpc-streaming-client.x
-    nvrpc
-    nvrpc-client
-    echo-protos
-    gflags
-)
+add_executable(nvrpc-streaming-client.x client.cc)
+target_link_libraries(nvrpc-streaming-client.x ${LIBS} nvrpc-client)

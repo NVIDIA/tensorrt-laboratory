@@ -76,8 +76,8 @@ void Executor::ProgressEngine(::grpc::CompletionQueue& cq)
         BaseContext* ctx = BaseContext::Detag(tag);
         if(!ctx->RunNextState(ok))
         {
-            DLOG(INFO) << "Deleting ClientContext: " << tag;
-            delete ctx;
+            //DLOG(INFO) << "Deleting ClientContext: " << tag;
+            // delete ctx;
         }
     }
     m_ThreadPool.reset();

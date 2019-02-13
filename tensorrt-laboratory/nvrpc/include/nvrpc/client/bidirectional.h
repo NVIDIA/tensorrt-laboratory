@@ -40,7 +40,7 @@ namespace nvrpc {
 namespace client {
 
 template<typename Request, typename Response>
-struct ClientBidirectional : public BaseContext
+struct ClientStreaming : public BaseContext
 {
   public:
     using PrepareFn =
@@ -50,25 +50,29 @@ struct ClientBidirectional : public BaseContext
     using ReadCallback = std::function<void(Response&&)>;
     using WriteCallback = std::function<void(Request&&)>;
 
-    ClientBidirectional(PrepareFn, std::shared_ptr<Executor>, WriteCallback, ReadCallback);
-    ~ClientBidirectional() { DLOG(INFO) << "ClientBidirectional dtor"; }
+    ClientStreaming(PrepareFn, std::shared_ptr<Executor>, WriteCallback, ReadCallback);
+    ~ClientStreaming()
+    {
+        DLOG(INFO) << "ClientStreaming dtor";
+    }
 
-    void Send(Request*);
-    void Send(Request&&);
+    // void Write(Request*);
+    bool Write(Request&&);
+
+    std::future<::grpc::Status> Status();
     std::future<::grpc::Status> Done();
 
   private:
     bool RunNextState(bool ok) final override
     {
-        LOG(FATAL) << "should never be called";
+        return (this->*m_NextState)(ok);
     }
 
-    bool RunNextState(bool (ClientBidirectional<Request, Response>::*state_fn)(bool), bool ok)
+    bool RunNextState(bool (ClientStreaming<Request, Response>::*state_fn)(bool), bool ok)
     {
         return (this->*state_fn)(ok);
     }
 
-    template<typename RequestType, typename ResponseType>
     class Context : public BaseContext
     {
       public:
@@ -79,13 +83,12 @@ struct ClientBidirectional : public BaseContext
         bool RunNextState(bool ok) final override
         {
             // DLOG(INFO) << "Event for Tag: " << Tag();
-            return static_cast<ClientBidirectional*>(m_MasterContext)
-                ->RunNextState(m_NextState, ok);
+            return static_cast<ClientStreaming*>(m_MasterContext)->RunNextState(m_NextState, ok);
         }
 
-        bool (ClientBidirectional<RequestType, ResponseType>::*m_NextState)(bool);
+        bool (ClientStreaming<Request, Response>::*m_NextState)(bool);
 
-        friend class ClientBidirectional<RequestType, ResponseType>;
+        friend class ClientStreaming<Request, Response>;
     };
 
     ::grpc::Status m_Status;
@@ -96,287 +99,381 @@ struct ClientBidirectional : public BaseContext
     ReadCallback m_ReadCallback;
     WriteCallback m_WriteCallback;
 
-    Context<Request, Response> m_ReadState;
-    Context<Request, Response> m_WriteState;
+    // Context<Request, Response> m_ReadState;
+    // Context<Request, Response> m_WriteState;
+
+    Context m_ReadState;
+    Context m_WriteState;
 
     std::mutex m_Mutex;
     std::queue<Response> m_ReadQueue;
     std::queue<Request> m_WriteQueue;
 
-    bool m_WritesDone;
-
     std::shared_ptr<Executor> m_Executor;
+
+    using ReadHandle = bool;
+    using WriteHandle = bool;
+    using ExecuteHandle = std::function<void()>;
+    using CloseHandle = bool;
+    using FinishHandle = bool;
+    using CompleteHandle = bool;
+    using Actions = std::tuple<ReadHandle, WriteHandle, ExecuteHandle, CloseHandle, FinishHandle,
+                               CompleteHandle>;
+
+    bool m_Reading, m_Writing, m_Finishing, m_Closing, m_ReadsDone, m_WritesDone, m_FinishDone;
+
+    bool (ClientStreaming<Request, Response>::*m_NextState)(bool);
+
+    Actions EvaluateState();
+    void ForwardProgress(Actions& actions);
 
     bool StateStreamInitialized(bool);
     bool StateReadDone(bool);
     bool StateWriteDone(bool);
     bool StateWritesDoneDone(bool);
-    bool StateFinishedDone(bool);
+    bool StateFinishDone(bool);
     bool StateInvalid(bool);
     bool StateIdle(bool);
 };
 
 template<typename Request, typename Response>
-ClientBidirectional<Request, Response>::ClientBidirectional(PrepareFn prepare_fn,
-                                                            std::shared_ptr<Executor> executor,
-                                                            WriteCallback OnWrite,
-                                                            ReadCallback OnRead)
-    : m_Executor(executor), m_ReadState(this), m_WriteState(this), m_WritesDone(false),
-      m_ReadCallback(OnRead), m_WriteCallback(OnWrite)
+ClientStreaming<Request, Response>::ClientStreaming(PrepareFn prepare_fn,
+                                                    std::shared_ptr<Executor> executor,
+                                                    WriteCallback OnWrite, ReadCallback OnRead)
+    : m_Executor(executor), m_ReadState(this), m_WriteState(this), m_ReadCallback(OnRead),
+      m_WriteCallback(OnWrite), m_Reading(false), m_Writing(false), m_Finishing(false),
+      m_Closing(false), m_ReadsDone(false), m_WritesDone(false), m_FinishDone(false)
 {
-    m_ReadState.m_NextState = &ClientBidirectional<Request, Response>::StateInvalid;
-    m_WriteState.m_NextState = &ClientBidirectional<Request, Response>::StateStreamInitialized;
-
-    // DLOG(INFO) << "Read Tag: " << m_ReadState.Tag();
-    // DLOG(INFO) << "Write Tag: " << m_WriteState.Tag();
-    // DLOG(INFO) << "Master Tag: " << Tag();
+    m_NextState = &ClientStreaming<Request, Response>::StateStreamInitialized;
+    m_ReadState.m_NextState = &ClientStreaming<Request, Response>::StateInvalid;
+    m_WriteState.m_NextState = &ClientStreaming<Request, Response>::StateInvalid;
 
     m_Stream = prepare_fn(&m_Context, m_Executor->GetNextCQ());
-    m_Stream->StartCall(m_WriteState.Tag());
+    m_Stream->StartCall(this->Tag());
+}
+
+/*
+template<typename Request, typename Response>
+void ClientStreaming<Request, Response>::Write(Request* request)
+{
+    // TODO: fixes this so it queues up a lambda
+    Write(std::move(*request));
+}
+*/
+
+template<typename Request, typename Response>
+bool ClientStreaming<Request, Response>::Write(Request&& request)
+{
+    Actions actions;
+    {
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        DLOG(INFO) << "Writing Request";
+
+        if(m_WritesDone)
+        {
+            LOG(WARNING) << "Attempting to Write on a Stream that is closed";
+            return false;
+        }
+
+        m_WriteQueue.push(std::move(request));
+        m_WriteState.m_NextState = &ClientStreaming<Request, Response>::StateWriteDone;
+
+        actions = EvaluateState();
+    }
+    ForwardProgress(actions);
+    return true;
 }
 
 template<typename Request, typename Response>
-void ClientBidirectional<Request, Response>::Send(Request* request)
+std::future<::grpc::Status> ClientStreaming<Request, Response>::Done()
 {
-    Send(std::move(*request));
-}
+    Actions actions;
+    {
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        DLOG(INFO) << "Sending WritesDone - Closing Client -> Server side of the stream";
 
-template<typename Request, typename Response>
-void ClientBidirectional<Request, Response>::Send(Request&& request)
-{
-    std::lock_guard<std::mutex> lock(m_Mutex);
-    if(m_WritesDone)
-    {
-        std::runtime_error("Cannot Send new requests after Done has been called");
+        m_WritesDone = true;
+        
+        actions = EvaluateState();
     }
-    m_WriteQueue.push(std::move(request));
-    if(m_WriteState.m_NextState == &ClientBidirectional<Request, Response>::StateIdle)
-    {
-        m_WriteState.m_NextState = &ClientBidirectional<Request, Response>::StateWriteDone;
-        m_Stream->Write(m_WriteQueue.front(), m_WriteState.Tag());
-    }
-}
-
-template<typename Request, typename Response>
-std::future<::grpc::Status> ClientBidirectional<Request, Response>::Done()
-{
-    std::lock_guard<std::mutex> lock(m_Mutex);
-    m_WritesDone = true;
-    if(m_WriteState.m_NextState == &ClientBidirectional<Request, Response>::StateIdle)
-    {
-        m_WriteState.m_NextState = &ClientBidirectional<Request, Response>::StateWritesDoneDone;
-        m_Stream->WritesDone(m_WriteState.Tag());
-    }
+    ForwardProgress(actions);
     return m_Promise.get_future();
 }
 
 template<typename Request, typename Response>
-bool ClientBidirectional<Request, Response>::StateStreamInitialized(bool ok)
+std::future<::grpc::Status> ClientStreaming<Request, Response>::Status()
 {
-    if(!ok)
+    return m_Promise.get_future();
+}
+
+template<typename Request, typename Response>
+typename ClientStreaming<Request, Response>::Actions
+    ClientStreaming<Request, Response>::EvaluateState()
+{
+    ReadHandle should_read = false;
+    WriteHandle should_write = nullptr;
+    ExecuteHandle should_execute = nullptr;
+    CloseHandle should_close = false;
+    FinishHandle should_finish = false;
+    CompleteHandle should_complete = false;
+
+    if(m_NextState == &ClientStreaming<Request, Response>::StateStreamInitialized)
     {
-        return false;
-    }
-
-    std::lock_guard<std::mutex> lock(m_Mutex);
-
-    DLOG(INFO) << "StateStreamInitialized";
-
-    // WriteState was used to create the stream connection
-    // Set to idle until a write is queued; otherwise, write next request
-
-    if(m_WriteQueue.empty())
-    {
-        m_WriteState.m_NextState = &ClientBidirectional<Request, Response>::StateIdle;
-        if(m_WritesDone)
-        {
-            m_WriteState.m_NextState = &ClientBidirectional<Request, Response>::StateWritesDoneDone;
-            m_Stream->WritesDone(m_WriteState.Tag());
-        }
+        DLOG(INFO) << "Action Queued: Stream Initializing";
     }
     else
     {
-        m_WriteState.m_NextState = &ClientBidirectional<Request, Response>::StateWriteDone;
-        m_Stream->Write(m_WriteQueue.front(), m_WriteState.Tag());
+        if(!m_Reading && !m_ReadsDone)
+        {
+            should_read = true;
+            m_Reading = true;
+            m_ReadQueue.emplace();
+            m_ReadState.m_NextState = &ClientStreaming<Request, Response>::StateReadDone;
+
+            should_execute = [this, response = std::move(m_ReadQueue.front())]() mutable {
+                m_ReadCallback(std::move(response));
+            };
+            m_ReadQueue.pop();
+        }
+        if(!m_Writing && !m_WriteQueue.empty())
+        {
+            should_write = true;
+            m_Writing = true;
+            m_WriteState.m_NextState = &ClientStreaming<Request, Response>::StateWriteDone;
+        }
+        if(!m_Closing && !m_Writing && m_WritesDone)
+        {
+            should_close = true;
+            m_Closing = true;
+            m_WriteState.m_NextState = &ClientStreaming<Request, Response>::StateWritesDoneDone;
+        }
+        if(!m_Reading && !m_Writing && !m_Finishing && m_ReadsDone && m_WritesDone && !m_FinishDone)
+        {
+            should_finish = true;
+            m_Finishing = true;
+            m_NextState = &ClientStreaming<Request, Response>::StateFinishDone;
+        }
+        if(m_ReadsDone && m_WritesDone && m_FinishDone)
+        {
+            should_complete = true;
+        }
     }
 
-    // Independent of the Writes, queue up a Read
-    m_ReadQueue.emplace();
-    m_ReadState.m_NextState = &ClientBidirectional<Request, Response>::StateReadDone;
+    // clang-format off
+    DLOG(INFO) << (should_read ? 1 : 0) << (should_write ? 1 : 0) << (should_execute ? 1 : 0)
+               << (should_finish ? 1 : 0) 
+               << " -- " << m_Reading << m_Writing << m_Finishing
+               << " -- " << m_ReadsDone << m_WritesDone
+               << " -- " << m_Finishing;
+    // clang-format on
+
+    return std::make_tuple(should_read, should_write, should_execute, should_close, should_finish,
+                           should_complete);
+}
+
+template<class Request, class Response>
+void ClientStreaming<Request, Response>::ForwardProgress(Actions& actions)
+{
+    ReadHandle should_read = std::get<0>(actions);
+    WriteHandle should_write = std::get<1>(actions);
+    ExecuteHandle should_execute = std::get<2>(actions);
+    CloseHandle should_close = std::get<3>(actions);
+    FinishHandle should_finish = std::get<4>(actions);
+    CompleteHandle should_complete = std::get<5>(actions);
+
+    if(should_read)
+    {
+        DLOG(INFO) << "Posting Read/Recv";
+        m_Stream->Read(&m_ReadQueue.back(), m_ReadState.Tag());
+    }
+    if(should_write)
+    {
+        DLOG(INFO) << "Writing/Sending Request";
+        m_Stream->Write(m_WriteQueue.front(), m_WriteState.Tag());
+    }
+    if(should_close)
+    {
+        DLOG(INFO) << "Sending WritesDone to Server";
+        m_Stream->WritesDone(m_WriteState.Tag());
+    }
+    if(should_execute)
+    {
+        DLOG(INFO) << "Kicking off Execution of Received Request";
+        should_execute();
+    }
+    if(should_finish)
+    {
+        DLOG(INFO) << "Closing Stream - Finish";
+        m_Stream->Finish(&m_Status, Tag());
+    }
+    if(should_complete)
+    {
+        DLOG(INFO) << "Completing Promise";
+        m_Promise.set_value(std::move(m_Status));
+    }
+}
+
+template<typename Request, typename Response>
+bool ClientStreaming<Request, Response>::StateStreamInitialized(bool ok)
+{
+    if(!ok)
+    {
+        DLOG(INFO) << "Stream Failed to Initialize";
+        return false;
+    }
+
+    Actions actions;
+    {
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        DLOG(INFO) << "StreamInitialized";
+
+        m_NextState = &ClientStreaming<Request, Response>::StateInvalid;
+
+        m_Reading = true;
+        m_ReadQueue.emplace();
+        m_ReadState.m_NextState = &ClientStreaming<Request, Response>::StateReadDone;
+
+        actions = EvaluateState();
+    }
+    DLOG(INFO) << "Posting Initial Read/Recv";
     m_Stream->Read(&m_ReadQueue.back(), m_ReadState.Tag());
+    ForwardProgress(actions);
     return true;
 }
 
 template<typename Request, typename Response>
-bool ClientBidirectional<Request, Response>::StateWriteDone(bool ok)
+bool ClientStreaming<Request, Response>::StateReadDone(bool ok)
 {
-    if(!ok)
-    {
-        // Invalidate any outstanding reads on stream
-        DLOG(ERROR) << "WriteDone got a false";
-        m_Context.TryCancel();
-        return false;
-    }
-
-    // First request in m_WriteQueue has completed sending
-    // Process that request after we [possibly] queue the next write
-    Request sent_request;
+    Actions actions;
     {
         std::lock_guard<std::mutex> lock(m_Mutex);
-        sent_request = std::move(m_WriteQueue.front());
-        m_WriteQueue.pop();
+        DLOG(INFO) << "ReadDone: " << (ok ? "OK" : "NOT OK");
 
-        if(m_WriteQueue.empty())
+        m_Reading = false;
+        m_ReadState.m_NextState = &ClientStreaming<Request, Response>::StateInvalid;
+
+        if(!ok)
         {
-            m_WriteState.m_NextState = &ClientBidirectional<Request, Response>::StateIdle;
-            if(m_WritesDone)
+            DLOG(INFO) << "Server is closing the read/download portion of the stream";
+            m_ReadsDone = true;
+            m_WritesDone = true;
+            m_Closing = true;
+            if(m_Writing)
             {
-                m_WriteState.m_NextState =
-                    &ClientBidirectional<Request, Response>::StateWritesDoneDone;
-                m_Stream->WritesDone(m_WriteState.Tag());
+                m_Context.TryCancel();
             }
+        }
+
+        actions = EvaluateState();
+    }
+    ForwardProgress(actions);
+    return true;
+}
+
+template<typename Request, typename Response>
+bool ClientStreaming<Request, Response>::StateWriteDone(bool ok)
+{
+    Actions actions;
+    {
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        DLOG(INFO) << "WriteDone: " << (ok ? "OK" : "NOT OK");
+
+        m_Writing = false;
+        m_WriteQueue.pop();
+        m_WriteState.m_NextState = &ClientStreaming<Request, Response>::StateInvalid;
+
+        if(!ok)
+        {
+            // Invalidate any outstanding reads on stream
+            DLOG(ERROR) << "Failed to Write to Stream - shutting down";
+            m_WritesDone = true;
+            if(!m_ReadsDone)
+            {
+                m_Context.TryCancel();
+            }
+            return false;
+        }
+
+        actions = EvaluateState();
+    }
+    ForwardProgress(actions);
+    return true;
+}
+
+template<typename Request, typename Response>
+bool ClientStreaming<Request, Response>::StateWritesDoneDone(bool ok)
+{
+    Actions actions;
+    {
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        DLOG(INFO) << "WritesDoneDone: " << (ok ? "OK" : "NOT OK");
+
+        // m_Closing = false;  // keep m_Closing true
+        m_WriteState.m_NextState = &ClientStreaming<Request, Response>::StateInvalid;
+
+        if(!ok)
+        {
+            LOG(ERROR) << "Failed to close write/upload portion of stream";
+            if(!m_ReadsDone)
+            {
+                m_Context.TryCancel();
+            }
+            return true;
+        }
+
+        actions = EvaluateState();
+    }
+    ForwardProgress(actions);
+    return true;
+}
+
+template<typename Request, typename Response>
+bool ClientStreaming<Request, Response>::StateFinishDone(bool ok)
+{
+    Actions actions;
+    {
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        DLOG(INFO) << "FinishedDone: " << (ok ? "OK" : "NOT OK");
+
+        m_Finishing = false;
+        m_FinishDone = true;
+
+        if(!ok)
+        {
+            LOG(ERROR) << "Failed to close read/download portion of the stream";
+            m_Context.TryCancel();
+            return false;
+        }
+
+        actions = EvaluateState();
+    }
+    ForwardProgress(actions);
+    return true;
+}
+/*
+        DLOG(INFO) << "Read/Download portion of the stream has closed";
+
+        std::lock_guard<std::mutex> lock(m_Mutex);
+
+        if(m_WriteState.m_NextState == &ClientStreaming<Request, Response>::StateInvalid)
+        {
+            DLOG(INFO) << "Write/Upload has already finished - completing future";
+
+            m_ReadState.m_NextState = &ClientStreaming<Request, Response>::StateInvalid;
         }
         else
         {
-            m_WriteState.m_NextState = &ClientBidirectional<Request, Response>::StateWriteDone;
-            m_Stream->Write(m_WriteQueue.front(), m_WriteState.Tag());
+            DLOG(INFO) << "Received Finished from Server before Client has sent Done writing";
+            m_Context.TryCancel();
         }
-    }
-
-    m_WriteCallback(std::move(sent_request));
-    return true;
-}
-
-template<typename Request, typename Response>
-bool ClientBidirectional<Request, Response>::StateReadDone(bool ok)
-{
-    // Message received by reading from stream
-    // No need to lock as the user has no access to the Read portion of the stream
-
-    DLOG(INFO) << "StateReadDone triggered";
-
-    if(!ok)
-    {
-        DLOG(INFO) << "Server is closing the read/download portion of the stream";
-        m_ReadState.m_NextState = &ClientBidirectional<Request, Response>::StateFinishedDone;
-        m_Stream->Finish(&m_Status, m_ReadState.Tag());
-        m_ReadQueue.pop();
         return true;
-    }
-
-    // Before processing the current message, post a read
-    m_ReadQueue.emplace();
-    m_ReadState.m_NextState = &ClientBidirectional<Request, Response>::StateReadDone;
-    m_Stream->Read(&m_ReadQueue.back(), m_ReadState.Tag());
-
-    // Process the message received
-    m_ReadCallback(std::move(m_ReadQueue.front()));
-    m_ReadQueue.pop();
-
-    return true;
-}
-
-template<typename Request, typename Response>
-bool ClientBidirectional<Request, Response>::StateWritesDoneDone(bool ok)
-{
-    if(!ok)
-    {
-        LOG(ERROR) << "Failed to close write/upload portion of stream";
-        m_Context.TryCancel();
-        return false;
-    }
-
-    DLOG(INFO) << "Write/Upload portion of the stream has closed";
-
-    std::lock_guard<std::mutex> lock(m_Mutex);
-    m_WriteState.m_NextState = &ClientBidirectional<Request, Response>::StateInvalid;
-
-    if(m_ReadState.m_NextState == &ClientBidirectional<Request, Response>::StateInvalid)
-    {
-        DLOG(INFO) << "Read/Download has already finished - completing future";
-        m_Promise.set_value(std::move(m_Status));
-    }
-    else
-    {
-        DLOG(INFO) << "Waiting for Read/Download half of the stream to close";
-    }
-
-    return true;
-}
-
-template<typename Request, typename Response>
-bool ClientBidirectional<Request, Response>::StateFinishedDone(bool ok)
-{
-    if(!ok)
-    {
-        LOG(ERROR) << "Failed to close read/download portion of the stream";
-        m_Context.TryCancel();
-        return false;
-    }
-
-    DLOG(INFO) << "Read/Download portion of the stream has closed";
-
-    std::lock_guard<std::mutex> lock(m_Mutex);
-    m_ReadState.m_NextState = &ClientBidirectional<Request, Response>::StateInvalid;
-
-    if(m_WriteState.m_NextState == &ClientBidirectional<Request, Response>::StateInvalid)
-    {
-        DLOG(INFO) << "Write/Upload has already finished - completing future";
-        m_Promise.set_value(std::move(m_Status));
-    }
-    else
-    {
-        DLOG(INFO) << "Received Finished from Server before Client has sent Done writing";
-    }
-    return true;
-}
-
-template<typename Request, typename Response>
-bool ClientBidirectional<Request, Response>::StateIdle(bool ok)
-{
-    LOG(FATAL) << "Your logic is bad - you should never have come here";
-}
-
-template<typename Request, typename Response>
-bool ClientBidirectional<Request, Response>::StateInvalid(bool ok)
-{
-    LOG(FATAL) << "Your logic is bad - you should never have come here";
-}
-/*
-
-    template<typename OnReturnFn>
-    auto Enqueue(Request* request, Response* response, OnReturnFn on_return)
-    {
-        auto wrapped = this->Wrap(on_return);
-        auto future = wrapped->Future();
-
-        auto ctx = m_Queue.front();
-        ctx->m_Request = request;
-        ctx->m_Response = response;
-        ctx->m_Callback = [ctx, wrapped]() mutable {
-            (*wrapped)(*ctx->m_Request, *ctx->m_Response, ctx->m_Status);
-        };
-
-        ctx->m_Reader->StartCall();
-        ctx->m_Reader->Finish(ctx->m_Response, &ctx->m_Status, ctx->Tag());
-
-        return future.share();
-    }
-
-    template<typename OnReturnFn>
-    auto Enqueue(Request&& request, OnReturnFn on_return)
-    {
-        auto req = std::make_shared<Request>(std::move(request));
-        auto resp = std::make_shared<Response>();
-
-        auto extended_on_return = [req, resp, on_return](Request& request, Response& response,
-                                                         ::grpc::Status& status) mutable -> auto{
-            return on_return(request, response, status);
-        };
-
-        return Enqueue(req.get(), resp.get(), extended_on_return);
-    }
 */
+
+template<typename Request, typename Response>
+bool ClientStreaming<Request, Response>::StateInvalid(bool ok)
+{
+    LOG(FATAL) << "Your logic is bad - you should never have come here";
+}
 
 } // namespace client
 } // namespace nvrpc

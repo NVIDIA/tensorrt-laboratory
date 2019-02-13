@@ -40,7 +40,7 @@ using grpc::Channel;
 using grpc::ClientContext;
 using grpc::Status;
 
-using nvrpc::client::ClientBidirectional;
+using nvrpc::client::ClientStreaming;
 using nvrpc::client::Executor;
 
 #include "echo.grpc.pb.h"
@@ -75,19 +75,16 @@ int main(int argc, char** argv)
         return std::move(stub->PrepareAsyncBidirectional(context, cq));
     };
 
-    auto stream = std::make_unique<ClientBidirectional<Input, Output>>(
+    auto stream = std::make_unique<ClientStreaming<Input, Output>>(
         infer_prepare_fn, 
         executor,
         [](Input&& request) {
             LOG_FIRST_N(INFO, 10) << "Sent Request with BatchID: " << request.batch_id();
-            static size_t last = 0;
-            CHECK_EQ(last + 1, request.batch_id());
-            ++last;
-            //CHECK(request.batch_id());
         },
         [&mutex, &count](Output&& response) {
+            static size_t last = 0;
             LOG_FIRST_N(INFO, 10) << "Received Response with BatchID: " << response.batch_id();
-            //CHECK(response.batch_id());
+            CHECK_EQ(++last, response.batch_id());
             std::lock_guard<std::mutex> lock(mutex);
             --count;
         });
@@ -105,14 +102,15 @@ int main(int argc, char** argv)
         }
         Input input;
         input.set_batch_id(i);
-        stream->Send(std::move(input));
+        stream->Write(std::move(input));
     }
     std::cout << FLAGS_count << " queued in " << elapsed() << "seconds" << std::endl;
     auto future = stream->Done();
+    // auto future = stream->Status();
     auto status = future.get();
-    executor->ShutdownAndJoin();
-    CHECK_EQ(count, 0UL);
     std::cout << FLAGS_count << " completed in " << elapsed() << "seconds" << std::endl;
     std::cout << "gRPC Status: " << (status.ok() ? "OK" : "NOT OK") << std::endl;
+    executor->ShutdownAndJoin();
+    CHECK_EQ(count, 0UL);
     return 0;
 }

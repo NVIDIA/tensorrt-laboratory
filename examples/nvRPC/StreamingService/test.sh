@@ -5,7 +5,11 @@ cleanup() {
 }
 trap "cleanup" EXIT SIGINT SIGTERM
 
-./nvrpc-streaming-server.x --ip_port="0.0.0.0:5555" &
+export PATH=".:$PATH"
+
+exe=${1:-"./nvrpc-ping-pong-server.x"}
+
+$exe --ip_port="0.0.0.0:5555" &
 
 f=$(mktmp)
 cat <<EOF > $f

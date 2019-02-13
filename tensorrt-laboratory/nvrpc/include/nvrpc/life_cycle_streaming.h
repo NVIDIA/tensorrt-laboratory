@@ -359,8 +359,7 @@ typename StreamingLifeCycle<Request, Response>::Actions
             &StreamingLifeCycle<RequestType, ResponseType>::StateWriteDone;
     }
 
-    if(!m_Reading && !m_Writing && !m_Finishing && m_ReadsDone && 
-       (m_Status || m_ExternalStream.expired()))
+    if(!m_Reading && !m_Writing && !m_Finishing && (m_Status || m_ExternalStream.expired()))
     {
         should_finish = true;
         m_Finishing = true;
@@ -370,14 +369,12 @@ typename StreamingLifeCycle<Request, Response>::Actions
             m_Status = std::make_unique<::grpc::Status>(::grpc::Status::OK);
         }
     }
-
     // clang-format off
-    DLOG(INFO) << (should_read ? 1 : 0) << "; " << (should_write ? 1 : 0) << "; " 
-               << (should_execute ? 1 : 0) << "; " << (should_finish ? 1 : 0) << " -- " 
-               << m_Reading << "; " << m_Writing << " -- "
-               << m_ReadsDone << "; " << m_WritesDone << "; " << (m_Status ? 1 : 0) << "; "
-               << (m_ExternalStream.expired() ? 1 : 0) << " -- " 
-               << m_Finishing;
+    DLOG(INFO) << (should_read ? 1 : 0) << (should_write ? 1 : 0) << (should_execute ? 1 : 0)
+               << (should_finish ? 1 : 0) 
+               << " -- " << m_Reading << m_Writing 
+               << " -- " << m_ReadsDone << (m_Status ? 1 : 0) << (m_ExternalStream.expired() ? 1 : 0)
+               << " -- " << m_Finishing;
     // clang-format on
 
     return std::make_tuple(should_read, should_write, should_execute, should_finish);
@@ -399,7 +396,6 @@ void StreamingLifeCycle<Request, Response>::ForwardProgress(Actions& actions)
     if(should_write)
     {
         DLOG(INFO) << "Writing Response";
-        DLOG(INFO) << m_ResponseQueue.front().DebugString();
         m_Stream->Write(m_ResponseQueue.front(), m_WriteStateContext.IContext::Tag());
     }
     if(should_execute)
@@ -572,6 +568,13 @@ void StreamingLifeCycle<Request, Response>::CloseStream(::grpc::Status status)
         m_WritesDone = true;
         m_Status = std::make_unique<::grpc::Status>(status);
 
+        if(!m_ReadsDone)
+        {
+            DLOG(INFO) << "Server Closing before Client; issue TryCancel() to flush Read Tags";
+            m_Context->TryCancel();
+        }
+
+        m_ServerStream.reset();
         if(!m_ExternalStream.expired())
         {
             auto sp = m_ExternalStream.lock();
