@@ -49,7 +49,14 @@ using simple::Inference;
 using simple::Input;
 using simple::Output;
 
+static bool ValidateEven(const char* flagname, int value)
+{
+    LOG_IF(ERROR, value % 2) << "Examples require an even number of messages";
+    return (value % 2 == 0);
+}
+
 DEFINE_int32(count, 100, "number of grpc messages to send");
+DEFINE_validator(count, &ValidateEven);
 DEFINE_int32(thread_count, 1, "Size of thread pool");
 DEFINE_string(hostname, "127.0.0.1:50051", "hostname and port");
 
