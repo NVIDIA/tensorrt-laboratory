@@ -47,12 +47,17 @@ class SimpleContext final : public StreamingContext<simple::Input, simple::Outpu
         // If odd, do nothing
         if(input.batch_id() % 2 == 0)
         {
+            LOG_FIRST_N(INFO, 5) << "Received Even an BatchID: Sending back two responses";
             for(int i = input.batch_id() - 1; i <= input.batch_id(); i++)
             {
                 ResponseType output;
                 output.set_batch_id(i);
                 stream->WriteResponse(std::move(output));
             }
+        }
+        else
+        {
+            LOG_FIRST_N(INFO, 5) << "Received an Odd BatchID: No Response will be sent";
         }
     }
 };
