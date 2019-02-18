@@ -56,13 +56,21 @@ class Server
 
     void Run();
     void Run(milliseconds timeout, std::function<void()> control_fn);
+    void AsyncStart();
+    void Shutdown();
+
+    bool Running();
 
     ::grpc::ServerBuilder& Builder();
 
+
   private:
     bool m_Running;
+    std::mutex m_Mutex;
+    std::condition_variable m_Condition;
     std::string m_ServerAddress;
     ::grpc::ServerBuilder m_Builder;
+    std::unique_ptr<::grpc::Server> m_Server;
     std::vector<std::unique_ptr<IService>> m_Services;
     std::vector<std::unique_ptr<IExecutor>> m_Executors;
 };

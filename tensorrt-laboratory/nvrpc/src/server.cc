@@ -26,14 +26,17 @@
  */
 #include "nvrpc/server.h"
 
-#include <thread>
 #include <csignal>
+#include <thread>
 
 #include <glog/logging.h>
 
 namespace {
 std::function<void(int)> shutdown_handler;
-void signal_handler(int signal) { shutdown_handler(signal); }
+void signal_handler(int signal)
+{
+    shutdown_handler(signal);
+}
 } // namespace
 
 namespace nvrpc {
@@ -57,30 +60,68 @@ void Server::Run()
 
 void Server::Run(std::chrono::milliseconds timeout, std::function<void()> control_fn)
 {
-    m_Running = true;
-    auto server = m_Builder.BuildAndStart();
-    volatile bool running = true;
+    AsyncStart();
+    while(m_Running)
+    {
+        std::unique_lock<std::mutex> lock(m_Mutex);
+        if(m_Condition.wait_for(lock, timeout, [this] { return !m_Running; }))
+        {
+            // if not running
+            m_Condition.notify_all();
+            DLOG(INFO) << "Server::Run exitting";
+            return;
+        }
+        else
+        {
+            // if running
+            DLOG(INFO) << "Server::Run executing user lambda";
+            control_fn();
+        }
+    }
+}
 
-    shutdown_handler = [this, &running](int signal) {
-        LOG(INFO) << "Trapped Signal: " << signal;
-        running = false;
+void Server::AsyncStart()
+{
+    {
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        CHECK_EQ(m_Running, false) << "Server is already running";
+        m_Server = m_Builder.BuildAndStart();
+
+        shutdown_handler = [this](int signal) {
+            LOG(INFO) << "Trapped Signal: " << signal;
+            Shutdown();
+        };
+        std::signal(SIGINT, signal_handler);
+
         for(int i = 0; i < m_Executors.size(); i++)
         {
-            m_Executors[i]->Shutdown();
+            m_Executors[i]->Run();
         }
-        //exit(911);
-    };
-    std::signal(SIGINT, signal_handler);
+        m_Running = true;
+    }
+    m_Condition.notify_all();
+}
 
-    for(int i = 0; i < m_Executors.size(); i++)
+void Server::Shutdown()
+{
+    LOG(INFO) << "Shutdown Requested";
+    CHECK(m_Server);
     {
-        m_Executors[i]->Run();
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        m_Server->Shutdown();
+        for(auto& executor : m_Executors)
+        {
+            executor->Shutdown();
+        }
+        m_Running = false;
     }
-    while(running)
-    {
-        control_fn();
-        std::this_thread::sleep_for(timeout);
-    }
+    m_Condition.notify_all();
+}
+
+bool Server::Running()
+{
+    std::lock_guard<std::mutex> lock(m_Mutex);
+    return m_Running;
 }
 
 } // namespace nvrpc

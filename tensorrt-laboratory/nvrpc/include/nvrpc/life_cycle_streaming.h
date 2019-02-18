@@ -417,7 +417,7 @@ bool StreamingLifeCycle<Request, Response>::StateInitializedDone(bool ok)
 {
     if(!ok)
     {
-        LOG(ERROR) << "Stream Initialization Failed";
+        LOG_FIRST_N(ERROR, 10) << "Stream Initialization Failed";
         return false;
     }
 

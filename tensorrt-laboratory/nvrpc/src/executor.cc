@@ -52,18 +52,15 @@ void Executor::ProgressEngine(int thread_id)
     auto myCQ = m_ServerCompletionQueues[thread_id].get();
     using NextStatus = ::grpc::ServerCompletionQueue::NextStatus;
 
-    while(true)
+    while(myCQ->Next(&tag, &ok))
     {
-        auto status = myCQ->Next(&tag, &ok);
-        if(!status)
+        if(ok)
         {
-            LOG(INFO) << "CQ Received Shutdown";
-            return;
-        }
-        auto ctx = IContext::Detag(tag);
-        if(!RunContext(ctx, ok))
-        {
-            ResetContext(ctx);
+            auto ctx = IContext::Detag(tag);
+            if(!RunContext(ctx, ok))
+            {
+                ResetContext(ctx);
+            }
         }
     }
 }

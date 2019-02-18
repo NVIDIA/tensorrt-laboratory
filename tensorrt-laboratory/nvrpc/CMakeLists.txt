@@ -6,6 +6,8 @@
 #set(CMAKE_DEBUG_POSTFIX "-d")
 #set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
+add_subdirectory(tests)
+
 # Find Protobuf installation
 # Looks for protobuf-config.cmake file installed by Protobuf's cmake installation.
 set(protobuf_MODULE_COMPATIBLE TRUE)
