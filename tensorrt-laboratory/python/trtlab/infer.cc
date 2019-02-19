@@ -59,7 +59,7 @@ using namespace trtlab::TensorRT;
 #include "nvrpc/server.h"
 #include "nvrpc/service.h"
 
-#include "nvrpc/client/client.h"
+#include "nvrpc/client/client_unary.h"
 #include "nvrpc/client/executor.h"
 
 using nvrpc::AsyncService;

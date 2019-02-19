@@ -33,7 +33,7 @@
 #include <glog/logging.h>
 #include <grpcpp/grpcpp.h>
 
-#include "nvrpc/client/client.h"
+#include "nvrpc/client/client_unary.h"
 #include "nvrpc/client/executor.h"
 
 #include "echo.grpc.pb.h"
