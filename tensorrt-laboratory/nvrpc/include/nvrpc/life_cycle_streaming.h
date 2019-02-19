@@ -306,7 +306,7 @@ void StreamingLifeCycle<Request, Response>::Reset()
         m_WriteStateContext.m_NextState =
             &StreamingLifeCycle<RequestType, ResponseType>::StateInvalid;
 
-        m_Status = nullptr;
+        m_Status.reset();
         m_Context.reset(new ::grpc::ServerContext);
         m_Stream.reset(
             new ::grpc::ServerAsyncReaderWriter<ResponseType, RequestType>(m_Context.get()));
@@ -417,8 +417,10 @@ bool StreamingLifeCycle<Request, Response>::StateInitializedDone(bool ok)
 {
     if(!ok)
     {
-        LOG_FIRST_N(ERROR, 10) << "Stream Initialization Failed";
-        return false;
+        // if initialization fails, then the server/cq are shutting down
+        // return true so we don't reset the context
+        LOG_FIRST_N(ERROR, 10) << "Stream Initialization Failed - Server Shutting Down";
+        return true;
     }
 
     OnLifeCycleStart();

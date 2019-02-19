@@ -54,13 +54,10 @@ void Executor::ProgressEngine(int thread_id)
 
     while(myCQ->Next(&tag, &ok))
     {
-        if(ok)
+        auto ctx = IContext::Detag(tag);
+        if(!RunContext(ctx, ok))
         {
-            auto ctx = IContext::Detag(tag);
-            if(!RunContext(ctx, ok))
-            {
-                ResetContext(ctx);
-            }
+            ResetContext(ctx);
         }
     }
 }

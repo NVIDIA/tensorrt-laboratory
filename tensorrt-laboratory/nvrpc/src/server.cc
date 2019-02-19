@@ -63,19 +63,21 @@ void Server::Run(std::chrono::milliseconds timeout, std::function<void()> contro
     AsyncStart();
     while(m_Running)
     {
-        std::unique_lock<std::mutex> lock(m_Mutex);
-        if(m_Condition.wait_for(lock, timeout, [this] { return !m_Running; }))
         {
-            // if not running
-            m_Condition.notify_all();
-            DLOG(INFO) << "Server::Run exitting";
-            return;
-        }
-        else
-        {
-            // if running
-            // DLOG(INFO) << "Server::Run executing user lambda";
-            control_fn();
+            std::unique_lock<std::mutex> lock(m_Mutex);
+            if(m_Condition.wait_for(lock, timeout, [this] { return !m_Running; }))
+            {
+                // if not running
+                m_Condition.notify_all();
+                DLOG(INFO) << "Server::Run exitting";
+                return;
+            }
+            else
+            {
+                // if running
+                // DLOG(INFO) << "Server::Run executing user lambda";
+                control_fn();
+            }
         }
     }
 }
