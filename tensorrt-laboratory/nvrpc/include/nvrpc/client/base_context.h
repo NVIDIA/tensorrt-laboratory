@@ -38,6 +38,8 @@ class BaseContext
     virtual ~BaseContext() {}
     virtual bool RunNextState(bool ok) = 0;
 
+    virtual bool ExecutorShouldDeleteContext() const = 0;
+
     void* Tag()
     {
         return static_cast<void*>(this);

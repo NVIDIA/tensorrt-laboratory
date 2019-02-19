@@ -38,8 +38,7 @@ Executor::Executor() : Executor(1) {}
 
 Executor::Executor(int numThreads) : Executor(std::make_unique<ThreadPool>(numThreads)) {}
 
-Executor::Executor(std::unique_ptr<ThreadPool> threadpool)
-    : m_ThreadPool(std::move(threadpool))
+Executor::Executor(std::unique_ptr<ThreadPool> threadpool) : m_ThreadPool(std::move(threadpool))
 {
     // for(decltype(m_ThreadPool->Size()) i = 0; i < m_ThreadPool->Size(); i++)
     for(auto i = 0; i < m_ThreadPool->Size(); i++)
@@ -51,14 +50,14 @@ Executor::Executor(std::unique_ptr<ThreadPool> threadpool)
     }
 }
 
-Executor::~Executor() 
+Executor::~Executor()
 {
     ShutdownAndJoin();
 }
 
 void Executor::ShutdownAndJoin()
 {
-    for (auto& cq : m_CQs)
+    for(auto& cq : m_CQs)
     {
         cq->Shutdown();
     }
@@ -76,8 +75,11 @@ void Executor::ProgressEngine(::grpc::CompletionQueue& cq)
         BaseContext* ctx = BaseContext::Detag(tag);
         if(!ctx->RunNextState(ok))
         {
-            //DLOG(INFO) << "Deleting ClientContext: " << tag;
-            // delete ctx;
+            if(ctx->ExecutorShouldDeleteContext())
+            {
+                DLOG(INFO) << "Deleting ClientContext: " << tag;
+                delete ctx;
+            }
         }
     }
     m_ThreadPool.reset();

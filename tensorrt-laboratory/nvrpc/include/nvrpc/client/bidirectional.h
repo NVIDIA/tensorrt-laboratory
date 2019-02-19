@@ -62,6 +62,11 @@ struct ClientStreaming : public BaseContext
     std::future<::grpc::Status> Status();
     std::future<::grpc::Status> Done();
 
+    bool ExecutorShouldDeleteContext() const override
+    {
+        return false;
+    }
+
   private:
     bool RunNextState(bool ok) final override
     {
@@ -87,6 +92,11 @@ struct ClientStreaming : public BaseContext
         }
 
         bool (ClientStreaming<Request, Response>::*m_NextState)(bool);
+
+        bool ExecutorShouldDeleteContext() const override
+        {
+            return false;
+        }
 
         friend class ClientStreaming<Request, Response>;
     };
@@ -193,7 +203,7 @@ std::future<::grpc::Status> ClientStreaming<Request, Response>::Done()
         DLOG(INFO) << "Sending WritesDone - Closing Client -> Server side of the stream";
 
         m_WritesDone = true;
-        
+
         actions = EvaluateState();
     }
     ForwardProgress(actions);
