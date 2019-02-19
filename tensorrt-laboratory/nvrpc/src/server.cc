@@ -74,7 +74,7 @@ void Server::Run(std::chrono::milliseconds timeout, std::function<void()> contro
         else
         {
             // if running
-            DLOG(INFO) << "Server::Run executing user lambda";
+            // DLOG(INFO) << "Server::Run executing user lambda";
             control_fn();
         }
     }
