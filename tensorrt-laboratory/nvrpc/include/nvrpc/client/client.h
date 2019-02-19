@@ -52,11 +52,6 @@ struct ClientUnary : public ::trtlab::AsyncComputeWrapper<void(Request&, Respons
 
     ~ClientUnary() {}
 
-    bool ExecutorShouldDeleteContext() const override
-    {
-        return true;
-    }
-
     template<typename OnReturnFn>
     auto Enqueue(Request* request, Response* response, OnReturnFn on_return)
     {
@@ -105,6 +100,11 @@ struct ClientUnary : public ::trtlab::AsyncComputeWrapper<void(Request&, Respons
             bool ret = (this->*m_NextState)(ok);
             // DLOG_IF(INFO, !ret) << "RunNextState returning false";
             return ret;
+        }
+
+        bool ExecutorShouldDeleteContext() const override
+        {
+            return true;
         }
 
       protected:
