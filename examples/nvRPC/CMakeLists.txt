@@ -26,5 +26,7 @@
 
 add_subdirectory(UnaryService)
 add_subdirectory(StreamingService)
-add_subdirectory(StreamingInOrderSendRecv)
 add_subdirectory(SharedMemoryService)
+
+# TODO: WIP
+# add_subdirectory(StreamingInOrderSendRecv)
