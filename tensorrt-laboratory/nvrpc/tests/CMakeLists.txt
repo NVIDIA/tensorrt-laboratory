@@ -24,9 +24,40 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-set(LIBS nvrpc echo-protos)
+set(protobuf_MODULE_COMPATIBLE TRUE)
+find_package(Protobuf CONFIG REQUIRED)
+message(STATUS "Using protobuf ${protobuf_VERSION}")
+set(_PROTOBUF_LIBPROTOBUF protobuf::libprotobuf)
+set(_PROTOBUF_PROTOC $<TARGET_FILE:protobuf::protoc>)
+
+INCLUDE(GRPCGenerateCPP)
+
+PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS 
+    testing.proto
+)
+
+PROTOBUF_GENERATE_GRPC_CPP(PROTO_GRPC_SRCS PROTO_GRPC_HDRS 
+    testing.proto
+)
+
+add_library(nvrpc-testing-protos
+    ${PROTO_SRCS}
+    ${PROTO_GRPC_SRCS}
+)
+
+target_link_libraries(nvrpc-testing-protos
+  PUBLIC
+  ${_PROTOBUF_LIBPROTOBUF}
+)
+
+target_include_directories(nvrpc-testing-protos PUBLIC
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+set(LIBS nvrpc nvrpc-testing-protos)
 
 add_executable(test_nvrpc
+  test_resources.cc
   test_server.cc
 )
 
@@ -34,7 +65,7 @@ target_link_libraries(test_nvrpc
   PRIVATE 
     ${PROJECT_NAME}::core
     nvrpc
-    echo-protos
+    nvrpc-testing-protos
     ${GTEST_BOTH_LIBRARIES}
 )
 

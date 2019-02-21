@@ -24,11 +24,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/core/resources.h"
-#include "tensorrt/laboratory/core/thread_pool.h"
-
-using trtlab::Resources;
-using trtlab::ThreadPool;
 
 #include "nvrpc/executor.h"
 #include "nvrpc/server.h"
@@ -39,28 +34,23 @@ using nvrpc::AsyncService;
 using nvrpc::Executor;
 using nvrpc::Server;
 
-#include "echo.grpc.pb.h"
-#include "echo.pb.h"
+#include "test_resources.h"
+
+#include "testing.grpc.pb.h"
+#include "testing.pb.h"
 
 #include <gtest/gtest.h>
 
 using namespace nvrpc;
+using namespace nvrpc::testing;
 
-// clang-format off
-struct TestResources : public Resources
-{
-    TestResources(int numThreadsInPool = 3) : m_ThreadPool(numThreadsInPool) {}
-    ThreadPool& AcquireThreadPool() { return m_ThreadPool; }
-  private:
-    ThreadPool m_ThreadPool;
-};
-// clang-format on
 
-class EchoContext final : public StreamingContext<simple::Input, simple::Output, TestResources>
+
+class EchoContext final : public StreamingContext<Input, Output, TestResources>
 {
     void RequestReceived(RequestType&& input, std::shared_ptr<ServerStream> stream) final override
     {
-        simple::Output output;
+        Output output;
         output.set_batch_id(input.batch_id());
         stream->WriteResponse(std::move(output));
     }
@@ -70,7 +60,7 @@ class ServerTest : public ::testing::Test
 {
     void SetUp() override
     {
-        m_BackgroundThreads = std::make_unique<ThreadPool>(1);
+        m_BackgroundThreads = std::make_unique<::trtlab::ThreadPool>(1);
         BuildAndStartServer();
     }
 
@@ -87,9 +77,9 @@ class ServerTest : public ::testing::Test
     void BuildAndStartServer()
     {
         m_Server = std::make_unique<Server>("0.0.0.0:13377");
-        auto simpleInference = m_Server->RegisterAsyncService<simple::Inference>();
-        auto rpcCompute = simpleInference->RegisterRPC<EchoContext>(
-            &simple::Inference::AsyncService::RequestBidirectional);
+        auto service = m_Server->RegisterAsyncService<TestService>();
+        auto rpcCompute = service->RegisterRPC<EchoContext>(
+            &TestService::AsyncService::RequestStreaming);
         auto rpcResources = std::make_shared<TestResources>(3);
         auto executor = m_Server->RegisterExecutor(new Executor(1));
         executor->RegisterContexts(rpcCompute, rpcResources, 10);
@@ -98,7 +88,7 @@ class ServerTest : public ::testing::Test
   protected:
     volatile bool m_Running;
     std::unique_ptr<Server> m_Server;
-    std::unique_ptr<ThreadPool> m_BackgroundThreads;
+    std::unique_ptr<::trtlab::ThreadPool> m_BackgroundThreads;
 };
 
 TEST_F(ServerTest, AsyncStartAndShutdown)
