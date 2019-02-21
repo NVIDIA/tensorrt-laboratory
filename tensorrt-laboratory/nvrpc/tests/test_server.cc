@@ -24,44 +24,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include "nvrpc/executor.h"
-#include "nvrpc/server.h"
-#include "nvrpc/service.h"
-
-using nvrpc::AsyncRPC;
-using nvrpc::AsyncService;
-using nvrpc::Executor;
-using nvrpc::Server;
-
+#include "test_build_server.h"
 #include "test_resources.h"
 #include "test_pingpong.h"
-
-#include "testing.grpc.pb.h"
 
 #include <gtest/gtest.h>
 
 using namespace nvrpc;
 using namespace nvrpc::testing;
 
-
-
-class EchoContext final : public StreamingContext<Input, Output, TestResources>
-{
-    void RequestReceived(RequestType&& input, std::shared_ptr<ServerStream> stream) final override
-    {
-        Output output;
-        output.set_batch_id(input.batch_id());
-        stream->WriteResponse(std::move(output));
-    }
-};
-
 class ServerTest : public ::testing::Test
 {
     void SetUp() override
     {
         m_BackgroundThreads = std::make_unique<::trtlab::ThreadPool>(1);
-        BuildAndStartServer();
+        m_Server = BuildServer<PingPongUnaryContext, PingPongStreamingContext>();
     }
 
     void TearDown() override
@@ -74,22 +51,7 @@ class ServerTest : public ::testing::Test
         m_BackgroundThreads.reset();
     }
 
-    void BuildAndStartServer()
-    {
-        m_Server = std::make_unique<Server>("0.0.0.0:13377");
-        auto service = m_Server->RegisterAsyncService<TestService>();
-        auto rpc_unary = service->RegisterRPC<PingPongUnaryContext>(
-            &TestService::AsyncService::RequestUnary);
-        auto rpc_streaming = service->RegisterRPC<PingPongStreamingContext>(
-            &TestService::AsyncService::RequestStreaming);
-        auto resources = std::make_shared<TestResources>(3);
-        auto executor = m_Server->RegisterExecutor(new Executor(1));
-        executor->RegisterContexts(rpc_unary, resources, 2);
-        executor->RegisterContexts(rpc_streaming, resources, 2);
-    }
-
   protected:
-    volatile bool m_Running;
     std::unique_ptr<Server> m_Server;
     std::unique_ptr<::trtlab::ThreadPool> m_BackgroundThreads;
 };
