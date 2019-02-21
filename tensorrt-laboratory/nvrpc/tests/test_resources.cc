@@ -27,6 +27,7 @@
 #include "test_resources.h"
 
 namespace nvrpc {
+namespace testing {
 
 TestResources::TestResources(int numThreadsInPool)
     : m_ThreadPool(numThreadsInPool) {}
@@ -36,5 +37,5 @@ TestResources::TestResources(int numThreadsInPool)
     return m_ThreadPool;
 }
 
-
+}
 } // namespace nvrpc

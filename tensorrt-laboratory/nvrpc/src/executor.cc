@@ -40,7 +40,7 @@ Executor::Executor() : Executor(1) {}
 Executor::Executor(int numThreads) : Executor(std::make_unique<ThreadPool>(numThreads)) {}
 
 Executor::Executor(std::unique_ptr<ThreadPool> threadpool)
-    : IExecutor(), m_ThreadPool(std::move(threadpool))
+    : IExecutor(), m_ThreadPool(std::move(threadpool)), m_Running(false)
 {
     m_TimeoutCallback = [] {};
 }
@@ -51,13 +51,17 @@ void Executor::ProgressEngine(int thread_id)
     void* tag;
     auto myCQ = m_ServerCompletionQueues[thread_id].get();
     using NextStatus = ::grpc::ServerCompletionQueue::NextStatus;
+    m_Running = true;
 
     while(myCQ->Next(&tag, &ok))
     {
         auto ctx = IContext::Detag(tag);
         if(!RunContext(ctx, ok))
         {
-            ResetContext(ctx);
+            if(m_Running)
+            {
+                ResetContext(ctx);
+            }
         }
     }
 }

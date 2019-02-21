@@ -46,7 +46,6 @@ class LifeCycleBatchingNew : public LifeCycleStreaming<Request, Response>
     void RequestReceived(Request&&, std::shared_ptr<Stream>) final override;
     void RequestsFinished(std::shared_ptr<Stream>) final override;
 
-    std::mutex m_BatchingMutex;
     std::vector<Request> m_Requests;
 };
 
@@ -54,7 +53,6 @@ class LifeCycleBatchingNew : public LifeCycleStreaming<Request, Response>
 template <class Request, class Response>
 void LifeCycleBatchingNew<Request, Response>::RequestReceived(Request&& request, std::shared_ptr<Stream> stream)
 {
-    std::lock_guard<std::mutex> lock(m_BatchingMutex);
     m_Requests.push_back(std::move(request));
 }
 

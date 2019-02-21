@@ -1,3 +1,5 @@
+
+
 /* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,22 +26,25 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#pragma once
+#include "nvrpc/context.h"
 
-#include "tensorrt/laboratory/core/resources.h"
-#include "tensorrt/laboratory/core/thread_pool.h"
+#include "test_resources.h"
+
+#include "testing.pb.h"
+#include "testing.grpc.pb.h"
 
 namespace nvrpc {
 namespace testing {
 
-struct TestResources : public ::trtlab::Resources
+class PingPongUnaryContext final : public Context<Input, Output, TestResources>
 {
-    TestResources(int numThreadsInPool = 3);
-    ::trtlab::ThreadPool& AcquireThreadPool();
-
-  private:
-    ::trtlab::ThreadPool m_ThreadPool;
+    void ExecuteRPC(Input& input, Output& output) final override;
 };
 
-}
+class PingPongStreamingContext final : public StreamingContext<Input, Output, TestResources>
+{
+    void RequestReceived(Input&& input, std::shared_ptr<ServerStream> stream) final override;
+};
+
+} // namespace testing
 } // namespace nvrpc

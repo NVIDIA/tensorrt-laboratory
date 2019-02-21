@@ -35,9 +35,9 @@ using nvrpc::Executor;
 using nvrpc::Server;
 
 #include "test_resources.h"
+#include "test_pingpong.h"
 
 #include "testing.grpc.pb.h"
-#include "testing.pb.h"
 
 #include <gtest/gtest.h>
 
@@ -78,11 +78,14 @@ class ServerTest : public ::testing::Test
     {
         m_Server = std::make_unique<Server>("0.0.0.0:13377");
         auto service = m_Server->RegisterAsyncService<TestService>();
-        auto rpcCompute = service->RegisterRPC<EchoContext>(
+        auto rpc_unary = service->RegisterRPC<PingPongUnaryContext>(
+            &TestService::AsyncService::RequestUnary);
+        auto rpc_streaming = service->RegisterRPC<PingPongStreamingContext>(
             &TestService::AsyncService::RequestStreaming);
-        auto rpcResources = std::make_shared<TestResources>(3);
+        auto resources = std::make_shared<TestResources>(3);
         auto executor = m_Server->RegisterExecutor(new Executor(1));
-        executor->RegisterContexts(rpcCompute, rpcResources, 10);
+        executor->RegisterContexts(rpc_unary, resources, 2);
+        executor->RegisterContexts(rpc_streaming, resources, 2);
     }
 
   protected:

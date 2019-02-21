@@ -24,22 +24,24 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#pragma once
 
-#include "tensorrt/laboratory/core/resources.h"
-#include "tensorrt/laboratory/core/thread_pool.h"
+#include "test_pingpong.h"
 
 namespace nvrpc {
 namespace testing {
 
-struct TestResources : public ::trtlab::Resources
+void PingPongUnaryContext::ExecuteRPC(Input& input, Output& output)
 {
-    TestResources(int numThreadsInPool = 3);
-    ::trtlab::ThreadPool& AcquireThreadPool();
-
-  private:
-    ::trtlab::ThreadPool m_ThreadPool;
-};
-
+    output.set_batch_id(input.batch_id());
+    FinishResponse();
 }
+
+void PingPongStreamingContext::RequestReceived(Input&& input, std::shared_ptr<ServerStream> stream)
+{
+    Output output;
+    output.set_batch_id(input.batch_id());
+    stream->WriteResponse(std::move(output));
+}
+
+} // namespace testing
 } // namespace nvrpc

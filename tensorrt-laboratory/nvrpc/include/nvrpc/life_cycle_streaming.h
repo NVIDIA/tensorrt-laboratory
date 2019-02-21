@@ -428,10 +428,8 @@ bool LifeCycleStreaming<Request, Response>::StateInitializedDone(bool ok)
 {
     if(!ok)
     {
-        // if initialization fails, then the server/cq are shutting down
-        // return true so we don't reset the context
         LOG_FIRST_N(ERROR, 10) << "Stream Initialization Failed - Server Shutting Down";
-        return true;
+        return false;
     }
 
     OnLifeCycleStart();

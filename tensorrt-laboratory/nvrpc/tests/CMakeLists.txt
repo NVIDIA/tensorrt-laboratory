@@ -58,6 +58,7 @@ set(LIBS nvrpc nvrpc-testing-protos)
 
 add_executable(test_nvrpc
   test_resources.cc
+  test_pingpong.cc
   test_server.cc
 )
 

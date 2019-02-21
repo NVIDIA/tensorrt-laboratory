@@ -79,6 +79,7 @@ class Executor : public IExecutor
         {
             LOG(INFO) << "Telling CQ to Shutdown: " << cq.get();
             cq->Shutdown();
+            m_Running = false;
         }
         // exit(911);
         LOG(INFO) << "Joining Executor Threads";
@@ -110,6 +111,7 @@ class Executor : public IExecutor
   private:
     void ProgressEngine(int thread_id);
 
+    volatile bool m_Running;
     time_point m_TimeoutDeadline;
     std::function<void()> m_TimeoutCallback;
     std::vector<std::unique_ptr<IContext>> m_Contexts;
