@@ -27,9 +27,42 @@
 #pragma once
 
 #include "nvrpc/interfaces.h"
+#include "nvrpc/life_cycle_streaming.h"
 
 namespace nvrpc
 {
+
+template <typename Request, typename Response>
+class LifeCycleBatchingNew : public LifeCycleStreaming<Request, Response>
+{
+  public:
+    using LifeCycleStreaming<Request, Response>::LifeCycleStreaming;
+    using Stream = typename LifeCycleStreaming<Request, Response>::ServerStream;
+
+  protected:
+    virtual void ExecuteRPC(std::vector<Request>&, std::shared_ptr<Stream>) = 0;
+
+  private:
+    void RequestReceived(Request&&, std::shared_ptr<Stream>) final override;
+    void RequestsFinished(std::shared_ptr<Stream>) final override;
+
+    std::mutex m_BatchingMutex;
+    std::vector<Request> m_Requests;
+};
+
+
+template <class Request, class Response>
+void LifeCycleBatchingNew<Request, Response>::RequestReceived(Request&& request, std::shared_ptr<Stream> stream)
+{
+    std::lock_guard<std::mutex> lock(m_BatchingMutex);
+    m_Requests.push_back(std::move(request));
+}
+
+template <class Request, class Response>
+void LifeCycleBatchingNew<Request, Response>::RequestsFinished(std::shared_ptr<Stream> stream)
+{
+    ExecuteRPC(m_Requests, stream);
+}
 
 /**
  * @brief LifeCycle State Machine All-In, then All-Out BATCHING

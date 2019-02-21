@@ -49,10 +49,10 @@ template<class Request, class Response, class Resources>
 using BatchingContext = BaseContext<LifeCycleBatching<Request, Response>, Resources>;
 
 template<class Request, class Response, class Resources>
-using BidirectionalContext = BaseContext<BidirectionalStreamingLifeCycle<Request, Response>, Resources>;
+using BidirectionalContext = BaseContext<BidirectionalLifeCycleStreaming<Request, Response>, Resources>;
 
 template<class Request, class Response, class Resources>
-using StreamingContext = BaseContext<StreamingLifeCycle<Request, Response>, Resources>;
+using StreamingContext = BaseContext<LifeCycleStreaming<Request, Response>, Resources>;
 
 template<class LifeCycle, class Resources>
 class BaseContext : public LifeCycle

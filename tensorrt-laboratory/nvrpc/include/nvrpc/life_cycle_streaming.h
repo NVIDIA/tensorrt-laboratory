@@ -59,7 +59,7 @@ namespace nvrpc {
  * @tparam Response
  */
 template<class Request, class Response>
-class StreamingLifeCycle : public IContextLifeCycle
+class LifeCycleStreaming : public IContextLifeCycle
 {
   public:
     using RequestType = Request;
@@ -71,10 +71,10 @@ class StreamingLifeCycle : public IContextLifeCycle
         std::function<void(::grpc::ServerContext*,
                            ::grpc::ServerAsyncReaderWriter<ResponseType, RequestType>*, void*)>;
 
-    ~StreamingLifeCycle() override {}
+    ~LifeCycleStreaming() override {}
 
   protected:
-    StreamingLifeCycle();
+    LifeCycleStreaming();
     void SetQueueFunc(ExecutorQueueFuncType);
 
     // template<typename RequestType, typename ResponseType>
@@ -85,13 +85,14 @@ class StreamingLifeCycle : public IContextLifeCycle
     // virtual void RequestReceived(Request&&, std::shared_ptr<ServerStream<RequestType,
     // ResponseType>>) = 0;
     virtual void RequestReceived(Request&&, std::shared_ptr<ServerStream>) = 0;
+    virtual void RequestsFinished(std::shared_ptr<ServerStream>) {}
 
     // template<typename RequestType, typename ResponseType>
     class ServerStream
     {
       public:
-        // ServerStream(StreamingLifeCycle<RequestType, ResponseType>* master) : m_Master(master) {}
-        ServerStream(StreamingLifeCycle<Request, Response>* master) : m_Master(master) {}
+        // ServerStream(LifeCycleStreaming<RequestType, ResponseType>* master) : m_Master(master) {}
+        ServerStream(LifeCycleStreaming<Request, Response>* master) : m_Master(master) {}
         ~ServerStream() {}
 
         bool IsConnected()
@@ -155,9 +156,9 @@ class StreamingLifeCycle : public IContextLifeCycle
 
       private:
         std::recursive_mutex m_Mutex;
-        StreamingLifeCycle<Request, Response>* m_Master;
+        LifeCycleStreaming<Request, Response>* m_Master;
 
-        friend class StreamingLifeCycle<Request, Response>;
+        friend class LifeCycleStreaming<Request, Response>;
     };
 
     template<class RequestType, class ResponseType>
@@ -170,16 +171,16 @@ class StreamingLifeCycle : public IContextLifeCycle
         // IContext Methods
         bool RunNextState(bool ok) final override
         {
-            return static_cast<StreamingLifeCycle*>(m_MasterContext)->RunNextState(m_NextState, ok);
+            return static_cast<LifeCycleStreaming*>(m_MasterContext)->RunNextState(m_NextState, ok);
         }
         void Reset() final override
         {
-            static_cast<StreamingLifeCycle*>(m_MasterContext)->Reset();
+            static_cast<LifeCycleStreaming*>(m_MasterContext)->Reset();
         }
 
-        bool (StreamingLifeCycle<RequestType, ResponseType>::*m_NextState)(bool);
+        bool (LifeCycleStreaming<RequestType, ResponseType>::*m_NextState)(bool);
 
-        friend class StreamingLifeCycle<RequestType, ResponseType>;
+        friend class LifeCycleStreaming<RequestType, ResponseType>;
     };
 
   private:
@@ -192,13 +193,13 @@ class StreamingLifeCycle : public IContextLifeCycle
     // IContext Methods
     void Reset() final override;
     bool RunNextState(bool ok) final override;
-    bool RunNextState(bool (StreamingLifeCycle<Request, Response>::*state_fn)(bool), bool ok);
+    bool RunNextState(bool (LifeCycleStreaming<Request, Response>::*state_fn)(bool), bool ok);
 
     // IContextLifeCycle Methods
     void FinishResponse() final override;
     void CancelResponse() final override;
 
-    // StreamingLifeCycle Specific Methods
+    // LifeCycleStreaming Specific Methods
     bool StateInitializedDone(bool ok);
     bool StateReadDone(bool ok);
     bool StateWriteDone(bool ok);
@@ -215,7 +216,7 @@ class StreamingLifeCycle : public IContextLifeCycle
 
     // Function pointers
     ExecutorQueueFuncType m_QueuingFunc;
-    bool (StreamingLifeCycle<RequestType, ResponseType>::*m_NextState)(bool);
+    bool (LifeCycleStreaming<RequestType, ResponseType>::*m_NextState)(bool);
 
     // Internal State
     std::recursive_mutex m_QueueMutex;
@@ -225,7 +226,7 @@ class StreamingLifeCycle : public IContextLifeCycle
     std::shared_ptr<ServerStream> m_ServerStream;
     std::weak_ptr<ServerStream> m_ExternalStream;
 
-    bool m_Reading, m_Writing, m_Finishing, m_ReadsDone, m_WritesDone;
+    bool m_Reading, m_Writing, m_Finishing, m_ReadsDone, m_WritesDone, m_ReadsFinished;
 
     StateContext<RequestType, ResponseType> m_ReadStateContext;
     StateContext<RequestType, ResponseType> m_WriteStateContext;
@@ -272,18 +273,18 @@ class StreamingLifeCycle : public IContextLifeCycle
 
 // Implementation
 template<class Request, class Response>
-StreamingLifeCycle<Request, Response>::StreamingLifeCycle()
+LifeCycleStreaming<Request, Response>::LifeCycleStreaming()
     : m_ReadStateContext(static_cast<IContext*>(this)),
       m_WriteStateContext(static_cast<IContext*>(this)), m_Reading(false), m_Writing(false),
-      m_Finishing(false), m_ReadsDone(false), m_WritesDone(false)
+      m_Finishing(false), m_ReadsDone(false), m_WritesDone(false), m_ReadsFinished(false)
 {
-    m_NextState = &StreamingLifeCycle<RequestType, ResponseType>::StateInvalid;
-    m_ReadStateContext.m_NextState = &StreamingLifeCycle<RequestType, ResponseType>::StateInvalid;
-    m_WriteStateContext.m_NextState = &StreamingLifeCycle<RequestType, ResponseType>::StateInvalid;
+    m_NextState = &LifeCycleStreaming<RequestType, ResponseType>::StateInvalid;
+    m_ReadStateContext.m_NextState = &LifeCycleStreaming<RequestType, ResponseType>::StateInvalid;
+    m_WriteStateContext.m_NextState = &LifeCycleStreaming<RequestType, ResponseType>::StateInvalid;
 }
 
 template<class Request, class Response>
-void StreamingLifeCycle<Request, Response>::Reset()
+void LifeCycleStreaming<Request, Response>::Reset()
 {
     std::queue<RequestType> empty_request_queue;
     std::queue<ResponseType> empty_response_queue;
@@ -295,16 +296,17 @@ void StreamingLifeCycle<Request, Response>::Reset()
         m_Finishing = false;
         m_ReadsDone = false;
         m_WritesDone = false;
+        m_ReadsFinished = false;
         m_RequestQueue.swap(empty_request_queue);
         m_ResponseQueue.swap(empty_response_queue);
         m_ServerStream.reset();
         m_ExternalStream.reset();
 
-        m_NextState = &StreamingLifeCycle<RequestType, ResponseType>::StateInitializedDone;
+        m_NextState = &LifeCycleStreaming<RequestType, ResponseType>::StateInitializedDone;
         m_ReadStateContext.m_NextState =
-            &StreamingLifeCycle<RequestType, ResponseType>::StateInvalid;
+            &LifeCycleStreaming<RequestType, ResponseType>::StateInvalid;
         m_WriteStateContext.m_NextState =
-            &StreamingLifeCycle<RequestType, ResponseType>::StateInvalid;
+            &LifeCycleStreaming<RequestType, ResponseType>::StateInvalid;
 
         m_Status.reset();
         m_Context.reset(new ::grpc::ServerContext);
@@ -315,21 +317,21 @@ void StreamingLifeCycle<Request, Response>::Reset()
 }
 
 template<class Request, class Response>
-bool StreamingLifeCycle<Request, Response>::RunNextState(bool ok)
+bool LifeCycleStreaming<Request, Response>::RunNextState(bool ok)
 {
     return (this->*m_NextState)(ok);
 }
 
 template<class Request, class Response>
-bool StreamingLifeCycle<Request, Response>::RunNextState(
-    bool (StreamingLifeCycle<Request, Response>::*state_fn)(bool), bool ok)
+bool LifeCycleStreaming<Request, Response>::RunNextState(
+    bool (LifeCycleStreaming<Request, Response>::*state_fn)(bool), bool ok)
 {
     return (this->*state_fn)(ok);
 }
 
 template<class Request, class Response>
-typename StreamingLifeCycle<Request, Response>::Actions
-    StreamingLifeCycle<Request, Response>::EvaluateState()
+typename LifeCycleStreaming<Request, Response>::Actions
+    LifeCycleStreaming<Request, Response>::EvaluateState()
 {
     ReadHandle should_read = false;
     WriteHandle should_write = false;
@@ -342,7 +344,7 @@ typename StreamingLifeCycle<Request, Response>::Actions
         m_Reading = true;
         m_RequestQueue.emplace();
         m_ReadStateContext.m_NextState =
-            &StreamingLifeCycle<RequestType, ResponseType>::StateReadDone;
+            &LifeCycleStreaming<RequestType, ResponseType>::StateReadDone;
 
         should_execute = [this, request = std::move(m_RequestQueue.front()),
                           stream = m_ServerStream]() mutable {
@@ -351,19 +353,28 @@ typename StreamingLifeCycle<Request, Response>::Actions
         m_RequestQueue.pop();
     }
 
+    if(!m_Reading && m_ReadsDone && !m_ReadsFinished)
+    {
+        m_ReadsFinished = true;
+        should_execute = [this, stream = m_ServerStream]() mutable {
+            DLOG(INFO) << "Client sent WritesDone";
+            RequestsFinished(stream);
+        };
+    }
+
     if(!m_Writing && !m_ResponseQueue.empty())
     {
         should_write = true;
         m_Writing = true;
         m_WriteStateContext.m_NextState =
-            &StreamingLifeCycle<RequestType, ResponseType>::StateWriteDone;
+            &LifeCycleStreaming<RequestType, ResponseType>::StateWriteDone;
     }
 
     if(!m_Reading && !m_Writing && !m_Finishing && (m_Status || m_ExternalStream.expired()))
     {
         should_finish = true;
         m_Finishing = true;
-        m_NextState = &StreamingLifeCycle<RequestType, ResponseType>::StateFinishedDone;
+        m_NextState = &LifeCycleStreaming<RequestType, ResponseType>::StateFinishedDone;
         if(!m_Status)
         {
             m_Status = std::make_unique<::grpc::Status>(::grpc::Status::OK);
@@ -373,7 +384,7 @@ typename StreamingLifeCycle<Request, Response>::Actions
     DLOG(INFO) << (should_read ? 1 : 0) << (should_write ? 1 : 0) << (should_execute ? 1 : 0)
                << (should_finish ? 1 : 0) 
                << " -- " << m_Reading << m_Writing 
-               << " -- " << m_ReadsDone << (m_Status ? 1 : 0) << (m_ExternalStream.expired() ? 1 : 0)
+               << " -- " << m_ReadsDone << m_ReadsFinished << (m_Status ? 1 : 0) << (m_ExternalStream.expired() ? 1 : 0)
                << " -- " << m_Finishing;
     // clang-format on
 
@@ -381,7 +392,7 @@ typename StreamingLifeCycle<Request, Response>::Actions
 }
 
 template<class Request, class Response>
-void StreamingLifeCycle<Request, Response>::ForwardProgress(Actions& actions)
+void LifeCycleStreaming<Request, Response>::ForwardProgress(Actions& actions)
 {
     ReadHandle should_read = std::get<0>(actions);
     WriteHandle should_write = std::get<1>(actions);
@@ -413,7 +424,7 @@ void StreamingLifeCycle<Request, Response>::ForwardProgress(Actions& actions)
 // The following are a set of functions used as function pointers
 // to keep track of the state of the context.
 template<class Request, class Response>
-bool StreamingLifeCycle<Request, Response>::StateInitializedDone(bool ok)
+bool LifeCycleStreaming<Request, Response>::StateInitializedDone(bool ok)
 {
     if(!ok)
     {
@@ -428,13 +439,13 @@ bool StreamingLifeCycle<Request, Response>::StateInitializedDone(bool ok)
         std::lock_guard<std::recursive_mutex> lock(m_QueueMutex);
         DLOG(INFO) << "Initialize Stream";
 
-        m_NextState = &StreamingLifeCycle<RequestType, ResponseType>::StateInvalid;
+        m_NextState = &LifeCycleStreaming<RequestType, ResponseType>::StateInvalid;
 
         // Start reading once connection is created - State
         m_Reading = true;
         m_RequestQueue.emplace();
         m_ReadStateContext.m_NextState =
-            &StreamingLifeCycle<RequestType, ResponseType>::StateReadDone;
+            &LifeCycleStreaming<RequestType, ResponseType>::StateReadDone;
 
         // Object that allows the server to response on the stream
         // new ServerStream<RequestType, ResponseType>(this), [this](auto ptr) mutable {
@@ -459,7 +470,7 @@ bool StreamingLifeCycle<Request, Response>::StateInitializedDone(bool ok)
 }
 
 template<class Request, class Response>
-bool StreamingLifeCycle<Request, Response>::StateReadDone(bool ok)
+bool LifeCycleStreaming<Request, Response>::StateReadDone(bool ok)
 {
     Actions actions;
     {
@@ -476,7 +487,7 @@ bool StreamingLifeCycle<Request, Response>::StateReadDone(bool ok)
                 m_ReadsDone = true;
                 m_RequestQueue.pop();
                 m_ReadStateContext.m_NextState =
-                    &StreamingLifeCycle<RequestType, ResponseType>::StateInvalid;
+                    &LifeCycleStreaming<RequestType, ResponseType>::StateInvalid;
 
                 // Clear the m_ServerStream since we will not be launching any new tasks
                 // m_ExternalStream holds a weak_ptr to the original m_ServerStream so we
@@ -492,7 +503,7 @@ bool StreamingLifeCycle<Request, Response>::StateReadDone(bool ok)
 }
 
 template<class Request, class Response>
-bool StreamingLifeCycle<Request, Response>::StateWriteDone(bool ok)
+bool LifeCycleStreaming<Request, Response>::StateWriteDone(bool ok)
 {
     // If write didn't go through, then the call is dead. Start reseting
 
@@ -511,7 +522,7 @@ bool StreamingLifeCycle<Request, Response>::StateWriteDone(bool ok)
 
         m_ResponseQueue.pop();
         m_WriteStateContext.m_NextState =
-            &StreamingLifeCycle<RequestType, ResponseType>::StateInvalid;
+            &LifeCycleStreaming<RequestType, ResponseType>::StateInvalid;
 
         actions = EvaluateState();
     }
@@ -520,33 +531,33 @@ bool StreamingLifeCycle<Request, Response>::StateWriteDone(bool ok)
 }
 
 template<class Request, class Response>
-bool StreamingLifeCycle<Request, Response>::StateFinishedDone(bool ok)
+bool LifeCycleStreaming<Request, Response>::StateFinishedDone(bool ok)
 {
     DLOG(INFO) << "Server closed Write stream - FinishedDone";
     return false;
 }
 
 template<class Request, class Response>
-bool StreamingLifeCycle<Request, Response>::StateInvalid(bool ok)
+bool LifeCycleStreaming<Request, Response>::StateInvalid(bool ok)
 {
     throw std::runtime_error("invalid state");
     return false;
 }
 
 template<class Request, class Response>
-void StreamingLifeCycle<Request, Response>::FinishResponse()
+void LifeCycleStreaming<Request, Response>::FinishResponse()
 {
     CloseStream(::grpc::Status::OK);
 }
 
 template<class Request, class Response>
-void StreamingLifeCycle<Request, Response>::CancelResponse()
+void LifeCycleStreaming<Request, Response>::CancelResponse()
 {
     CloseStream(::grpc::Status::CANCELLED);
 }
 
 template<class Request, class Response>
-void StreamingLifeCycle<Request, Response>::WriteResponse(Response&& response)
+void LifeCycleStreaming<Request, Response>::WriteResponse(Response&& response)
 {
     Actions actions;
     {
@@ -560,7 +571,7 @@ void StreamingLifeCycle<Request, Response>::WriteResponse(Response&& response)
 }
 
 template<class Request, class Response>
-void StreamingLifeCycle<Request, Response>::CloseStream(::grpc::Status status)
+void LifeCycleStreaming<Request, Response>::CloseStream(::grpc::Status status)
 {
     Actions actions;
     {
@@ -589,7 +600,7 @@ void StreamingLifeCycle<Request, Response>::CloseStream(::grpc::Status status)
 }
 
 template<class Request, class Response>
-void StreamingLifeCycle<Request, Response>::SetQueueFunc(ExecutorQueueFuncType queue_fn)
+void LifeCycleStreaming<Request, Response>::SetQueueFunc(ExecutorQueueFuncType queue_fn)
 {
     m_QueuingFunc = queue_fn;
 }

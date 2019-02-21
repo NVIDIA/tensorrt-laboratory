@@ -33,7 +33,7 @@
 #include <glog/logging.h>
 #include <grpcpp/grpcpp.h>
 
-#include "nvrpc/client/bidirectional.h"
+#include "nvrpc/client/client_streaming.h"
 #include "nvrpc/client/executor.h"
 
 using grpc::Channel;
