@@ -29,16 +29,39 @@
 #include "tensorrt/laboratory/core/resources.h"
 #include "tensorrt/laboratory/core/thread_pool.h"
 
+#include "nvrpc/life_cycle_streaming.h"
+
+#include "testing.pb.h"
+#include "testing.grpc.pb.h"
+
 namespace nvrpc {
 namespace testing {
 
 struct TestResources : public ::trtlab::Resources
 {
     TestResources(int numThreadsInPool = 3);
+
+    using Stream = std::shared_ptr<LifeCycleStreaming<Input, Output>::ServerStream>;
+    using StreamID = std::size_t;
+    using Counter = std::size_t;
+
     ::trtlab::ThreadPool& AcquireThreadPool();
+
+    void StreamManagerInit();
+    void StreamManagerFini();
+    void StreamManagerWorker();
+
+    void IncrementStreamCount(Stream);
+    void CloseStream(Stream);
 
   private:
     ::trtlab::ThreadPool m_ThreadPool;
+
+    bool m_Running;
+    std::mutex m_MessageMutex;
+    std::map<StreamID, Stream> m_Streams;
+    std::map<StreamID, Counter> m_MessagesRecv;
+    std::map<StreamID, Counter> m_MessagesSent;
 };
 
 }

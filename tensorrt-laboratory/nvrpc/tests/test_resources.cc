@@ -29,13 +29,81 @@
 namespace nvrpc {
 namespace testing {
 
-TestResources::TestResources(int numThreadsInPool)
-    : m_ThreadPool(numThreadsInPool) {}
+TestResources::TestResources(int numThreadsInPool) : m_ThreadPool(numThreadsInPool) {}
 
 ::trtlab::ThreadPool& TestResources::AcquireThreadPool()
 {
     return m_ThreadPool;
 }
 
+void TestResources::StreamManagerInit()
+{
+    std::lock_guard<std::mutex> lock(m_MessageMutex);
+    m_Running = true;
+    m_ThreadPool.enqueue([this]() mutable { StreamManagerWorker(); });
 }
+
+void TestResources::StreamManagerFini()
+{
+    std::lock_guard<std::mutex> lock(m_MessageMutex);
+    m_Running = false;
+}
+
+void TestResources::StreamManagerWorker()
+{
+    while(m_Running)
+    {
+        {
+            std::lock_guard<std::mutex> lock(m_MessageMutex);
+            for(auto& item : m_Streams)
+            {
+                LOG_FIRST_N(INFO, 10) << "Progress Engine";
+                auto stream_id = item.first;
+                auto& stream = item.second;
+
+                for(size_t i = m_MessagesSent[stream_id] + 1; i <= m_MessagesRecv[stream_id]; i++)
+                {
+                    DLOG(INFO) << "Writing: " << i;
+                    Output output;
+                    output.set_batch_id(i);
+                    stream->WriteResponse(std::move(output));
+                }
+
+                m_MessagesSent[stream_id] = m_MessagesRecv[stream_id];
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
+    }
+}
+
+void TestResources::CloseStream(Stream stream)
+{
+    std::lock_guard<std::mutex> lock(m_MessageMutex);
+    auto stream_id = stream->StreamID();
+
+    m_Streams.erase(stream_id);
+    m_MessagesRecv.erase(stream_id);
+    m_MessagesSent.erase(stream_id);
+
+    DLOG(INFO) << "****** Client Closed ****** ";
+    stream->FinishStream();
+}
+
+void TestResources::IncrementStreamCount(Stream stream)
+{
+    std::lock_guard<std::mutex> lock(m_MessageMutex);
+    auto stream_id = stream->StreamID();
+    auto search = m_Streams.find(stream_id);
+    if(search == m_Streams.end())
+    {
+        m_Streams[stream_id] = stream;
+        m_MessagesRecv[stream_id] = 1;
+    }
+    else
+    {
+        m_MessagesRecv[stream_id]++;
+    }
+}
+
+} // namespace testing
 } // namespace nvrpc

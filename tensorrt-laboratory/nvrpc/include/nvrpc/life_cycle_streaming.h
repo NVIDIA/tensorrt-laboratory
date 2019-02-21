@@ -73,12 +73,13 @@ class LifeCycleStreaming : public IContextLifeCycle
 
     ~LifeCycleStreaming() override {}
 
+    class ServerStream;
+
   protected:
     LifeCycleStreaming();
     void SetQueueFunc(ExecutorQueueFuncType);
 
     // template<typename RequestType, typename ResponseType>
-    class ServerStream;
 
     // Called immediately on receiving a Request
     // The ServerStream object provides the response interface
@@ -87,6 +88,7 @@ class LifeCycleStreaming : public IContextLifeCycle
     virtual void RequestReceived(Request&&, std::shared_ptr<ServerStream>) = 0;
     virtual void RequestsFinished(std::shared_ptr<ServerStream>) {}
 
+  public:
     // template<typename RequestType, typename ResponseType>
     class ServerStream
     {
@@ -108,7 +110,7 @@ class LifeCycleStreaming : public IContextLifeCycle
                 DLOG(WARNING) << "Attempted to get ID of a disconnected stream";
                 return 0UL;
             }
-            return static_cast<std::uint64_t>(m_Master->Tag());
+            return reinterpret_cast<std::uint64_t>(m_Master->Tag());
         }
 
         bool WriteResponse(ResponseType&& response)
@@ -161,6 +163,7 @@ class LifeCycleStreaming : public IContextLifeCycle
         friend class LifeCycleStreaming<Request, Response>;
     };
 
+  protected:
     template<class RequestType, class ResponseType>
     class StateContext : public IContext
     {
