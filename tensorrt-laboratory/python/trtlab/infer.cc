@@ -115,6 +115,15 @@ class PyInferenceManager final : public InferenceManager
     {
         BasicInferService(casted_shared_from_this<PyInferenceManager>(), port);
     }
+
+    std::vector<std::string> Models()
+    {
+        std::vector<std::string> model_names;
+        ForEachModel([&model_names](const Model& model) {
+            model_names.push_back(model.Name());
+        });
+        return model_names;
+    }
 };
 
 class PyRemoteInferenceManager
@@ -686,6 +695,7 @@ PYBIND11_MODULE(trtlab, m)
         .def("update_resources", &PyInferenceManager::AllocateResources)
         .def("infer_runner", &PyInferenceManager::InferRunner)
         .def("get_model", &PyInferenceManager::GetModel)
+        .def("get_models", &PyInferenceManager::Models)
         .def("serve", &PyInferenceManager::Serve, py::arg("port") = 50052);
     // py::call_guard<py::gil_scoped_release>());
 
