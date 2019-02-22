@@ -165,6 +165,9 @@ int main(int argc, char*argv[])
         LOG(INFO) << runner->GetModel().Name() << " batching window: " << batching_window;
     }
 
+    auto smallest_runner = runners_by_batch_size.upper_bound(0)->second;
+    runners_by_batching_window[std::numeric_limits<double>::max()] = smallest_runner;
+
     struct WorkPacket
     {
         std::chrono::nanoseconds start;
