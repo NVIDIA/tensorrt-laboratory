@@ -39,7 +39,7 @@ class DeviceMemory : public BaseMemory<DeviceMemory>
     const std::string& Type() const override;
 
     void Fill(char) override;
-    size_t DefaultAlignment() const override;
+    static size_t DefaultAlignment();
 };
 
 

@@ -116,7 +116,6 @@ class CoreMemory
 
     // Implemented by BaseMemory classes, e.g. HostMemory or DeviceMemory
     virtual void Fill(char) = 0;
-    virtual size_t DefaultAlignment() const = 0;
 
   private:
     void* m_MemoryAddress;
@@ -131,7 +130,25 @@ class BaseMemory : public CoreMemory
     using CoreMemory::CoreMemory;
     using BaseType = MemoryType;
 
+    static size_t AllocationSizeWithAlignment(size_t);
+
+/*
+    // This does not work :-/
+    template<typename T>
+    static size_t AllocationSizeWithAlignment(size_t count_of_type)
+    {
+        size_t size = count_of_type * sizeof(T);
+        return MemoryType::AllocationSizeWithAlignment(size);
+    }
+*/
 };
 
+template<class MemoryType>
+size_t BaseMemory<MemoryType>::AllocationSizeWithAlignment(size_t size_in_bytes)
+{
+    size_t alignment = MemoryType::DefaultAlignment();
+    size_t remainder = size_in_bytes % alignment;
+    return (remainder == 0) ? size_in_bytes : size_in_bytes + alignment - remainder;
+}
 
 } // namespace trtlab

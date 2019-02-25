@@ -102,6 +102,24 @@ TYPED_TEST(TestMemory, move_to_shared_ptr)
     EXPECT_TRUE(ptr->Data());
 }
 
+TYPED_TEST(TestMemory, alignment)
+{
+    EXPECT_EQ(TypeParam::DefaultAlignment(), 64);
+    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment(1), 64);
+    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment(64), 64);
+    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment(65), 128);
+
+/*
+    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<float>(15), 64);
+    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<float>(16), 64);
+    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<float>(17), 128);
+
+    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<double>(7), 64);
+    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<double>(8), 64);
+    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<double>(9), 128);
+*/
+}
+
 class TestSystemVMemory : public ::testing::Test
 {
 };

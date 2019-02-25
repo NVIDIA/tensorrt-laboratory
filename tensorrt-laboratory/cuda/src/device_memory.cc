@@ -35,7 +35,7 @@
 namespace trtlab {
 
 
-size_t DeviceMemory::DefaultAlignment() const
+size_t DeviceMemory::DefaultAlignment()
 {
     return DeviceInfo::Alignment();
 }

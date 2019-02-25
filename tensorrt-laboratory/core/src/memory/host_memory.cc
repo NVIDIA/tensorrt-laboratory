@@ -41,7 +41,7 @@ const std::string& HostMemory::Type() const
     return type;
 }
 
-size_t HostMemory::DefaultAlignment() const
+size_t HostMemory::DefaultAlignment()
 {
     return 64;
 }
