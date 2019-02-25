@@ -29,7 +29,6 @@
 
 namespace trtlab {
 
-
 /**
  * @brief Abstract base Memory class
  *
@@ -132,15 +131,15 @@ class BaseMemory : public CoreMemory
 
     static size_t AllocationSizeWithAlignment(size_t);
 
-/*
-    // This does not work :-/
-    template<typename T>
-    static size_t AllocationSizeWithAlignment(size_t count_of_type)
-    {
-        size_t size = count_of_type * sizeof(T);
-        return MemoryType::AllocationSizeWithAlignment(size);
-    }
-*/
+    /*
+        // This does not work :-/
+        template<typename T>
+        static size_t AllocationSizeWithAlignment(size_t count_of_type)
+        {
+            size_t size = count_of_type * sizeof(T);
+            return MemoryType::AllocationSizeWithAlignment(size);
+        }
+    */
 };
 
 template<class MemoryType>

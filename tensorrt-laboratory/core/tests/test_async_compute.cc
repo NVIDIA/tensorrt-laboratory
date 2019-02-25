@@ -43,7 +43,7 @@ TEST_F(TestAsyncCompute, EvenTest)
         AsyncComputeWrapper<void(int)>::Wrap([](int i) -> bool { return (bool)((i % 2) == 0); });
 
     /*
-    // fails to compile: the class was defined to accept a user function with only 1 int, not 2 
+    // fails to compile: the class was defined to accept a user function with only 1 int, not 2
     auto compute2ints = AsyncComputeWrapper<void(int)>::Wrap([](int i, int j) -> bool {
          return (bool)((i % 2) == 0);
     });
@@ -86,9 +86,7 @@ TEST_F(TestAsyncCompute, ReturnUniquePtr)
 
 TEST_F(TestAsyncCompute, ReturnVoid)
 {
-    auto compute = AsyncComputeWrapper<void(int)>::Wrap([](int i) {
-        LOG(INFO) << "Inner";
-    });
+    auto compute = AsyncComputeWrapper<void(int)>::Wrap([](int i) { LOG(INFO) << "Inner"; });
 
     auto future = compute->Future();
     (*compute)(41);
@@ -110,7 +108,7 @@ TEST_F(TestAsyncCompute, ReturnBoolInputs1xInt)
                     (*compute)(i);
                 })
             }
-            
+
         }
       protected:
         template<typename T, typename... Args>

@@ -30,7 +30,6 @@
 
 namespace trtlab {
 
-
 // Malloc
 
 void* Malloc::Allocate(size_t size)
@@ -50,6 +49,5 @@ const std::string& Malloc::Type() const
     static std::string type = "Malloc";
     return type;
 }
-
 
 } // namespace trtlab

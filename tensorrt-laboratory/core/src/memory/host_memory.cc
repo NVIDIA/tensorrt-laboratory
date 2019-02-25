@@ -32,7 +32,6 @@
 
 namespace trtlab {
 
-
 // HostMemory
 
 const std::string& HostMemory::Type() const
@@ -50,6 +49,5 @@ void HostMemory::Fill(char fill_value)
 {
     std::memset(Data(), fill_value, Size());
 }
-
 
 } // namespace trtlab

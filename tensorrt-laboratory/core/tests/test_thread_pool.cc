@@ -66,14 +66,19 @@ TEST_F(TestThreadPool, CaptureThis)
     class ObjectThatOwnsAThreadPool
     {
         class ValueObject;
+
       public:
-        ObjectThatOwnsAThreadPool() : m_ThreadPool(std::move(std::make_unique<ThreadPool>(1))), 
-                                      m_Object(std::move(std::make_unique<ValueObject>())) {}
+        ObjectThatOwnsAThreadPool()
+            : m_ThreadPool(std::move(std::make_unique<ThreadPool>(1))),
+              m_Object(std::move(std::make_unique<ValueObject>()))
+        {
+        }
 
         DELETE_COPYABILITY(ObjectThatOwnsAThreadPool);
         DELETE_MOVEABILITY(ObjectThatOwnsAThreadPool);
 
-        ~ObjectThatOwnsAThreadPool() {
+        ~ObjectThatOwnsAThreadPool()
+        {
             LOG(INFO) << "Destroying ObjectThatOwnsAThreadPool: " << this;
         }
         auto test()
@@ -88,12 +93,16 @@ TEST_F(TestThreadPool, CaptureThis)
         }
 
       private:
-        class ValueObject {
+        class ValueObject
+        {
           public:
             ValueObject() : value(42) {}
             DELETE_COPYABILITY(ValueObject);
             DELETE_MOVEABILITY(ValueObject);
-            ~ValueObject() { LOG(INFO) << "Destroying ValueObject"; }
+            ~ValueObject()
+            {
+                LOG(INFO) << "Destroying ValueObject";
+            }
             int value;
         };
         std::unique_ptr<ValueObject> m_Object;

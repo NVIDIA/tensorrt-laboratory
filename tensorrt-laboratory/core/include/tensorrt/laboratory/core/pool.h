@@ -31,8 +31,7 @@
 #include <mutex>
 #include <queue>
 
-namespace trtlab
-{
+namespace trtlab {
 /**
  * @brief Templated Thread-safe Queue
  *
@@ -148,7 +147,6 @@ class Pool : public Queue<std::shared_ptr<ResourceType>>
      * @return std::shared_ptr<Pool<ResourceType>>
      */
 
-
     static std::shared_ptr<Pool<ResourceType>> Create()
     {
         return std::shared_ptr<Pool<ResourceType>>(new Pool<ResourceType>());
@@ -185,11 +183,12 @@ class Pool : public Queue<std::shared_ptr<ResourceType>>
     {
         auto pool_ptr = this->shared_from_this();
         auto from_pool = Queue<std::shared_ptr<ResourceType>>::Pop();
-        std::shared_ptr<ResourceType> ptr(from_pool.get(), [from_pool, pool_ptr, onReturn](auto p) mutable {
-            onReturn(p);
-            pool_ptr->Push(std::move(from_pool));
-            pool_ptr.reset();
-        });
+        std::shared_ptr<ResourceType> ptr(from_pool.get(),
+                                          [from_pool, pool_ptr, onReturn](auto p) mutable {
+                                              onReturn(p);
+                                              pool_ptr->Push(std::move(from_pool));
+                                              pool_ptr.reset();
+                                          });
         return ptr;
     }
 

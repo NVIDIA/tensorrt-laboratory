@@ -35,7 +35,6 @@
 
 namespace trtlab {
 
-
 template<typename MemoryType>
 class SmartStack : public MemoryStack<MemoryType>,
                    public std::enable_shared_from_this<SmartStack<MemoryType>>
@@ -109,6 +108,5 @@ class SmartStack : public MemoryStack<MemoryType>,
         return std::move(ret);
     }
 };
-
 
 } // namespace trtlab

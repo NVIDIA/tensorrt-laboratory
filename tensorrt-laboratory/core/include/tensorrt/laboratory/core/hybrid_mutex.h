@@ -40,7 +40,8 @@
 /**
  *
  */
-inline int sys_futex(void* addr1, int op, int val1, const struct timespec* timeout, void* addr2, int val3) noexcept
+inline int sys_futex(void* addr1, int op, int val1, const struct timespec* timeout, void* addr2,
+                     int val3) noexcept
 {
     return syscall(SYS_futex, addr1, op, val1, timeout, addr2, val3);
 }
@@ -55,22 +56,14 @@ class alignas(16) hybrid_mutex final
 
     friend class hybrid_condition;
 
-public:
+  public:
     /**
      */
-    constexpr hybrid_mutex() noexcept
-        : m_spins(1U)
-        , m_lock(0x0)
-    {
-    }
+    constexpr hybrid_mutex() noexcept : m_spins(1U), m_lock(0x0) {}
 
     /**
      */
-    constexpr hybrid_mutex(uint32_t spins) noexcept
-        : m_spins(spins)
-        , m_lock(0x0)
-    {
-    }
+    constexpr hybrid_mutex(uint32_t spins) noexcept : m_spins(spins), m_lock(0x0) {}
 
     /**
      */
@@ -84,11 +77,11 @@ public:
     void lock() noexcept
     {
         // try and spin first
-        for (uint32_t i = 0U; i < m_spins; i++)
+        for(uint32_t i = 0U; i < m_spins; i++)
         {
             // do atomic exchange, returns previous value. if the previous
             // value was 0, i.e. unlocked, we acquired the lock.
-            if (!__atomic_exchange_n(&m_lock.locked, 0x1, __ATOMIC_ACQUIRE))
+            if(!__atomic_exchange_n(&m_lock.locked, 0x1, __ATOMIC_ACQUIRE))
             {
                 return;
             }
@@ -101,9 +94,9 @@ public:
         // exchange with both the locked and contended bits set.
         // if the previous value is still locked, i.e. 0x1,
         // we need to go into the kernel and sleep
-        while (__atomic_exchange_n(&m_lock.u, 0x101, __ATOMIC_ACQUIRE) & 0x1)
+        while(__atomic_exchange_n(&m_lock.u, 0x101, __ATOMIC_ACQUIRE) & 0x1)
         {
-            (void) sys_futex(&m_lock.u, FUTEX_WAIT_PRIVATE, 0x101, nullptr, nullptr, 0);
+            (void)sys_futex(&m_lock.u, FUTEX_WAIT_PRIVATE, 0x101, nullptr, nullptr, 0);
         }
     }
 
@@ -111,7 +104,7 @@ public:
      */
     bool try_lock() noexcept
     {
-        if (!__atomic_exchange_n(&m_lock.locked, 0x1, __ATOMIC_ACQUIRE))
+        if(!__atomic_exchange_n(&m_lock.locked, 0x1, __ATOMIC_ACQUIRE))
         {
             return true;
         }
@@ -128,16 +121,12 @@ public:
         // locked and not contended
         // if we are locked without contention, i.e. only the locked flag is set,
         // attempt to atomically compare and swap to unlock
-        if (m_lock.u == 0x1)
+        if(m_lock.u == 0x1)
         {
             uint32_t locked = 0x1;
 
-            if (__atomic_compare_exchange_n(&m_lock.u,
-                                            &locked,
-                                            0x0,
-                                            false,
-                                            __ATOMIC_ACQ_REL,
-                                            __ATOMIC_ACQUIRE))
+            if(__atomic_compare_exchange_n(&m_lock.u, &locked, 0x0, false, __ATOMIC_ACQ_REL,
+                                           __ATOMIC_ACQUIRE))
             {
                 return;
             }
@@ -149,10 +138,11 @@ public:
         // spin, hoping someone takes the lock
         // if someone takes the lock under the spin
         // we can avoid going to the kernel
-        // note: if m_spins * 2 overflows, there is no check here... though that many spins is dumb...
-        for (uint32_t i = 0U; i < m_spins * 2U; i++)
+        // note: if m_spins * 2 overflows, there is no check here... though that many spins is
+        // dumb...
+        for(uint32_t i = 0U; i < m_spins * 2U; i++)
         {
-            if (m_lock.locked)
+            if(m_lock.locked)
             {
                 return;
             }
@@ -169,10 +159,10 @@ public:
         m_lock.contended = 0x0;
 
         // tell the kernel to wake up 1 thread waiting on mLock address
-        (void) sys_futex(&m_lock.u, FUTEX_WAKE_PRIVATE, 1, nullptr, nullptr, 0);
+        (void)sys_futex(&m_lock.u, FUTEX_WAKE_PRIVATE, 1, nullptr, nullptr, 0);
     }
 
-private:
+  private:
     uint32_t m_spins; ///< number of spins before going to OS
 
     /*
@@ -197,4 +187,3 @@ private:
         };
     } m_lock;
 };
-

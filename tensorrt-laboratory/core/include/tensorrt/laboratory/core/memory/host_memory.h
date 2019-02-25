@@ -31,7 +31,6 @@
 
 namespace trtlab {
 
-
 class HostMemory : public BaseMemory<HostMemory>
 {
   public:
@@ -41,6 +40,5 @@ class HostMemory : public BaseMemory<HostMemory>
     void Fill(char) override;
     static size_t DefaultAlignment();
 };
-
 
 } // namespace trtlab

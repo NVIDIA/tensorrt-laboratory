@@ -32,12 +32,13 @@
     foo(const foo&) = delete;   \
     foo& operator=(const foo& other) = delete;
 
-#define DELETE_MOVEABILITY(foo) \
-    foo(foo&&) noexcept = delete;        \
-    foo& operator=(foo&& other) noexcept= delete;
+#define DELETE_MOVEABILITY(foo)   \
+    foo(foo&&) noexcept = delete; \
+    foo& operator=(foo&& other) noexcept = delete;
 
-namespace trtlab
-{
+namespace trtlab {
+
 std::string BytesToString(std::size_t bytes);
 std::size_t StringToBytes(const std::string);
+
 } // namespace trtlab

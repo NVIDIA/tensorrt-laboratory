@@ -67,8 +67,7 @@
 
 #include <glog/logging.h>
 
-namespace trtlab
-{
+namespace trtlab {
 
 template<typename MutexType, typename ConditionType>
 class BaseThreadPool;
@@ -208,12 +207,15 @@ auto BaseThreadPool<MutexType, ConditionType>::enqueue(F&& f, Args&&... args)
 }
 
 template<typename MutexType, typename ConditionType>
-BaseThreadPool<MutexType, ConditionType>::BaseThreadPool(size_t nThreads) : BaseThreadPool(nThreads, Affinity::GetAffinity())
+BaseThreadPool<MutexType, ConditionType>::BaseThreadPool(size_t nThreads)
+    : BaseThreadPool(nThreads, Affinity::GetAffinity())
 {
 }
 
 template<typename MutexType, typename ConditionType>
-BaseThreadPool<MutexType, ConditionType>::BaseThreadPool(size_t nThreads, const CpuSet& affinity_mask) : stop(false)
+BaseThreadPool<MutexType, ConditionType>::BaseThreadPool(size_t nThreads,
+                                                         const CpuSet& affinity_mask)
+    : stop(false)
 {
     for(size_t i = 0; i < nThreads; ++i)
     {
@@ -267,7 +269,8 @@ BaseThreadPool<MutexType, ConditionType>::~BaseThreadPool()
     }
     m_Condition.notify_all();
 
-    for(std::thread& worker : workers) {
+    for(std::thread& worker : workers)
+    {
         worker.join();
     }
 }

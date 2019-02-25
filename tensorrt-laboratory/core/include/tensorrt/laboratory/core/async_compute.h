@@ -76,7 +76,6 @@ struct AsyncCompute<void(Args...)>
   private:
     WrappedFn m_WrappedFn;
     std::promise<void> m_Promise;
-
 };
 
 template<typename ResultType, typename... Args>

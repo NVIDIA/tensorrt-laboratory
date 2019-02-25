@@ -29,7 +29,6 @@
 
 namespace trtlab {
 
-
 template<typename MemoryType>
 class Descriptor : public MemoryType
 {
@@ -53,7 +52,6 @@ class Descriptor : public MemoryType
 
 template<typename MemoryType>
 using DescriptorHandle = std::unique_ptr<MemoryType>;
-
 
 } // namespace trtlab
 

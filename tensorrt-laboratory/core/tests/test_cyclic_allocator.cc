@@ -24,15 +24,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "tensorrt/laboratory/core/memory/cyclic_allocator.h"
 #include "tensorrt/laboratory/core/memory/malloc.h"
 #include "tensorrt/laboratory/core/memory/system_v.h"
-#include "tensorrt/laboratory/core/memory/cyclic_allocator.h"
 #include "gtest/gtest.h"
 
 using namespace trtlab;
 
-namespace
-{
+namespace {
 
 static size_t one_mb = 1024 * 1024;
 
@@ -48,22 +47,22 @@ TYPED_TEST_CASE(TestCyclicStacks, MemoryTypes);
 TYPED_TEST(TestCyclicStacks, EmptyOnCreate)
 {
     auto stack = std::make_unique<CyclicAllocator<TypeParam>>(5, one_mb);
-    EXPECT_EQ(5,stack->AvailableSegments());
-    EXPECT_EQ(5*one_mb,stack->AvailableBytes());
+    EXPECT_EQ(5, stack->AvailableSegments());
+    EXPECT_EQ(5 * one_mb, stack->AvailableBytes());
 }
 
 TYPED_TEST(TestCyclicStacks, AddSegment)
 {
     auto stack = std::make_unique<CyclicAllocator<TypeParam>>(5, one_mb);
     stack->AddSegment();
-    EXPECT_EQ(6,stack->AvailableSegments());
+    EXPECT_EQ(6, stack->AvailableSegments());
 }
 
 TYPED_TEST(TestCyclicStacks, DropSegment)
 {
     auto stack = std::make_unique<CyclicAllocator<TypeParam>>(5, one_mb);
     stack->DropSegment();
-    EXPECT_EQ(4,stack->AvailableSegments());
+    EXPECT_EQ(4, stack->AvailableSegments());
 }
 
 TYPED_TEST(TestCyclicStacks, Allocate)
@@ -71,29 +70,30 @@ TYPED_TEST(TestCyclicStacks, Allocate)
     auto stack = std::make_unique<CyclicAllocator<TypeParam>>(5, one_mb);
     {
         auto seg_0_0 = stack->Allocate(1);
-        EXPECT_EQ(5*one_mb - stack->Alignment(),stack->AvailableBytes());
+        EXPECT_EQ(5 * one_mb - stack->Alignment(), stack->AvailableBytes());
     }
     // even though seg_0_0 is released, the current segment does not get reset/recycled
     // because the stack still owns reference to seg_0
     // a segment is only recycled after it becomes detached and its reference count goes to 0
-    EXPECT_EQ(5*one_mb - stack->Alignment(), stack->AvailableBytes());
-    
+    EXPECT_EQ(5 * one_mb - stack->Alignment(), stack->AvailableBytes());
+
     {
         auto seg_0_1 = stack->Allocate(1024);
-        EXPECT_EQ(5,stack->AvailableSegments()); // seg_0 is still active
+        EXPECT_EQ(5, stack->AvailableSegments()); // seg_0 is still active
         auto seg_1_0 = stack->Allocate(one_mb);
-        EXPECT_EQ(3,stack->AvailableSegments()); // seg_0 is detached; seg_1 detaches if capacity is 0
+        EXPECT_EQ(3,
+                  stack->AvailableSegments()); // seg_0 is detached; seg_1 detaches if capacity is 0
         auto seg_2_0 = stack->Allocate(1024);
-        EXPECT_EQ(3,stack->AvailableSegments()); // seg_2 is now active; 0 and 1 are detached
+        EXPECT_EQ(3, stack->AvailableSegments()); // seg_2 is now active; 0 and 1 are detached
         seg_1_0.reset(); // we can release seg_0/1 in any order
-        EXPECT_EQ(4,stack->AvailableSegments());
+        EXPECT_EQ(4, stack->AvailableSegments());
         seg_0_1.reset(); // we can release seg_0/1 in any order
-        EXPECT_EQ(5,stack->AvailableSegments());
+        EXPECT_EQ(5, stack->AvailableSegments());
     }
     // seg_0 has had 2 allocation, then failed to have capacity for the 3rd allocation
     // seg_1 is completely used from the 3rd allocation, but is still the active segment
     // until seg_2 is allocated
-    EXPECT_EQ(5,stack->AvailableSegments());
+    EXPECT_EQ(5, stack->AvailableSegments());
 
     {
         // everything has been released, so we can grab 5 x one_mb buffers
@@ -134,7 +134,7 @@ TYPED_TEST(TestCyclicStacks, CastToMemoryType)
 TYPED_TEST(TestCyclicStacks, AllocateShouldFail)
 {
     auto stack = std::make_unique<CyclicAllocator<TypeParam>>(5, one_mb);
-    EXPECT_DEATH(stack->Allocate(one_mb+1), "");
+    EXPECT_DEATH(stack->Allocate(one_mb + 1), "");
 }
 
 } // namespace

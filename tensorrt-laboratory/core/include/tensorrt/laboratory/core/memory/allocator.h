@@ -29,7 +29,6 @@
 
 namespace trtlab {
 
-
 template<class MemoryType>
 class Allocator final : public MemoryType
 {
@@ -43,7 +42,6 @@ class Allocator final : public MemoryType
     Allocator(const Allocator&) = delete;
     Allocator& operator=(const Allocator&) = delete;
 };
-
 
 } // namespace trtlab
 

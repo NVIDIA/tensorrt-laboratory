@@ -36,7 +36,6 @@
 
 namespace trtlab {
 
-
 /**
  * @brief CyclicAllocator
  *
@@ -101,7 +100,6 @@ class CyclicAllocator
     using RotatingSegment = SmartStack<MemoryType>;
     using Descriptor = typename RotatingSegment::StackDescriptor;
 
-
     CyclicAllocator(size_t segments, size_t bytes_per_segment)
         : m_Segments(Pool<RotatingSegment>::Create()), m_MaximumAllocationSize(bytes_per_segment)
     {
@@ -117,8 +115,8 @@ class CyclicAllocator
         m_Alignment = m_CurrentSegment->Alignment();
     }
 
-    virtual ~CyclicAllocator() 
-    { 
+    virtual ~CyclicAllocator()
+    {
         m_CurrentSegment.reset();
     }
 
@@ -132,12 +130,12 @@ class CyclicAllocator
         return m_MaximumAllocationSize;
     }
 
-/*
-    std::shared_ptr<MemoryStack<BaseType>> AllocateStack(size_t size)
-    {
-        return std::make_shared<MemoryStack<BaseType>>(InternalAllocate(size));
-    }
-*/
+    /*
+        std::shared_ptr<MemoryStack<BaseType>> AllocateStack(size_t size)
+        {
+            return std::make_shared<MemoryStack<BaseType>>(InternalAllocate(size));
+        }
+    */
     void AddSegment()
     {
         InternalPushSegment();
@@ -193,8 +191,8 @@ class CyclicAllocator
 
     void InternalPushSegment()
     {
-        //auto stack = std::make_unique<MemoryStack<MemoryType>>(m_MaximumAllocationSize);
-        //auto segment = RotatingSegment::make_shared(std::move(stack));
+        // auto stack = std::make_unique<MemoryStack<MemoryType>>(m_MaximumAllocationSize);
+        // auto segment = RotatingSegment::make_shared(std::move(stack));
         auto segment = std::make_shared<RotatingSegment>(m_MaximumAllocationSize);
         m_Segments->Push(segment);
         DLOG(INFO) << "Pushed New Rotating Segment " << segment.get() << " to Pool";
@@ -222,6 +220,5 @@ class CyclicAllocator
     const size_t m_MaximumAllocationSize;
     size_t m_Alignment;
 };
-
 
 } // namespace trtlab

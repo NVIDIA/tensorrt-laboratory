@@ -29,12 +29,10 @@
 
 namespace trtlab {
 
-
 class IAllocatable
 {
     virtual void* Allocate(size_t) = 0;
     virtual void Free() = 0;
 };
-
 
 } // namespace trtlab

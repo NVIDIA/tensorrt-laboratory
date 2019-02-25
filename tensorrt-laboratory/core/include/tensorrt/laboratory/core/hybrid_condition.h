@@ -51,25 +51,19 @@ class alignas(16) hybrid_condition final
     hybrid_condition(const hybrid_condition&) = delete;
     hybrid_condition& operator=(const hybrid_condition&) = delete;
 
-public:
+  public:
     /**
      */
-    constexpr hybrid_condition() noexcept
-        : m_mutex(nullptr)
-        , m_sequence(0)
-    {
-    }
+    constexpr hybrid_condition() noexcept : m_mutex(nullptr), m_sequence(0) {}
 
     /**
      */
-    ~hybrid_condition() noexcept
-    {
-    }
+    ~hybrid_condition() noexcept {}
 
     /** Wait for mutex to signal */
     void wait(std::unique_lock<hybrid_mutex>& lock) noexcept
     {
-        (void) wait_for_impl(lock.mutex(), std::chrono::seconds(0), std::chrono::nanoseconds(0));
+        (void)wait_for_impl(lock.mutex(), std::chrono::seconds(0), std::chrono::nanoseconds(0));
     }
 
     /**
@@ -77,7 +71,7 @@ public:
     template<typename TPredicate>
     void wait(std::unique_lock<hybrid_mutex>& lock, const TPredicate& pred)
     {
-        while (!pred())
+        while(!pred())
         {
             wait(lock);
         }
@@ -86,7 +80,8 @@ public:
     /**
      */
     template<typename TRep, typename TPeriod>
-    std::cv_status wait_for(std::unique_lock<hybrid_mutex>& lock, const std::chrono::duration<TRep, TPeriod>& rel_time)
+    std::cv_status wait_for(std::unique_lock<hybrid_mutex>& lock,
+                            const std::chrono::duration<TRep, TPeriod>& rel_time)
     {
         auto rtime = rel_time;
         auto seconds = std::chrono::duration_cast<std::chrono::seconds>(rtime);
@@ -98,11 +93,12 @@ public:
     /**
      */
     template<typename TRep, typename TPeriod, typename TPredicate>
-    bool wait_for(std::unique_lock<hybrid_mutex>& lock, const std::chrono::duration<TRep, TPeriod>& rel_time, TPredicate pred)
+    bool wait_for(std::unique_lock<hybrid_mutex>& lock,
+                  const std::chrono::duration<TRep, TPeriod>& rel_time, TPredicate pred)
     {
-        while (!pred())
+        while(!pred())
         {
-            if (wait_for(lock, rel_time) == std::cv_status::timeout)
+            if(wait_for(lock, rel_time) == std::cv_status::timeout)
             {
                 return pred();
             }
@@ -115,7 +111,7 @@ public:
     void notify_one() noexcept
     {
         // if no waiters, just return
-        if (m_mutex == nullptr)
+        if(m_mutex == nullptr)
         {
             return;
         }
@@ -124,7 +120,7 @@ public:
         __atomic_fetch_add(&m_sequence, 1, __ATOMIC_ACQ_REL);
 
         // wake up one thread
-        (void) sys_futex(&m_sequence, FUTEX_WAKE_PRIVATE, 1, nullptr, nullptr, 0);
+        (void)sys_futex(&m_sequence, FUTEX_WAKE_PRIVATE, 1, nullptr, nullptr, 0);
     }
 
     /** Notify all waiting threads to wake */
@@ -133,7 +129,7 @@ public:
         hybrid_mutex* mutex = m_mutex;
 
         // if no waiters, just return
-        if (mutex == nullptr)
+        if(mutex == nullptr)
         {
             return;
         }
@@ -143,34 +139,28 @@ public:
 
         // wake one thread, requeue the rest, avoids thundering herd
         // wakes up one thread, requeues all remaining threads on mutex's queue
-        (void) sys_futex(&m_sequence,
-                         FUTEX_CMP_REQUEUE_PRIVATE,
-                         1,
-                         reinterpret_cast<struct timespec*>(std::numeric_limits<int32_t>::max()),
-                         &mutex->m_lock,
-                         m_sequence);
+        (void)sys_futex(&m_sequence, FUTEX_CMP_REQUEUE_PRIVATE, 1,
+                        reinterpret_cast<struct timespec*>(std::numeric_limits<int32_t>::max()),
+                        &mutex->m_lock, m_sequence);
     }
 
-private:
+  private:
     hybrid_mutex* m_mutex;
     int32_t m_sequence;
 
     /// wait for implementation
-    std::cv_status wait_for_impl(hybrid_mutex* mutex, const std::chrono::seconds& seconds, const std::chrono::nanoseconds& nanoseconds) noexcept
+    std::cv_status wait_for_impl(hybrid_mutex* mutex, const std::chrono::seconds& seconds,
+                                 const std::chrono::nanoseconds& nanoseconds) noexcept
     {
         // expected sequence number
         int sequence = m_sequence;
 
-        if (m_mutex != mutex)
+        if(m_mutex != mutex)
         {
             hybrid_mutex* expected = nullptr;
 
             // atomically set mutex ptr
-            __atomic_compare_exchange_n(&m_mutex,
-                                        &expected,
-                                        mutex,
-                                        false,
-                                        __ATOMIC_ACQ_REL,
+            __atomic_compare_exchange_n(&m_mutex, &expected, mutex, false, __ATOMIC_ACQ_REL,
                                         __ATOMIC_ACQUIRE);
 
             // make sure this condition variable is not
@@ -186,7 +176,7 @@ private:
         struct timespec timeout;
 
         // if any timeout is set, setup time struct
-        if (seconds.count() > 0 || nanoseconds.count() > 0)
+        if(seconds.count() > 0 || nanoseconds.count() > 0)
         {
             timeout.tv_sec = seconds.count();
             timeout.tv_nsec = nanoseconds.count();
@@ -199,25 +189,26 @@ private:
         std::cv_status status = std::cv_status::no_timeout;
 
         // if interrupted.. continue.. and try again..
-        while ((ret = sys_futex(&m_sequence, FUTEX_WAIT_PRIVATE, sequence, timeoutptr, nullptr, 0)) == -1 && errno == EINTR)
+        while((ret = sys_futex(&m_sequence, FUTEX_WAIT_PRIVATE, sequence, timeoutptr, nullptr,
+                               0)) == -1 &&
+              errno == EINTR)
         {
             continue;
         }
 
         // return false if we had timeout waiting to be notified
-        if (ret == -1 && errno == ETIMEDOUT)
+        if(ret == -1 && errno == ETIMEDOUT)
         {
             status = std::cv_status::timeout;
         }
 
         // awoke, we need to aquire then lock before we exit
         // slight bit of code duplication here with regard to hybrid_mutex::lock()
-        while (__atomic_exchange_n(&mutex->m_lock.u, 0x101, __ATOMIC_ACQUIRE) & 0x1)
+        while(__atomic_exchange_n(&mutex->m_lock.u, 0x101, __ATOMIC_ACQUIRE) & 0x1)
         {
-            (void) sys_futex(&mutex->m_lock.u, FUTEX_WAIT_PRIVATE, 0x101, nullptr, nullptr, 0);
+            (void)sys_futex(&mutex->m_lock.u, FUTEX_WAIT_PRIVATE, 0x101, nullptr, nullptr, 0);
         }
 
         return status;
     }
 };
-

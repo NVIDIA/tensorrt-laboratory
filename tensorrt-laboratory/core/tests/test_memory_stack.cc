@@ -24,23 +24,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/core/memory/malloc.h"
-#include "tensorrt/laboratory/core/memory/system_v.h"
 #include "tensorrt/laboratory/core/memory/cyclic_allocator.h"
+#include "tensorrt/laboratory/core/memory/malloc.h"
 #include "tensorrt/laboratory/core/memory/memory_stack.h"
 #include "tensorrt/laboratory/core/memory/smart_stack.h"
+#include "tensorrt/laboratory/core/memory/system_v.h"
 
 #include "gtest/gtest.h"
 
 using namespace trtlab;
 using namespace trtlab;
 
-namespace
-{
+namespace {
 
 static size_t one_mb = 1024 * 1024;
 
-//template <typename T>
+// template <typename T>
 class TestMemoryStack : public ::testing::Test
 {
   protected:
@@ -67,14 +66,15 @@ class TestSmartStack : public ::testing::Test
 
     virtual void TearDown()
     {
-        if(stack) stack->Reset();
+        if(stack)
+            stack->Reset();
     }
 
     std::shared_ptr<SmartStack<SystemV>> stack;
 };
 
-//using MemoryTypes = ::testing::Types<Malloc>;
-//TYPED_TEST_CASE(TestMemoryStack, MemoryTypes);
+// using MemoryTypes = ::testing::Types<Malloc>;
+// TYPED_TEST_CASE(TestMemoryStack, MemoryTypes);
 
 TEST_F(TestMemoryStack, EmptyOnCreate)
 {
@@ -104,7 +104,7 @@ TEST_F(TestMemoryStack, Unaligned)
     ASSERT_TRUE(p1);
     EXPECT_EQ(2 * stack->Alignment(), stack->Allocated());
 
-    auto len = (char *)p1 - (char *)p0;
+    auto len = (char*)p1 - (char*)p0;
     EXPECT_EQ(len, stack->Alignment());
 
     EXPECT_EQ(stack->Offset(p0), 0);
@@ -139,7 +139,7 @@ TEST_F(TestSmartStack, Unaligned)
     ASSERT_TRUE(p1);
     EXPECT_EQ(2 * stack->Alignment(), stack->Allocated());
 
-    auto len = (char *)p1->Data() - (char *)p0->Data();
+    auto len = (char*)p1->Data() - (char*)p0->Data();
     EXPECT_EQ(len, stack->Alignment());
 
     EXPECT_EQ(stack->Offset(p0->Data()), 0);

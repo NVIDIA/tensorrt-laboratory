@@ -51,7 +51,6 @@ size_t SegSize(int shm_id)
 
 namespace trtlab {
 
-
 // SystemV
 
 SystemV::SystemV(void* ptr, size_t size, bool allocated) : HostMemory(ptr, size, allocated)
@@ -140,6 +139,5 @@ int SystemV::ShmID() const
 {
     return m_ShmID;
 }
-
 
 } // namespace trtlab

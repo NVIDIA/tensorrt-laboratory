@@ -32,7 +32,6 @@
 
 namespace trtlab {
 
-
 class Malloc : public HostMemory, public IAllocatable
 {
   public:
@@ -43,6 +42,5 @@ class Malloc : public HostMemory, public IAllocatable
     void* Allocate(size_t) final override;
     void Free() final override;
 };
-
 
 } // namespace trtlab

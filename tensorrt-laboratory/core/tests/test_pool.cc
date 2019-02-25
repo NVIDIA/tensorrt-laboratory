@@ -24,25 +24,34 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "glog/logging.h"
 #include "tensorrt/laboratory/core/pool.h"
 #include "gtest/gtest.h"
-#include "glog/logging.h"
 
 using namespace trtlab;
 
 struct Object
 {
     Object(std::string name) : m_Name(name), m_Original(name) {}
-    Object(Object &&other) : m_Name(std::move(other.m_Name)) {}
+    Object(Object&& other) : m_Name(std::move(other.m_Name)) {}
     ~Object()
     {
         DLOG(INFO) << "Destroying Object " << m_Name;
     }
 
-    void SetName(std::string name) { m_Name = name; }
-    const std::string GetName() const { return m_Name; }
+    void SetName(std::string name)
+    {
+        m_Name = name;
+    }
+    const std::string GetName() const
+    {
+        return m_Name;
+    }
 
-    void Reset() { m_Name = m_Original; }
+    void Reset()
+    {
+        m_Name = m_Original;
+    }
 
   private:
     std::string m_Name;
@@ -64,9 +73,7 @@ class TestPool : public ::testing::Test
         p2->EmplacePush("Bar");
     }
 
-    virtual void TearDown()
-    {
-    }
+    virtual void TearDown() {}
 
     std::shared_ptr<Pool<Object>> p0;
     std::shared_ptr<Pool<Object>> p1;
@@ -114,9 +121,7 @@ TEST_F(TestPool, PopOnReturn)
     auto foo = std::string("Foo");
     auto bar = std::string("Bar");
     {
-        auto obj = p1->Pop([](Object *obj) {
-            obj->Reset();
-        });
+        auto obj = p1->Pop([](Object* obj) { obj->Reset(); });
         ASSERT_TRUE(obj);
         ASSERT_EQ(foo, obj->GetName());
         obj->SetName(bar);
@@ -142,9 +147,7 @@ TEST_F(TestPool, PopOnReturnWithCapture)
     auto foo = std::string("Foo");
     auto bar = std::string("Bar");
 
-    auto obj = p1->Pop([](Object *obj) {
-        obj->Reset();
-    });
+    auto obj = p1->Pop([](Object* obj) { obj->Reset(); });
     ASSERT_TRUE(obj);
     ASSERT_EQ(foo, obj->GetName());
     obj->SetName(bar);
@@ -152,11 +155,11 @@ TEST_F(TestPool, PopOnReturnWithCapture)
     ASSERT_EQ(1, obj.use_count());
 
     // Capture obj in onReturn lambda
-    auto from_p2_0 = p2->Pop([obj](Object *obj) {});
+    auto from_p2_0 = p2->Pop([obj](Object* obj) {});
     ASSERT_EQ(2, obj.use_count());
 
     // Capture obj again a second onReturn lambda
-    auto from_p2_1 = p2->Pop([obj](Object *obj) {});
+    auto from_p2_1 = p2->Pop([obj](Object* obj) {});
     ASSERT_EQ(3, obj.use_count());
 
     // Free one of the resources that captured obj

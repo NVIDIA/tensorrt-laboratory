@@ -8,7 +8,6 @@ add_library(core
   src/memory/host_memory.cc
   src/memory/malloc.cc
   src/memory/system_v.cc
-  src/thread_pool.cc
   src/utils.cc
 )
 

@@ -33,7 +33,6 @@
 
 namespace trtlab {
 
-
 /**
  * @brief General MemoryStack
  *
@@ -183,6 +182,5 @@ void MemoryStack<MemoryType>::Reset(bool writeZeros)
         m_Memory->Fill(0);
     }
 }
-
 
 } // namespace trtlab

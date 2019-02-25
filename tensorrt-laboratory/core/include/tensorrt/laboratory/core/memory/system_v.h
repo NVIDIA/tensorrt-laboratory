@@ -28,11 +28,10 @@
 #include <string>
 
 #include "tensorrt/laboratory/core/memory/allocatable.h"
-#include "tensorrt/laboratory/core/memory/host_memory.h"
 #include "tensorrt/laboratory/core/memory/descriptor.h"
+#include "tensorrt/laboratory/core/memory/host_memory.h"
 
 namespace trtlab {
-
 
 class SystemV : public HostMemory, public IAllocatable
 {
@@ -62,6 +61,5 @@ class SystemV : public HostMemory, public IAllocatable
   private:
     int m_ShmID;
 };
-
 
 } // namespace trtlab
