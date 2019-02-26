@@ -431,7 +431,7 @@ bool LifeCycleStreaming<Request, Response>::StateInitializedDone(bool ok)
 {
     if(!ok)
     {
-        LOG_FIRST_N(ERROR, 10) << "Stream Initialization Failed - Server Shutting Down";
+        DLOG(INFO) << "Stream Initialization Failed - Server Shutting Down";
         return false;
     }
 
