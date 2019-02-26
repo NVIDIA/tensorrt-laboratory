@@ -54,10 +54,7 @@ class PingPongTest : public ::testing::Test
 {
     void SetUp() override
     {
-        m_BackgroundThreads = std::make_unique<::trtlab::ThreadPool>(1);
         m_Server = BuildServer<PingPongUnaryContext, PingPongStreamingContext>();
-
-        auto executor = std::make_shared<client::Executor>(1);
     }
 
     void TearDown() override
@@ -67,12 +64,10 @@ class PingPongTest : public ::testing::Test
             m_Server->Shutdown();
             m_Server.reset();
         }
-        m_BackgroundThreads.reset();
     }
 
   protected:
     std::unique_ptr<Server> m_Server;
-    std::unique_ptr<::trtlab::ThreadPool> m_BackgroundThreads;
 };
 
 TEST_F(PingPongTest, functionality)
@@ -105,13 +100,15 @@ TEST_F(PingPongTest, functionality)
         input.set_batch_id(i);
         EXPECT_TRUE(stream->Write(std::move(input)));
     }
+
     auto future = stream->Done();
-    // auto future = stream->Status();
     auto status = future.get();
+
+    EXPECT_TRUE(status.ok());
     EXPECT_EQ(count, 0UL);
     EXPECT_EQ(send_count, recv_count);
-
     EXPECT_TRUE(m_Server->Running());
+
     m_Server->Shutdown();
     EXPECT_FALSE(m_Server->Running());
 }
