@@ -106,6 +106,8 @@ struct ClientStreaming : public BaseContext
     std::unique_ptr<::grpc::ClientAsyncReaderWriter<Request, Response>> m_Stream;
     std::promise<::grpc::Status> m_Promise;
 
+    PrepareFn m_PrepareFn;
+
     ReadCallback m_ReadCallback;
     WriteCallback m_WriteCallback;
 
@@ -150,15 +152,16 @@ template<typename Request, typename Response>
 ClientStreaming<Request, Response>::ClientStreaming(PrepareFn prepare_fn,
                                                     std::shared_ptr<Executor> executor,
                                                     WriteCallback OnWrite, ReadCallback OnRead)
-    : m_Executor(executor), m_ReadState(this), m_WriteState(this), m_ReadCallback(OnRead),
-      m_WriteCallback(OnWrite), m_Reading(false), m_Writing(false), m_Finishing(false),
-      m_Closing(false), m_ReadsDone(false), m_WritesDone(false), m_FinishDone(false)
+    : m_Executor(executor), m_PrepareFn(prepare_fn), m_ReadState(this), m_WriteState(this),
+      m_ReadCallback(OnRead), m_WriteCallback(OnWrite), m_Reading(false), m_Writing(false),
+      m_Finishing(false), m_Closing(false), m_ReadsDone(false), m_WritesDone(false),
+      m_FinishDone(false)
 {
     m_NextState = &ClientStreaming<Request, Response>::StateStreamInitialized;
     m_ReadState.m_NextState = &ClientStreaming<Request, Response>::StateInvalid;
     m_WriteState.m_NextState = &ClientStreaming<Request, Response>::StateInvalid;
 
-    m_Stream = prepare_fn(&m_Context, m_Executor->GetNextCQ());
+    m_Stream = m_PrepareFn(&m_Context, m_Executor->GetNextCQ());
     m_Stream->StartCall(this->Tag());
 }
 
