@@ -66,6 +66,7 @@ target_link_libraries(test_nvrpc
   PRIVATE 
     ${PROJECT_NAME}::core
     nvrpc
+    nvrpc-client
     nvrpc-testing-protos
     ${GTEST_BOTH_LIBRARIES}
 )

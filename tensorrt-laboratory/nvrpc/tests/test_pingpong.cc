@@ -27,6 +27,13 @@
 
 #include "test_pingpong.h"
 
+#include "nvrpc/server.h"
+
+#include "test_build_server.h"
+#include "test_build_client.h"
+
+#include <gtest/gtest.h>
+
 namespace nvrpc {
 namespace testing {
 
@@ -41,6 +48,72 @@ void PingPongStreamingContext::RequestReceived(Input&& input, std::shared_ptr<Se
     Output output;
     output.set_batch_id(input.batch_id());
     stream->WriteResponse(std::move(output));
+}
+
+class PingPongTest : public ::testing::Test
+{
+    void SetUp() override
+    {
+        m_BackgroundThreads = std::make_unique<::trtlab::ThreadPool>(1);
+        m_Server = BuildServer<PingPongUnaryContext, PingPongStreamingContext>();
+
+        auto executor = std::make_shared<client::Executor>(1);
+    }
+
+    void TearDown() override
+    {
+        if(m_Server)
+        {
+            m_Server->Shutdown();
+            m_Server.reset();
+        }
+        m_BackgroundThreads.reset();
+    }
+
+  protected:
+    std::unique_ptr<Server> m_Server;
+    std::unique_ptr<::trtlab::ThreadPool> m_BackgroundThreads;
+};
+
+TEST_F(PingPongTest, functionality)
+{
+    m_Server->AsyncStart();
+    EXPECT_TRUE(m_Server->Running());
+
+    std::mutex mutex;
+    std::size_t count = 0;
+    std::size_t recv_count = 0;
+    std::size_t send_count = 1000;
+
+    auto on_recv = [&mutex, &count, &recv_count](Output&& response) {
+        static size_t last = 0;
+        EXPECT_EQ(++last, response.batch_id());
+        std::lock_guard<std::mutex> lock(mutex);
+        --count;
+        ++recv_count;
+    };
+
+    auto stream = BuildStreamingClient([](Input&&) {}, on_recv);
+
+    for(int i = 1; i <= send_count; i++)
+    {
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            ++count;
+        }
+        Input input;
+        input.set_batch_id(i);
+        EXPECT_TRUE(stream->Write(std::move(input)));
+    }
+    auto future = stream->Done();
+    // auto future = stream->Status();
+    auto status = future.get();
+    EXPECT_EQ(count, 0UL);
+    EXPECT_EQ(send_count, recv_count);
+
+    EXPECT_TRUE(m_Server->Running());
+    m_Server->Shutdown();
+    EXPECT_FALSE(m_Server->Running());
 }
 
 } // namespace testing
