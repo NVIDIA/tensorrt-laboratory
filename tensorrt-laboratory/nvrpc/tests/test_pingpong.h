@@ -54,5 +54,12 @@ class PingPongStreamingEarlyFinishContext final : public StreamingContext<Input,
     size_t m_Counter;
 };
 
+class PingPongStreamingEarlyCancelContext final : public StreamingContext<Input, Output, TestResources>
+{
+    void RequestReceived(Input&& input, std::shared_ptr<ServerStream> stream) final override;
+    void RequestsFinished(std::shared_ptr<ServerStream>) final override;
+
+    size_t m_Counter;
+};
 } // namespace testing
 } // namespace nvrpc

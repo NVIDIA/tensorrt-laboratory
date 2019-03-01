@@ -348,15 +348,11 @@ typename LifeCycleStreaming<Request, Response>::Actions
         m_ReadStateContext.m_NextState =
             &LifeCycleStreaming<RequestType, ResponseType>::StateReadDone;
 
-        // Only call RequestedReceived if we have a valid ServerStream on which to respond
-        // if(m_ServerStream)
-        {
-            should_execute = [this, request = std::move(m_RequestQueue.front()),
-                              stream = m_ServerStream]() mutable {
-                RequestReceived(std::move(request), stream);
-            };
-            m_RequestQueue.pop();
-        }
+        should_execute = [this, request = std::move(m_RequestQueue.front()),
+                          stream = m_ServerStream]() mutable {
+            RequestReceived(std::move(request), stream);
+        };
+        m_RequestQueue.pop();
     }
 
     if(!m_Reading && m_ReadsDone && !m_ReadsFinished)
@@ -366,6 +362,12 @@ typename LifeCycleStreaming<Request, Response>::Actions
             DLOG(INFO) << "Client sent WritesDone";
             RequestsFinished(stream);
         };
+    }
+
+    if (m_Status && !m_Status->ok())
+    {
+        DLOG(INFO) << "Stream was CANCELLED by Server - Cancel All Callbacks";
+        should_execute = nullptr;
     }
 
     if(!m_Writing && !m_ResponseQueue.empty())
@@ -422,7 +424,7 @@ void LifeCycleStreaming<Request, Response>::ForwardProgress(Actions& actions)
     }
     if(should_finish)
     {
-        DLOG(INFO) << "Closing Stream - Finish";
+        DLOG(INFO) << "Closing Stream - " << (m_Status->ok() ? "OK" : "CANCELLED");
         m_Stream->Finish(*m_Status, IContext::Tag());
     }
 }
@@ -585,11 +587,11 @@ void LifeCycleStreaming<Request, Response>::CloseStream(::grpc::Status status)
         m_WritesDone = true;
         m_Status = std::make_unique<::grpc::Status>(status);
 
-        if(!m_ReadsDone)
+        if(!status.ok())
         {
-            // ClientStreaming will
-            // DLOG(INFO) << "Server Closing before Client; issue TryCancel() to flush Read Tags";
-            // m_Context->TryCancel();
+            DLOG(INFO) << "Server Canceling before Client WritesDone; issue TryCancel() to flush "
+                          "Read Tags";
+            m_Context->TryCancel();
         }
 
         m_ServerStream.reset();

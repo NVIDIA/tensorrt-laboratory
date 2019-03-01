@@ -56,6 +56,18 @@ void PingPongStreamingContext::RequestReceived(Input&& input, std::shared_ptr<Se
     stream->WriteResponse(std::move(output));
 }
 
+/**
+ * @brief Server->Client stream closes with OK before Client->Server stream
+ * 
+ * In this test, the Server closes its server->client stream with a call to FinishStream.  This
+ * essentially says, "me the server is happy with what it has gotten and this call was a success".
+ * 
+ * The server will continue to process incoming requests from the client, but will not be able to
+ * send back responses.
+ * 
+ * In the EarlyCancel test, we call CancelStream, which will also immediately stop and drain the
+ * processing of incoming requests.
+ */
 void PingPongStreamingEarlyFinishContext::RequestReceived(Input&& input, std::shared_ptr<ServerStream> stream)
 {
     static size_t counter = 0;
@@ -86,6 +98,48 @@ void PingPongStreamingEarlyFinishContext::RequestsFinished(std::shared_ptr<Serve
     // The Server should still receive all incoming requests until the client sends WritesDone
     EXPECT_EQ(m_Counter, PINGPONG_SEND_COUNT);
 }
+
+/**
+ * @brief Server->Client stream closes with CANCELLED before Client->Server stream
+ * 
+ * In this test, the Server closes its server->client stream with a call to CancelStream.  This
+ * essentially says, "me the server is unhappy with what it has gotten and its time to shut down"
+ * 
+ * The server will stop processing incoming requests from the client and will not be able to
+ * send back responses.
+ */
+void PingPongStreamingEarlyCancelContext::RequestReceived(Input&& input, std::shared_ptr<ServerStream> stream)
+{
+    static size_t counter = 0;
+    m_Counter = ++counter;
+    EXPECT_EQ(m_Counter, input.batch_id());
+
+    if(stream && counter > PINGPONG_SEND_COUNT/2)
+    {
+        // We are closing the server->client portion of the stream early
+        EXPECT_NE(stream, nullptr);
+        stream->CancelStream();
+    }
+    if(!stream || !stream->IsConnected())
+    {
+        // Stream was closed
+        EXPECT_EQ(counter, PINGPONG_SEND_COUNT/2 + 1);
+        return;
+    }
+
+    EXPECT_NE(stream, nullptr);
+    Output output;
+    output.set_batch_id(input.batch_id());
+    stream->WriteResponse(std::move(output));
+}
+
+void PingPongStreamingEarlyCancelContext::RequestsFinished(std::shared_ptr<ServerStream> stream)
+{
+    // The Server should still receive all incoming requests until the client sends WritesDone
+    EXPECT_EQ(m_Counter, PINGPONG_SEND_COUNT/2);
+}
+
+
 
 class PingPongTest : public ::testing::Test
 {
@@ -192,6 +246,52 @@ TEST_F(PingPongTest, ServerEarlyFinish)
     m_Server->Shutdown();
     EXPECT_FALSE(m_Server->Running());
 }
+
+TEST_F(PingPongTest, ServerEarlyCancel)
+{
+    m_Server = BuildServer<PingPongUnaryContext, PingPongStreamingEarlyCancelContext>();
+    m_Server->AsyncStart();
+    EXPECT_TRUE(m_Server->Running());
+
+    std::mutex mutex;
+    std::size_t count = 0;
+    std::size_t recv_count = 0;
+    std::size_t send_count = PINGPONG_SEND_COUNT;
+
+    auto on_recv = [&mutex, &count, &recv_count](Output&& response) {
+        static size_t last = 0;
+        EXPECT_EQ(++last, response.batch_id());
+        std::lock_guard<std::mutex> lock(mutex);
+        --count;
+        ++recv_count;
+    };
+
+    auto stream = BuildStreamingClient([](Input&&) {}, on_recv);
+
+    for(int i = 1; i <= send_count; i++)
+    {
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            ++count;
+        }
+        Input input;
+        input.set_batch_id(i);
+        EXPECT_TRUE(stream->Write(std::move(input)));
+    }
+
+    auto future = stream->Done();
+    auto status = future.get();
+
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(send_count / 2, recv_count);
+    EXPECT_TRUE(m_Server->Running());
+
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    m_Server->Shutdown();
+    EXPECT_FALSE(m_Server->Running());
+}
+
 
 } // namespace testing
 } // namespace nvrpc
