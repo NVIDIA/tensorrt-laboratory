@@ -37,16 +37,31 @@
 namespace nvrpc {
 namespace testing {
 
+template<typename Context>
+std::unique_ptr<Server> BuildServer();
+
+template<typename T>
+std::unique_ptr<Server> BuildStreamingServer()
+{
+    auto server = std::make_unique<Server>("0.0.0.0:13377");
+    auto resources = std::make_shared<TestResources>(3);
+    auto executor = server->RegisterExecutor(new Executor(1));
+    auto service = server->RegisterAsyncService<TestService>();
+    auto rpc_streaming = service->RegisterRPC<T>(&TestService::AsyncService::RequestStreaming);
+    executor->RegisterContexts(rpc_streaming, resources, 10);
+    return std::move(server);
+}
+
 template<typename UnaryContext, typename StreamingContext>
 std::unique_ptr<Server> BuildServer()
 {
     auto server = std::make_unique<Server>("0.0.0.0:13377");
+    auto resources = std::make_shared<TestResources>(3);
+    auto executor = server->RegisterExecutor(new Executor(1));
     auto service = server->RegisterAsyncService<TestService>();
     auto rpc_unary = service->RegisterRPC<UnaryContext>(&TestService::AsyncService::RequestUnary);
     auto rpc_streaming =
         service->RegisterRPC<StreamingContext>(&TestService::AsyncService::RequestStreaming);
-    auto resources = std::make_shared<TestResources>(3);
-    auto executor = server->RegisterExecutor(new Executor(1));
     executor->RegisterContexts(rpc_unary, resources, 10);
     executor->RegisterContexts(rpc_streaming, resources, 10);
     return std::move(server);

@@ -206,7 +206,7 @@ TEST_F(PingPongTest, StreamingTest)
 
 TEST_F(PingPongTest, ServerEarlyFinish)
 {
-    m_Server = BuildServer<PingPongUnaryContext, PingPongStreamingEarlyFinishContext>();
+    m_Server = BuildStreamingServer<PingPongStreamingEarlyFinishContext>();
     m_Server->AsyncStart();
     EXPECT_TRUE(m_Server->Running());
 
@@ -286,7 +286,14 @@ TEST_F(PingPongTest, ServerEarlyCancel)
     EXPECT_EQ(send_count / 2, recv_count);
     EXPECT_TRUE(m_Server->Running());
 
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    // We need a sleep here - The Server's TryCancel() seems to
+    // issue an OOB CANCELLED such that the Client receives the
+    // status before the server actually flushes and shuts down.
+    // This is expected behavior on gRPC cancelling.
+    // The wait allows the server to complete it's testing
+    // Since Client and Server are in the same process, we could
+    // use a mutex+condition to synchronize this event. Anyone?
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     m_Server->Shutdown();
     EXPECT_FALSE(m_Server->Running());

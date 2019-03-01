@@ -62,6 +62,10 @@ struct TestResources : public ::trtlab::Resources
     std::map<StreamID, Stream> m_Streams;
     std::map<StreamID, Counter> m_MessagesRecv;
     std::map<StreamID, Counter> m_MessagesSent;
+
+    std::mutex m_ShutdownMutex;
+    bool m_ClientRunning;
+    bool m_ServerRunning;
 };
 
 } // namespace testing
