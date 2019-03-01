@@ -30,8 +30,8 @@
 
 #include "test_resources.h"
 
-#include "testing.pb.h"
 #include "testing.grpc.pb.h"
+#include "testing.pb.h"
 
 namespace nvrpc {
 namespace testing {
@@ -44,6 +44,14 @@ class PingPongUnaryContext final : public Context<Input, Output, TestResources>
 class PingPongStreamingContext final : public StreamingContext<Input, Output, TestResources>
 {
     void RequestReceived(Input&& input, std::shared_ptr<ServerStream> stream) final override;
+};
+
+class PingPongStreamingEarlyFinishContext final : public StreamingContext<Input, Output, TestResources>
+{
+    void RequestReceived(Input&& input, std::shared_ptr<ServerStream> stream) final override;
+    void RequestsFinished(std::shared_ptr<ServerStream>) final override;
+
+    size_t m_Counter;
 };
 
 } // namespace testing

@@ -31,8 +31,8 @@
 
 #include "nvrpc/life_cycle_streaming.h"
 
-#include "testing.pb.h"
 #include "testing.grpc.pb.h"
+#include "testing.pb.h"
 
 namespace nvrpc {
 namespace testing {
@@ -64,5 +64,5 @@ struct TestResources : public ::trtlab::Resources
     std::map<StreamID, Counter> m_MessagesSent;
 };
 
-}
+} // namespace testing
 } // namespace nvrpc

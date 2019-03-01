@@ -54,8 +54,8 @@ std::unique_ptr<client::ClientStreaming<Input, Output>>
         return std::move(stub->PrepareAsyncStreaming(context, cq));
     };
 
-    return std::make_unique<client::ClientStreaming<Input, Output>>(infer_prepare_fn, executor, on_sent,
-                                                            on_recv);
+    return std::make_unique<client::ClientStreaming<Input, Output>>(infer_prepare_fn, executor,
+                                                                    on_sent, on_recv);
 }
 
 } // namespace testing

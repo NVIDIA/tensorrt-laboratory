@@ -29,10 +29,12 @@
 
 #include "nvrpc/server.h"
 
-#include "test_build_server.h"
 #include "test_build_client.h"
+#include "test_build_server.h"
 
 #include <gtest/gtest.h>
+
+#define PINGPONG_SEND_COUNT 10
 
 namespace nvrpc {
 namespace testing {
@@ -45,16 +47,49 @@ void PingPongUnaryContext::ExecuteRPC(Input& input, Output& output)
 
 void PingPongStreamingContext::RequestReceived(Input&& input, std::shared_ptr<ServerStream> stream)
 {
+    static size_t counter = 0;
+    EXPECT_EQ(++counter, input.batch_id());
+
+    EXPECT_NE(stream, nullptr);
     Output output;
     output.set_batch_id(input.batch_id());
     stream->WriteResponse(std::move(output));
+}
+
+void PingPongStreamingEarlyFinishContext::RequestReceived(Input&& input, std::shared_ptr<ServerStream> stream)
+{
+    static size_t counter = 0;
+    m_Counter = ++counter;
+    EXPECT_EQ(m_Counter, input.batch_id());
+
+    if(stream && counter > PINGPONG_SEND_COUNT/2)
+    {
+        EXPECT_NE(stream, nullptr);
+        stream->FinishStream();
+    }
+    if(!stream || !stream->IsConnected())
+    {
+        // Stream was closed
+        EXPECT_GT(counter, PINGPONG_SEND_COUNT/2);
+        return;
+    }
+
+    EXPECT_NE(stream, nullptr);
+    Output output;
+    output.set_batch_id(input.batch_id());
+    stream->WriteResponse(std::move(output));
+}
+
+void PingPongStreamingEarlyFinishContext::RequestsFinished(std::shared_ptr<ServerStream> stream)
+{
+    // The Server should still receive all incoming requests until the client sends WritesDone
+    EXPECT_EQ(m_Counter, PINGPONG_SEND_COUNT);
 }
 
 class PingPongTest : public ::testing::Test
 {
     void SetUp() override
     {
-        m_Server = BuildServer<PingPongUnaryContext, PingPongStreamingContext>();
     }
 
     void TearDown() override
@@ -70,15 +105,16 @@ class PingPongTest : public ::testing::Test
     std::unique_ptr<Server> m_Server;
 };
 
-TEST_F(PingPongTest, functionality)
+TEST_F(PingPongTest, StreamingTest)
 {
+    m_Server = BuildServer<PingPongUnaryContext, PingPongStreamingContext>();
     m_Server->AsyncStart();
     EXPECT_TRUE(m_Server->Running());
 
     std::mutex mutex;
     std::size_t count = 0;
     std::size_t recv_count = 0;
-    std::size_t send_count = 1000;
+    std::size_t send_count = PINGPONG_SEND_COUNT;
 
     auto on_recv = [&mutex, &count, &recv_count](Output&& response) {
         static size_t last = 0;
@@ -107,6 +143,49 @@ TEST_F(PingPongTest, functionality)
     EXPECT_TRUE(status.ok());
     EXPECT_EQ(count, 0UL);
     EXPECT_EQ(send_count, recv_count);
+    EXPECT_TRUE(m_Server->Running());
+
+    m_Server->Shutdown();
+    EXPECT_FALSE(m_Server->Running());
+}
+
+TEST_F(PingPongTest, ServerEarlyFinish)
+{
+    m_Server = BuildServer<PingPongUnaryContext, PingPongStreamingEarlyFinishContext>();
+    m_Server->AsyncStart();
+    EXPECT_TRUE(m_Server->Running());
+
+    std::mutex mutex;
+    std::size_t count = 0;
+    std::size_t recv_count = 0;
+    std::size_t send_count = PINGPONG_SEND_COUNT;
+
+    auto on_recv = [&mutex, &count, &recv_count](Output&& response) {
+        static size_t last = 0;
+        EXPECT_EQ(++last, response.batch_id());
+        std::lock_guard<std::mutex> lock(mutex);
+        --count;
+        ++recv_count;
+    };
+
+    auto stream = BuildStreamingClient([](Input&&) {}, on_recv);
+
+    for(int i = 1; i <= send_count; i++)
+    {
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            ++count;
+        }
+        Input input;
+        input.set_batch_id(i);
+        EXPECT_TRUE(stream->Write(std::move(input)));
+    }
+
+    auto future = stream->Done();
+    auto status = future.get();
+
+    EXPECT_TRUE(status.ok());
+    EXPECT_EQ(send_count / 2, recv_count);
     EXPECT_TRUE(m_Server->Running());
 
     m_Server->Shutdown();

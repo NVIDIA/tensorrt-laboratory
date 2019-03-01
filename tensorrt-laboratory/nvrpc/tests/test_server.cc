@@ -25,8 +25,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test_build_server.h"
-#include "test_resources.h"
 #include "test_pingpong.h"
+#include "test_resources.h"
 
 #include <gtest/gtest.h>
 
@@ -83,7 +83,7 @@ TEST_F(ServerTest, RunAndShutdown)
     });
     {
         std::unique_lock<std::mutex> lock(mutex);
-        condition.wait(lock, [&running]{ return running; });
+        condition.wait(lock, [&running] { return running; });
     }
     EXPECT_TRUE(m_Server->Running());
     m_Server->Shutdown();

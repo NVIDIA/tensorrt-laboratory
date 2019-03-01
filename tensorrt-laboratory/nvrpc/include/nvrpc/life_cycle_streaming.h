@@ -79,14 +79,11 @@ class LifeCycleStreaming : public IContextLifeCycle
     LifeCycleStreaming();
     void SetQueueFunc(ExecutorQueueFuncType);
 
-    // template<typename RequestType, typename ResponseType>
-
-    // Called immediately on receiving a Request
-    // The ServerStream object provides the response interface
-    // virtual void RequestReceived(Request&&, std::shared_ptr<ServerStream<RequestType,
-    // ResponseType>>) = 0;
     virtual void RequestReceived(Request&&, std::shared_ptr<ServerStream>) = 0;
     virtual void RequestsFinished(std::shared_ptr<ServerStream>) {}
+
+    // TODO: Add an OnInitialized virtual method
+    // virtual void StreamContextInitialized() {}
 
   public:
     // template<typename RequestType, typename ResponseType>
@@ -133,6 +130,7 @@ class LifeCycleStreaming : public IContextLifeCycle
                 DLOG(WARNING) << "Attempted to cancel to a disconnected stream";
                 return false;
             }
+            CHECK(m_Master);
             m_Master->CancelResponse();
             return false;
         }
@@ -145,6 +143,7 @@ class LifeCycleStreaming : public IContextLifeCycle
                 DLOG(WARNING) << "Attempted to finish to a disconnected stream";
                 return false;
             }
+            CHECK(m_Master);
             m_Master->FinishResponse();
             return false;
         }
@@ -349,11 +348,15 @@ typename LifeCycleStreaming<Request, Response>::Actions
         m_ReadStateContext.m_NextState =
             &LifeCycleStreaming<RequestType, ResponseType>::StateReadDone;
 
-        should_execute = [this, request = std::move(m_RequestQueue.front()),
-                          stream = m_ServerStream]() mutable {
-            RequestReceived(std::move(request), stream);
-        };
-        m_RequestQueue.pop();
+        // Only call RequestedReceived if we have a valid ServerStream on which to respond
+        // if(m_ServerStream)
+        {
+            should_execute = [this, request = std::move(m_RequestQueue.front()),
+                              stream = m_ServerStream]() mutable {
+                RequestReceived(std::move(request), stream);
+            };
+            m_RequestQueue.pop();
+        }
     }
 
     if(!m_Reading && m_ReadsDone && !m_ReadsFinished)
@@ -584,8 +587,9 @@ void LifeCycleStreaming<Request, Response>::CloseStream(::grpc::Status status)
 
         if(!m_ReadsDone)
         {
-            DLOG(INFO) << "Server Closing before Client; issue TryCancel() to flush Read Tags";
-            m_Context->TryCancel();
+            // ClientStreaming will
+            // DLOG(INFO) << "Server Closing before Client; issue TryCancel() to flush Read Tags";
+            // m_Context->TryCancel();
         }
 
         m_ServerStream.reset();

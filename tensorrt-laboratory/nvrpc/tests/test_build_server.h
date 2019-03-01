@@ -26,31 +26,30 @@
  */
 #pragma once
 
-#include "nvrpc/server.h"
 #include "nvrpc/executor.h"
+#include "nvrpc/server.h"
 
 #include "test_resources.h"
 
-#include "testing.pb.h"
 #include "testing.grpc.pb.h"
+#include "testing.pb.h"
 
 namespace nvrpc {
 namespace testing {
 
-template <typename UnaryContext, typename StreamingContext>
+template<typename UnaryContext, typename StreamingContext>
 std::unique_ptr<Server> BuildServer()
 {
-        auto server = std::make_unique<Server>("0.0.0.0:13377");
-        auto service = server->RegisterAsyncService<TestService>();
-        auto rpc_unary = service->RegisterRPC<UnaryContext>(
-            &TestService::AsyncService::RequestUnary);
-        auto rpc_streaming = service->RegisterRPC<StreamingContext>(
-            &TestService::AsyncService::RequestStreaming);
-        auto resources = std::make_shared<TestResources>(3);
-        auto executor = server->RegisterExecutor(new Executor(1));
-        executor->RegisterContexts(rpc_unary, resources, 10);
-        executor->RegisterContexts(rpc_streaming, resources, 10);
-        return std::move(server);
+    auto server = std::make_unique<Server>("0.0.0.0:13377");
+    auto service = server->RegisterAsyncService<TestService>();
+    auto rpc_unary = service->RegisterRPC<UnaryContext>(&TestService::AsyncService::RequestUnary);
+    auto rpc_streaming =
+        service->RegisterRPC<StreamingContext>(&TestService::AsyncService::RequestStreaming);
+    auto resources = std::make_shared<TestResources>(3);
+    auto executor = server->RegisterExecutor(new Executor(1));
+    executor->RegisterContexts(rpc_unary, resources, 10);
+    executor->RegisterContexts(rpc_streaming, resources, 10);
+    return std::move(server);
 }
 
 } // namespace testing
