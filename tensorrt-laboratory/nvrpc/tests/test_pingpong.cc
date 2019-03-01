@@ -64,6 +64,7 @@ void PingPongStreamingEarlyFinishContext::RequestReceived(Input&& input, std::sh
 
     if(stream && counter > PINGPONG_SEND_COUNT/2)
     {
+        // We are closing the server->client portion of the stream early
         EXPECT_NE(stream, nullptr);
         stream->FinishStream();
     }
