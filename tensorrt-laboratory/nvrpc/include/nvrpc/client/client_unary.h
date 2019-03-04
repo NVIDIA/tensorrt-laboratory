@@ -53,7 +53,7 @@ struct ClientUnary : public ::trtlab::AsyncComputeWrapper<void(Request&, Respons
     ~ClientUnary() {}
 
     template<typename OnReturnFn>
-    auto Enqueue(Request* request, Response* response, OnReturnFn on_return)
+    auto Enqueue(Request* request, Response* response, OnReturnFn on_return, std::map<std::string, std::string>& headers)
     {
         auto wrapped = this->Wrap(on_return);
         auto future = wrapped->Future();
@@ -65,6 +65,11 @@ struct ClientUnary : public ::trtlab::AsyncComputeWrapper<void(Request&, Respons
             (*wrapped)(*ctx->m_Request, *ctx->m_Response, ctx->m_Status);
         };
 
+        for (auto& header : headers)
+        {
+            ctx->m_Context.AddMetadata(header.first, header.second);
+        }
+
         ctx->m_Reader = m_PrepareFn(&ctx->m_Context, *ctx->m_Request, m_Executor->GetNextCQ());
         ctx->m_Reader->StartCall();
         ctx->m_Reader->Finish(ctx->m_Response, &ctx->m_Status, ctx->Tag());
@@ -75,6 +80,13 @@ struct ClientUnary : public ::trtlab::AsyncComputeWrapper<void(Request&, Respons
     template<typename OnReturnFn>
     auto Enqueue(Request&& request, OnReturnFn on_return)
     {
+        std::map<std::string, std::string> empty_headers;
+        return Enqueue(std::move(request), on_return, empty_headers);
+    }
+
+    template<typename OnReturnFn>
+    auto Enqueue(Request&& request, OnReturnFn on_return, std::map<std::string, std::string>& headers)
+    {
         auto req = std::make_shared<Request>(std::move(request));
         auto resp = std::make_shared<Response>();
 
@@ -83,7 +95,7 @@ struct ClientUnary : public ::trtlab::AsyncComputeWrapper<void(Request&, Respons
             return on_return(request, response, status);
         };
 
-        return Enqueue(req.get(), resp.get(), extended_on_return);
+        return Enqueue(req.get(), resp.get(), extended_on_return, headers);
     }
 
   private:
