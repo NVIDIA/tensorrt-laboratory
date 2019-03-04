@@ -7,6 +7,9 @@ cc_library(
     hdrs = glob(
         ["include/**/*.h"],
     ),
+    deps = [
+        "@com_google_glog//:glog",
+    ],
     strip_include_prefix = "include",
     visibility = ["//visibility:public"],
 )

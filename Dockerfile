@@ -42,7 +42,7 @@ RUN python3 -m pip install --upgrade pip \
 
 # install gflags
 # -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_gflags_LIB=ON .. \
-RUN git clone -b v2.2.1 https://github.com/gflags/gflags.git \
+RUN git clone -b v2.2.2 https://github.com/gflags/gflags.git \
  && cd gflags \
  && mkdir build && cd build \
  && cmake -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_gflags_LIB=ON .. \ 
@@ -122,7 +122,8 @@ RUN git clone https://github.com/jupp0r/prometheus-cpp.git \
  && mkdir build && cd build \
  && cmake -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE .. \
  && make -j \
- && make install
+ && make install \
+ && cd .. && rm -rf prometheus-cpp
 
 RUN wget https://dl.influxdata.com/telegraf/releases/telegraf-1.7.1-static_linux_amd64.tar.gz \
  && tar xzf telegraf-1.7.1-static_linux_amd64.tar.gz \
@@ -133,7 +134,9 @@ RUN git clone https://github.com/cameron314/concurrentqueue.git \
  && cd concurrentqueue \
  && git checkout 8f65a87 \
  && mkdir -p /usr/local/include/moodycamel \
- && cp *.h /usr/local/include/moodycamel/
+ && cp *.h /usr/local/include/moodycamel/ \
+ && cd .. && rm -rf concurrentqueue 
+
 
 RUN git clone https://github.com/bloomen/transwarp.git \
  && cd transwarp \
@@ -148,7 +151,7 @@ RUN git clone -b v1.10.0 https://github.com/google/flatbuffers.git \
  && mkdir build2 && cd build2 \
  && cmake -DCMAKE_BUILD_TYPE=Release .. \
  && make -j$(nproc) install \
- && rm -rf /flatbuffers
+ && cd .. && rm -rf flatbuffers
 
 RUN apt update && apt install -y --no-install-recommends \
     pkg-config zip g++ zlib1g-dev unzip python \
