@@ -41,6 +41,10 @@ namespace testing {
 
 void PingPongUnaryContext::ExecuteRPC(Input& input, Output& output)
 {
+    auto headers = ClientMetadata();
+    auto model_name = headers.find("x-content-model");
+    EXPECT_NE(model_name, headers.end());
+    EXPECT_EQ(model_name->second, "flowers-152");
     output.set_batch_id(input.batch_id());
     FinishResponse();
 }

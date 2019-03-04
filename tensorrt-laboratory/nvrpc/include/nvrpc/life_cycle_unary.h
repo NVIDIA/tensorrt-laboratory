@@ -55,6 +55,8 @@ class LifeCycleUnary : public IContextLifeCycle
     void FinishResponse() final override;
     void CancelResponse() final override;
 
+    const std::multimap<grpc::string_ref, grpc::string_ref>& ClientMetadata();
+
   private:
     // IContext Methods
     bool RunNextState(bool ok) final override;
@@ -132,6 +134,12 @@ void LifeCycleUnary<Request, Response>::Reset()
     m_ResponseWriter.reset(new ::grpc::ServerAsyncResponseWriter<ResponseType>(m_Context.get()));
     m_NextState = &LifeCycleUnary<RequestType, ResponseType>::StateRequestDone;
     m_QueuingFunc(m_Context.get(), m_Request.get(), m_ResponseWriter.get(), IContext::Tag());
+}
+
+template <class Request, class Response>
+const std::multimap<grpc::string_ref, grpc::string_ref>& LifeCycleUnary<Request, Response>::ClientMetadata()
+{
+    return m_Context->client_metadata();
 }
 
 template <class Request, class Response>

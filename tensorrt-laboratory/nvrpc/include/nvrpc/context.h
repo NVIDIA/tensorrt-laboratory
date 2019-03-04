@@ -73,8 +73,8 @@ class BaseContext : public LifeCycle
     }
     double Walltime() const;
 
-    virtual void OnContextStart();
-    virtual void OnContextReset();
+    virtual void OnContextStart() {}
+    virtual void OnContextReset() {}
 
   private:
     virtual void OnLifeCycleStart() final override;
@@ -114,11 +114,6 @@ void BaseContext<LifeCycle, Resources>::OnLifeCycleStart()
     OnContextStart();
 }
 
-template<class LifeCycle, class Resources>
-void BaseContext<LifeCycle, Resources>::OnContextStart()
-{
-}
-
 /**
  * @brief Method invoked at the end of the per-call lifecycle just before the context is reset.
  */
@@ -129,11 +124,6 @@ void BaseContext<LifeCycle, Resources>::OnLifeCycleReset()
     Metrics::ExecutionQueueDepthDecrement();
 #endif
     OnContextReset();
-}
-
-template<class LifeCycle, class Resources>
-void BaseContext<LifeCycle, Resources>::OnContextReset()
-{
 }
 
 /**
