@@ -7,15 +7,64 @@ the examples and ideas found in the playground will resonate and possibly inspir
 
 ## Quickstart
 
+  - Install [nvidia-docker](https://github.com/NVIDIA/nvidia-docker)
+  - [Optional] Sign-up for [NVIDIA GPU Cloud](https://ngc.nvidia.com/) and acquire an [API Key](https://docs.nvidia.com/ngc/ngc-getting-started-guide/index.html#generating-api-key).
+  - [Optional] Authenticate your Docker client using your NGC API key. Yes, the username is `$oauthtoken`.
+
+
+```
+$ docker login nvcr.io
+Username: $oauthtoken
+Password: <paste-your-ngc-api-key-here>
+```
+
 ```
 git clone http://github.com/nvidia/tensorrt-laboratory
 cd tensorrt-laboratory
 make
+
+# for notebooks -  navigate to the notebooks folder
 nvidia-docker run --rm -ti tensorrt-laboratory jupyter lab
-# navigate to the notebooks folder and open Quickstart.ipynb 
+
+# for a bash shell
+nvidia-docker run --rm -ti tensorrt-laboratory bash
 ```
 
 ## Overview
+
+One of the primary goals of the TensorRT Laboratory project is to provided a single
+unified interface for both TensorRT and the TensorRT Inference Server.  We enable this
+common interface for both Python and C++.
+
+```python
+# the manager can be either local (TensorRT) or remote (TensorRT Inference Server)
+# see examples and notebooks on how to instantiate a manager
+
+# list models, e.g. ["mnist", "resnet-50"]
+manager.get_models()
+
+# get a runner: this object allows you to submit work to a model
+mnist = manager.infer_runner("mnist")
+
+# query the available inputs/outputs
+mnist.input_bindings()  # {"Input3": (1, 28, 28)}
+mnist.output_bindings() # {"Output": (1, 1, 10)}
+
+# submit a request by providing a dict of numpy arrays as kwargs
+future = mnist.infer(Input3=np.random.random_sample((1, 1, 28, 28)))
+
+# the call above returns immediately, so you can do other work while the
+# inference is computing.
+
+# get the results, this call blocks until the inference is complete
+# this result is an dict of numpy arrays
+result = future.get()
+
+for name, data in results.items()
+    print({}: )
+```
+
+
 
 What do you want to do...
 
@@ -117,15 +166,6 @@ Username: $oauthtoken
 Password: <paste-your-ngc-api-key-here>
 ```
 
-### Clone and build YAIS
-
-```
-git clone https://github.com/NVIDIA/yais.git
-cd yais
-make
-./devel.sh
-./build.sh
-```
 
 The above commands build a docker image, maps the current working directory inside the container,
 and finally, builds the library inside the container.  All dependencies are provided by the container, 

@@ -90,11 +90,6 @@ RUN git clone -b v1.16.1 https://github.com/grpc/grpc \
  && make -j20 install \
  && cd /source && rm -rf grpc
 
-WORKDIR /tmp
-RUN wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh \
- && chmod +x wait-for-it.sh \
- && mv wait-for-it.sh /usr/local/bin/
-
 RUN git clone -b v1.0.6 https://github.com/dcdillon/cpuaff \
  && cd cpuaff \
  && ls -lF \
@@ -104,8 +99,6 @@ RUN git clone -b v1.0.6 https://github.com/dcdillon/cpuaff \
  && make install \
  && cd ../ \
  &&  rm -rf cpuaff
-
-COPY --from=envoyproxy/envoy:v1.6.0 /usr/local/bin/envoy /usr/local/bin/envoy
 
 RUN git clone -b v1.4.1 https://github.com/google/benchmark.git \
  && cd benchmark \
@@ -125,25 +118,12 @@ RUN git clone https://github.com/jupp0r/prometheus-cpp.git \
  && make install \
  && cd .. && rm -rf prometheus-cpp
 
-RUN wget https://dl.influxdata.com/telegraf/releases/telegraf-1.7.1-static_linux_amd64.tar.gz \
- && tar xzf telegraf-1.7.1-static_linux_amd64.tar.gz \
- && mv telegraf/telegraf /usr/local/bin \
- && rm -rf telegraf-1.7.1-static_linux_amd64.tar.gz telegraf
-
 RUN git clone https://github.com/cameron314/concurrentqueue.git \
  && cd concurrentqueue \
  && git checkout 8f65a87 \
  && mkdir -p /usr/local/include/moodycamel \
  && cp *.h /usr/local/include/moodycamel/ \
  && cd .. && rm -rf concurrentqueue 
-
-
-RUN git clone https://github.com/bloomen/transwarp.git \
- && cd transwarp \
- && git checkout 1.8.0 \
- && mkdir -p /usr/local/include/transwarp \
- && cp src/transwarp.h /usr/local/include/transwarp/transwarp.h \
- && cd .. && rm -rf transwarp
 
 # install flatbuffers
 RUN git clone -b v1.10.0 https://github.com/google/flatbuffers.git \
@@ -153,16 +133,29 @@ RUN git clone -b v1.10.0 https://github.com/google/flatbuffers.git \
  && make -j$(nproc) install \
  && cd .. && rm -rf flatbuffers
 
-RUN apt update && apt install -y --no-install-recommends \
-    pkg-config zip g++ zlib1g-dev unzip python \
- && rm -rf /var/lib/apt/lists/*
+WORKDIR /tmp
+RUN wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh \
+ && chmod +x wait-for-it.sh \
+ && mv wait-for-it.sh /usr/local/bin/
 
-ENV BAZEL_VERSION="0.21.0"
+COPY --from=envoyproxy/envoy:v1.6.0 /usr/local/bin/envoy /usr/local/bin/envoy
 
-RUN wget https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/bazel-$BAZEL_VERSION-installer-linux-x86_64.sh \
- && chmod +x bazel-$BAZEL_VERSION-installer-linux-x86_64.sh \
- && ./bazel-$BAZEL_VERSION-installer-linux-x86_64.sh \
- && rm -f bazel-$BAZEL_VERSION-installer-linux-x86_64.sh
+RUN wget https://dl.influxdata.com/telegraf/releases/telegraf-1.7.1-static_linux_amd64.tar.gz \
+ && tar xzf telegraf-1.7.1-static_linux_amd64.tar.gz \
+ && mv telegraf/telegraf /usr/local/bin \
+ && rm -rf telegraf-1.7.1-static_linux_amd64.tar.gz telegraf
+
+
+## RUN apt update && apt install -y --no-install-recommends \
+##         pkg-config zip g++ zlib1g-dev unzip python \
+##  && rm -rf /var/lib/apt/lists/*
+
+## ENV BAZEL_VERSION="0.21.0"
+## 
+## RUN wget https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/bazel-$BAZEL_VERSION-installer-linux-x86_64.sh \
+##  && chmod +x bazel-$BAZEL_VERSION-installer-linux-x86_64.sh \
+##  && ./bazel-$BAZEL_VERSION-installer-linux-x86_64.sh \
+##  && rm -f bazel-$BAZEL_VERSION-installer-linux-x86_64.sh
 
 # ===================
 # TensorRT Laboratory

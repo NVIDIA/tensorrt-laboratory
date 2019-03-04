@@ -30,6 +30,7 @@
 #include "nvrpc/server.h"
 
 #include "nvrpc/client/client_streaming.h"
+#include "nvrpc/client/client_unary.h"
 
 #include "test_resources.h"
 
@@ -38,6 +39,22 @@
 
 namespace nvrpc {
 namespace testing {
+
+std::unique_ptr<client::ClientUnary<Input, Output>> BuildUnaryClient()
+{
+    auto executor = std::make_shared<client::Executor>(1);
+
+    auto channel = grpc::CreateChannel("localhost:13377", grpc::InsecureChannelCredentials());
+    std::shared_ptr<TestService::Stub> stub = TestService::NewStub(channel);
+
+    auto infer_prepare_fn = [stub](::grpc::ClientContext * context, const Input& request,
+                                   ::grpc::CompletionQueue* cq) -> auto
+    {
+        return std::move(stub->PrepareAsyncUnary(context, request, cq));
+    };
+
+    return std::make_unique<client::ClientUnary<Input, Output>>(infer_prepare_fn, executor);
+}
 
 std::unique_ptr<client::ClientStreaming<Input, Output>>
     BuildStreamingClient(std::function<void(Input&&)> on_sent,

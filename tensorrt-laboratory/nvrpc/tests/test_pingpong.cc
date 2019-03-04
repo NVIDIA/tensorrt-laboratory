@@ -58,23 +58,24 @@ void PingPongStreamingContext::RequestReceived(Input&& input, std::shared_ptr<Se
 
 /**
  * @brief Server->Client stream closes with OK before Client->Server stream
- * 
+ *
  * In this test, the Server closes its server->client stream with a call to FinishStream.  This
  * essentially says, "me the server is happy with what it has gotten and this call was a success".
- * 
+ *
  * The server will continue to process incoming requests from the client, but will not be able to
  * send back responses.
- * 
+ *
  * In the EarlyCancel test, we call CancelStream, which will also immediately stop and drain the
  * processing of incoming requests.
  */
-void PingPongStreamingEarlyFinishContext::RequestReceived(Input&& input, std::shared_ptr<ServerStream> stream)
+void PingPongStreamingEarlyFinishContext::RequestReceived(Input&& input,
+                                                          std::shared_ptr<ServerStream> stream)
 {
     static size_t counter = 0;
     m_Counter = ++counter;
     EXPECT_EQ(m_Counter, input.batch_id());
 
-    if(stream && counter > PINGPONG_SEND_COUNT/2)
+    if(stream && counter > PINGPONG_SEND_COUNT / 2)
     {
         // We are closing the server->client portion of the stream early
         EXPECT_NE(stream, nullptr);
@@ -83,7 +84,7 @@ void PingPongStreamingEarlyFinishContext::RequestReceived(Input&& input, std::sh
     if(!stream || !stream->IsConnected())
     {
         // Stream was closed
-        EXPECT_GT(counter, PINGPONG_SEND_COUNT/2);
+        EXPECT_GT(counter, PINGPONG_SEND_COUNT / 2);
         return;
     }
 
@@ -101,20 +102,21 @@ void PingPongStreamingEarlyFinishContext::RequestsFinished(std::shared_ptr<Serve
 
 /**
  * @brief Server->Client stream closes with CANCELLED before Client->Server stream
- * 
+ *
  * In this test, the Server closes its server->client stream with a call to CancelStream.  This
  * essentially says, "me the server is unhappy with what it has gotten and its time to shut down"
- * 
+ *
  * The server will stop processing incoming requests from the client and will not be able to
  * send back responses.
  */
-void PingPongStreamingEarlyCancelContext::RequestReceived(Input&& input, std::shared_ptr<ServerStream> stream)
+void PingPongStreamingEarlyCancelContext::RequestReceived(Input&& input,
+                                                          std::shared_ptr<ServerStream> stream)
 {
     static size_t counter = 0;
     m_Counter = ++counter;
     EXPECT_EQ(m_Counter, input.batch_id());
 
-    if(stream && counter > PINGPONG_SEND_COUNT/2)
+    if(stream && counter > PINGPONG_SEND_COUNT / 2)
     {
         // We are closing the server->client portion of the stream early
         EXPECT_NE(stream, nullptr);
@@ -123,7 +125,7 @@ void PingPongStreamingEarlyCancelContext::RequestReceived(Input&& input, std::sh
     if(!stream || !stream->IsConnected())
     {
         // Stream was closed
-        EXPECT_EQ(counter, PINGPONG_SEND_COUNT/2 + 1);
+        EXPECT_EQ(counter, PINGPONG_SEND_COUNT / 2 + 1);
         return;
     }
 
@@ -136,16 +138,12 @@ void PingPongStreamingEarlyCancelContext::RequestReceived(Input&& input, std::sh
 void PingPongStreamingEarlyCancelContext::RequestsFinished(std::shared_ptr<ServerStream> stream)
 {
     // The Server should still receive all incoming requests until the client sends WritesDone
-    EXPECT_EQ(m_Counter, PINGPONG_SEND_COUNT/2);
+    EXPECT_EQ(m_Counter, PINGPONG_SEND_COUNT / 2);
 }
-
-
 
 class PingPongTest : public ::testing::Test
 {
-    void SetUp() override
-    {
-    }
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -159,6 +157,54 @@ class PingPongTest : public ::testing::Test
   protected:
     std::unique_ptr<Server> m_Server;
 };
+
+TEST_F(PingPongTest, UnaryTest)
+{
+    m_Server = BuildServer<PingPongUnaryContext, PingPongStreamingContext>();
+    m_Server->AsyncStart();
+    EXPECT_TRUE(m_Server->Running());
+
+    std::mutex mutex;
+    std::size_t count = 0;
+    std::size_t recv_count = 0;
+    std::size_t send_count = PINGPONG_SEND_COUNT;
+
+    auto client = BuildUnaryClient();
+
+    std::vector<std::shared_future<void>> futures;
+
+    for(int i = 1; i <= send_count; i++)
+    {
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            ++count;
+        }
+        Input input;
+        input.set_batch_id(i);
+        std::map<std::string, std::string> headers = {{"x-content-model", "flowers-152"}};
+        futures.push_back(client->Enqueue(
+            std::move(input),
+            [&mutex, &count, &recv_count, i](Input& input, Output& output, ::grpc::Status& status) {
+                EXPECT_EQ(output.batch_id(), i);
+                EXPECT_TRUE(status.ok());
+                std::lock_guard<std::mutex> lock(mutex);
+                --count;
+                ++recv_count;
+            }, headers));
+    }
+
+    for(auto& future : futures)
+    {
+        future.wait();
+    }
+
+    EXPECT_EQ(count, 0UL);
+    EXPECT_EQ(send_count, recv_count);
+    EXPECT_TRUE(m_Server->Running());
+
+    m_Server->Shutdown();
+    EXPECT_FALSE(m_Server->Running());
+}
 
 TEST_F(PingPongTest, StreamingTest)
 {
@@ -298,7 +344,6 @@ TEST_F(PingPongTest, ServerEarlyCancel)
     m_Server->Shutdown();
     EXPECT_FALSE(m_Server->Running());
 }
-
 
 } // namespace testing
 } // namespace nvrpc

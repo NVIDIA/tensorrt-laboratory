@@ -3,8 +3,8 @@
 ## Install
 
 ```
-# Istio 0.8
-helm template install/kubernetes/helm/istio --name istio --namespace istio-system > yais-istio.yml
+# Download the latest release
+curl -L https://git.io/getLatestIstio | sh -
 
 # Istio 1.0
 helm template install/kubernetes/helm/istio --name istio --namespace istio-system \
