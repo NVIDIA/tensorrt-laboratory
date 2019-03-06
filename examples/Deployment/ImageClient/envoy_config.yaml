@@ -1,0 +1,81 @@
+static_resources:
+  listeners:
+  - name: listener_0
+    address:
+      socket_address: { address: 0.0.0.0, port_value: 50050 }
+    filter_chains:
+    - filters:
+      - name: envoy.http_connection_manager
+        config:
+          codec_type: auto
+          stat_prefix: ingress_http
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: backend
+              domains:
+              - "*"
+              routes:
+              - match:
+                  prefix: "/trtlab.deploy.image_client.Inference/Classify"
+                  headers:
+                  - name: content-type
+                    value: application/grpc
+                  - name: custom-metadata-model-name
+                    value: model_a
+                route:
+                  cluster: classify_model_a
+              - match:
+                  prefix: "/"
+                  headers:
+                  - name: content-type
+                    value: application/grpc
+                  - name: custom-metadata-model-name
+                    value: model_b
+                route:
+                  cluster: model_b
+              - match:
+                  prefix: "/"
+                  headers:
+                  - name: content-type
+                    value: application/grpc
+                route:
+                  cluster: general_pool
+          http_filters:
+          - name: envoy.router
+            config: {}
+  clusters:
+  - name: classify_model_a
+    connect_timeout: 0.25s
+    type: strict_dns
+    lb_policy: round_robin
+    http2_protocol_options: {}
+    hosts:
+    - socket_address:
+        address: 127.0.0.1
+        port_value: 51051
+  - name: model_b
+    connect_timeout: 0.25s
+    type: strict_dns
+    lb_policy: round_robin
+    http2_protocol_options: {}
+    hosts:
+    - socket_address:
+        address: 127.0.0.1
+        port_value: 51052
+  - name: general_pool
+    connect_timeout: 0.25s
+    type: strict_dns
+    lb_policy: round_robin
+    http2_protocol_options: {}
+    hosts:
+    - socket_address:
+        address: 127.0.0.1
+        port_value: 51053
+
+admin:
+  access_log_path: "/dev/null"
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 8001
