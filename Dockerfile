@@ -138,13 +138,22 @@ RUN wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for
  && chmod +x wait-for-it.sh \
  && mv wait-for-it.sh /usr/local/bin/
 
-COPY --from=envoyproxy/envoy:v1.6.0 /usr/local/bin/envoy /usr/local/bin/envoy
+# https://github.com/envoyproxy/envoy/commit/37bfd8ac347955661af695a417492655b21939dc
+#COPY --from=envoyproxy/envoy:37bfd8ac347955661af695a417492655b21939dc /usr/local/bin/envoy /usr/local/bin/envoy
+COPY --from=envoyproxy/envoy:latest /usr/local/bin/envoy /usr/local/bin/envoy
 
 RUN wget https://dl.influxdata.com/telegraf/releases/telegraf-1.7.1-static_linux_amd64.tar.gz \
  && tar xzf telegraf-1.7.1-static_linux_amd64.tar.gz \
  && mv telegraf/telegraf /usr/local/bin \
  && rm -rf telegraf-1.7.1-static_linux_amd64.tar.gz telegraf
 
+## RUN git clone -b 1.7.61 https://github.com/aws/aws-sdk-cpp.git \
+##  && cd aws-sdk-cpp \
+##  && mkdir build && cd build \
+##  && cmake -DCMAKE_BUILD_TYPE=Release .. \
+##  && make -j \
+##  && make install \
+##  && cd .. && rm -rf aws-sdk-cpp
 
 ## RUN apt update && apt install -y --no-install-recommends \
 ##         pkg-config zip g++ zlib1g-dev unzip python \
