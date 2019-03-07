@@ -51,8 +51,8 @@ using moodycamel::ConsumerToken;
 using moodycamel::ProducerToken;
 
 // NVIDIA Inference Server Protos
-#include "nvidia_inference.grpc.pb.h"
-#include "nvidia_inference.pb.h"
+#include "grpc_service.grpc.pb.h"
+#include "grpc_service.pb.h"
 
 namespace easter = ::nvidia::inferenceserver;
 /*
@@ -312,7 +312,7 @@ class DemoMiddlemanService : public InferMiddlemanService
         {
             static auto local_data = std::make_unique<Allocator<Malloc>>(10 * 1024 * 1024);
             DLOG(INFO) << "Boom - preprocess request here!";
-            auto bytes = req->meta_data().batch_size() * req->meta_data().input(0).byte_size();
+            auto bytes = req->meta_data().batch_size() * req->meta_data().input(0).batch_byte_size();
             CHECK_EQ(0, req->raw_input_size());
             req->add_raw_input(local_data->Data(), bytes);
         }

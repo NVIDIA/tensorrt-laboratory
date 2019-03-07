@@ -30,6 +30,6 @@ add_executable(middleman-client.x
 
 target_link_libraries(middleman-client.x
     trtlab::nvrpc
-    nv-inference-protos
+    trtis-protos
     gflags
 )

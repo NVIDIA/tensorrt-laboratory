@@ -29,5 +29,5 @@ pybind11_add_module(config_generator generator.cc)
 target_link_libraries(config_generator 
   PUBLIC
      yais
-     nv-inference-protos
+     trtis-protos
 )

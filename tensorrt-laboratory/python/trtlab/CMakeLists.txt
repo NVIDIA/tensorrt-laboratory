@@ -36,7 +36,7 @@ target_link_libraries(trtlab
     nvrpc
     nvrpc-client
     tensorrt
-    nv-inference-protos
+    trtis-protos
 )
 
 target_include_directories(trtlab

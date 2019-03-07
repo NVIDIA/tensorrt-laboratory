@@ -50,6 +50,8 @@ endif()
 
 add_subdirectory(python)
 
+add_subdirectory(trtis)
+
 # install
 
 # include(CMakePackageConfigHelpers)

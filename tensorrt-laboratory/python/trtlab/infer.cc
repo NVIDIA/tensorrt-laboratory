@@ -68,8 +68,8 @@ using nvrpc::Executor;
 using nvrpc::Server;
 
 // NVIDIA Inference Server Protos
-#include "nvidia_inference.grpc.pb.h"
-#include "nvidia_inference.pb.h"
+#include "grpc_service.grpc.pb.h"
+#include "grpc_service.pb.h"
 
 namespace trtis = ::nvidia::inferenceserver;
 
@@ -320,7 +320,7 @@ struct PyInferRemoteRunner
                 request.add_raw_input(data.data(), data.nbytes());
                 auto meta = meta_data->add_input();
                 meta->set_name(binding.name);
-                meta->set_byte_size(binding.elementsPerBatchItem);
+                meta->set_batch_byte_size(binding.elementsPerBatchItem);
             }
         }
 
@@ -329,7 +329,6 @@ struct PyInferRemoteRunner
             const auto& binding = model.GetBinding(id);
             auto meta = meta_data->add_output();
             meta->set_name(binding.name);
-            meta->set_byte_size(binding.elementsPerBatchItem);
         }
         meta_data->set_batch_size(batch_size);
 
