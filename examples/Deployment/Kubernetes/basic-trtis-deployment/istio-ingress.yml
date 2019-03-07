@@ -1,0 +1,55 @@
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: basic-trtis-deployment-gateway
+  namespace: trtlab
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      name: http
+      number: 80
+      protocol: grpc
+    hosts:
+    - "trt.lab"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: basic-trtis-deployment-virtual-service
+  namespace: trtlab
+spec:
+  hosts:
+  - "trt.lab"
+  gateways:
+  - basic-trtis-deployment-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /api/health/
+    route:
+    - destination:
+        host: basic-trtis-deployment
+        port:
+          number: 8000
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: basic-trtis-deployment
+        port:
+          number: 50051
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: basic-trtis-deployment-load-balancer
+  namespace: trtlab
+spec:
+  host: basic-trtis-deployment
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_CONN

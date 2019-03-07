@@ -1,0 +1,74 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: basic-trtis-deployment
+  namespace: trtlab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: basic-trtis-deployment
+  template:
+    metadata:
+      labels:
+        app: basic-trtis-deployment
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+      - name: trtis
+        image: nvcr.io/nvidia/tensorrtserver:19.02-py3
+        command: ["trtserver", "--model-store=/tmp/models"]
+        imagePullPolicy: Always
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+        ports:
+        - name: http
+          containerPort: 8000
+        - name: grpc
+          containerPort: 8001
+        - name: metrics
+          containerPort: 8002
+        livenessProbe:
+          httpGet:
+            path: /api/health/live
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /api/health/ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        volumeMounts:
+        - mountPath: /tmp/models
+          name: model-store
+      volumes:
+      - name: model-store
+        hostPath:
+          path: /shared/trtis/example-model-store
+          type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: basic-trtis-deployment
+  namespace: trtlab
+  labels:
+    app: basic-trtis-deployment
+spec:
+  selector:
+    app: basic-trtis-deployment
+  ports:
+  - name: http
+    port: 8000
+    targetPort: http
+  - name: grpc
+    port: 50051
+    targetPort: grpc
+  - name: metrics
+    port: 50078
+    targetPort: metrics

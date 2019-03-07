@@ -9,6 +9,8 @@ def main():
             "Plese run this script in the environment setup by test_routing.sh")
     router = cpp_client.ImageClient("localhost:50050")
 
+    print("Testing Classify RPC")
+
     a = router.classify("model_a", "via_router_uuid1").get()
     b = router.classify("model_b", "via_router_uuid2").get()
     c = router.classify("model_c", "via_router_uuid3").get()
@@ -16,6 +18,8 @@ def main():
     assert a.uuid == "model_a"
     assert b.uuid == "model_b"
     assert c.uuid == "general_pool"
+
+    print("Testing Detection RPC")
 
     a = router.detection("model_a", "via_router_uuid1").get()
     b = router.detection("model_b", "via_router_uuid2").get()
