@@ -27,6 +27,7 @@
 find_package(gflags 2.2.1 REQUIRED)
 
 add_subdirectory(nvRPC)
+add_subdirectory(Deployment)
 
 add_subdirectory(00_TensorRT)
 add_subdirectory(01_Basic_GRPC)
