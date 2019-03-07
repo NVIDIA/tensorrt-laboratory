@@ -66,7 +66,7 @@ ImageClient::ImageClient(std::string hostname)
 }
 
 std::shared_future<ClassifyResult>
-    ImageClient::Classify(std::string& model_name, std::string& image_uuid)
+    ImageClient::Classify(const std::string& model_name, const std::string& image_uuid)
 {
     ImageInfo image_info;
     image_info.set_model_name(model_name);
@@ -81,7 +81,7 @@ std::shared_future<ClassifyResult>
 }
 
 std::shared_future<DetectionResult>
-    ImageClient::Detection(std::string& model_name, std::string& image_uuid)
+    ImageClient::Detection(const std::string& model_name, const std::string& image_uuid)
 {
     ImageInfo image_info;
     image_info.set_model_name(model_name);

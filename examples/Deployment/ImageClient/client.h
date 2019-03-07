@@ -60,8 +60,8 @@ class ImageClient
     ImageClient(std::string);
     ~ImageClient() {}
 
-    std::shared_future<ClassifyResult> Classify(std::string&, std::string&);
-    std::shared_future<DetectionResult> Detection(std::string&, std::string&);
+    std::shared_future<ClassifyResult> Classify(const std::string&, const std::string&);
+    std::shared_future<DetectionResult> Detection(const std::string&, const std::string&);
 
   private:
     using ImageInfo = ::trtlab::deploy::image_client::ImageInfo;
