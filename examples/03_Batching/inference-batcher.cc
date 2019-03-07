@@ -301,12 +301,11 @@ struct BatchingService
             const double timeout = static_cast<double>(m_Timeout - quanta) / 1000000.0;
             size_t total_count;
             size_t max_batch;
-            std::vector<MessageType> messages;
-            messages.resize(m_MaxBatch)
 
-                thread_local ConsumerToken token(m_MessageQueue);
+            thread_local ConsumerToken token(m_MessageQueue);
             for(;;)
             {
+                MessageType messages[m_MaxBatchsize];
                 max_batch = m_MaxBatchsize;
                 total_count = 0;
                 auto start = std::chrono::steady_clock::now();
@@ -314,15 +313,6 @@ struct BatchingService
                     return std::chrono::duration<double>(std::chrono::steady_clock::now() - start)
                         .count();
                 };
-
-                // initial pull - if not successful, restart loop
-
-                // if successful, then open a stream, push message to stream and continue to collect
-                // requests until the max_batch_size is reach for the timeout is triggered
-
-                // finish sending
-
-                // r
                 do
                 {
                     auto count = m_MessageQueue.wait_dequeue_bulk_timed(
@@ -351,7 +341,9 @@ struct BatchingService
             LOG(INFO) << "incoming unary request";
             this->GetResources()->Push(&request, &response, [this](bool ok) {
                 if(ok)
+                {
                     this->FinishResponse();
+                }
                 else
                 {
                     LOG(INFO) << "shoot";
