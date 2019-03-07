@@ -40,14 +40,8 @@ const std::string& HostMemory::Type() const
     return type;
 }
 
-size_t HostMemory::DefaultAlignment()
-{
-    return 64;
-}
+size_t HostMemory::DefaultAlignment() { return 64; }
 
-void HostMemory::Fill(char fill_value)
-{
-    std::memset(Data(), fill_value, Size());
-}
+void HostMemory::Fill(char fill_value) { std::memset(Data(), fill_value, Size()); }
 
 } // namespace trtlab

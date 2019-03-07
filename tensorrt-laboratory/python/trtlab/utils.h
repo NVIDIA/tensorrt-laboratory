@@ -24,15 +24,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
 
 #include <NvInfer.h>
 
-namespace trtlab
-{
-namespace TensorRT
-{
+namespace trtlab {
+namespace TensorRT {
 
 /**
  * @brief Number of bytes for a given TensorRT DataType

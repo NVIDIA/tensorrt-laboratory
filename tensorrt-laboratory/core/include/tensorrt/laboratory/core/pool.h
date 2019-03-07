@@ -53,10 +53,7 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
      *
      * @return std::shared_ptr<Queue<T>>
      */
-    static std::shared_ptr<Queue<T>> Create()
-    {
-        return std::shared_ptr<Queue<T>>(new Queue<T>());
-    }
+    static std::shared_ptr<Queue<T>> Create() { return std::shared_ptr<Queue<T>>(new Queue<T>()); }
 
     Queue(Queue&& other)
     {
@@ -211,10 +208,7 @@ class Pool : public Queue<std::shared_ptr<ResourceType>>
      *
      * @param newObj Raw pointer to an object of ResourceType
      */
-    void EmplacePush(ResourceType* newObj)
-    {
-        this->Push(std::shared_ptr<ResourceType>(newObj));
-    }
+    void EmplacePush(ResourceType* newObj) { this->Push(std::shared_ptr<ResourceType>(newObj)); }
 
     /**
      * @brief Instantiates and Pushes a new Resource object.

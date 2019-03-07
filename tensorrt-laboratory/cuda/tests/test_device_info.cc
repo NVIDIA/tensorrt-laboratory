@@ -33,9 +33,7 @@ using namespace trtlab;
 class TestDeviceInfo : public ::testing::Test
 {
   protected:
-    virtual void SetUp()
-    {
-    }
+    virtual void SetUp() {}
 
     virtual void TearDown() {}
 };

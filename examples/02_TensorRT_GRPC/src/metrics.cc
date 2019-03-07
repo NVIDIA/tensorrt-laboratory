@@ -61,4 +61,4 @@ Metrics::Metrics() : m_Registry(std::make_shared<Registry>()) {}
 
 Metrics::~Metrics() {}
 
-} // namespace playground
+} // namespace trtlab

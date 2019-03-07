@@ -39,10 +39,7 @@ void* Malloc::Allocate(size_t size)
     return ptr;
 }
 
-void Malloc::Free()
-{
-    free(Data());
-}
+void Malloc::Free() { free(Data()); }
 
 const std::string& Malloc::Type() const
 {

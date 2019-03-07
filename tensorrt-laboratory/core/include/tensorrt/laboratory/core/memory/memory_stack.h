@@ -109,41 +109,26 @@ class MemoryStack
     /**
      * @brief Get Size of the Memory Stack
      */
-    size_t Size() const
-    {
-        return m_Memory->Size();
-    }
+    size_t Size() const { return m_Memory->Size(); }
 
     /**
      * @brief Get number of bytes currently allocated
      * @return size_t
      */
-    size_t Allocated() const
-    {
-        return m_CurrentSize;
-    }
+    size_t Allocated() const { return m_CurrentSize; }
 
     /**
      * @brief Get the number of free bytes that are not allocated
      * @return size_t
      */
-    size_t Available() const
-    {
-        return Size() - Allocated();
-    }
+    size_t Available() const { return Size() - Allocated(); }
 
     /**
      * @brief Byte alignment for stack allocations
      */
-    size_t Alignment() const
-    {
-        return m_Alignment;
-    }
+    size_t Alignment() const { return m_Alignment; }
 
-    const MemoryType& Memory() const
-    {
-        return *m_Memory;
-    }
+    const MemoryType& Memory() const { return *m_Memory; }
 
   private:
     std::unique_ptr<MemoryType> m_Memory;

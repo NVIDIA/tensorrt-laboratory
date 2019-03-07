@@ -75,25 +75,13 @@ class CoreMemory
   public:
     virtual ~CoreMemory();
 
-    inline void* Data()
-    {
-        return m_MemoryAddress;
-    }
+    inline void* Data() { return m_MemoryAddress; }
 
-    inline const void* Data() const
-    {
-        return m_MemoryAddress;
-    }
+    inline const void* Data() const { return m_MemoryAddress; }
 
-    inline size_t Size() const
-    {
-        return m_BytesAllocated;
-    }
+    inline size_t Size() const { return m_BytesAllocated; }
 
-    inline bool Allocated() const
-    {
-        return m_Allocated;
-    }
+    inline bool Allocated() const { return m_Allocated; }
 
     void* operator[](size_t offset);
     const void* operator[](size_t offset) const;

@@ -35,43 +35,41 @@
 
 #include "NvInfer.h"
 
-namespace trtlab
+namespace trtlab {
+namespace TensorRT {
+/**
+ * @brief Manages the execution of an inference calculation
+ *
+ * The ExecutionContext is a limited quanity resource used to control the number
+ * of simultaneous calculations allowed on the device at any given time.
+ *
+ * A properly configured Bindings object is required to initiate the TensorRT
+ * inference calculation.
+ */
+class ExecutionContext
 {
-namespace TensorRT
-{
-    /**
-     * @brief Manages the execution of an inference calculation
-     *
-     * The ExecutionContext is a limited quanity resource used to control the number
-     * of simultaneous calculations allowed on the device at any given time.
-     *
-     * A properly configured Bindings object is required to initiate the TensorRT
-     * inference calculation.
-     */
-    class ExecutionContext
-    {
-      public:
-        virtual ~ExecutionContext();
+  public:
+    virtual ~ExecutionContext();
 
-        DELETE_COPYABILITY(ExecutionContext);
-        DELETE_MOVEABILITY(ExecutionContext);
+    DELETE_COPYABILITY(ExecutionContext);
+    DELETE_MOVEABILITY(ExecutionContext);
 
-        void SetContext(std::shared_ptr<::nvinfer1::IExecutionContext> context);
-        void Infer(const std::shared_ptr<Bindings>&);
-        auto Synchronize() -> double;
+    void SetContext(std::shared_ptr<::nvinfer1::IExecutionContext> context);
+    void Infer(const std::shared_ptr<Bindings>&);
+    auto Synchronize() -> double;
 
-      private:
-        ExecutionContext(size_t workspace_size);
-        void Reset();
+  private:
+    ExecutionContext(size_t workspace_size);
+    void Reset();
 
-        std::function<double()> m_ElapsedTimer;
-        cudaEvent_t m_ExecutionContextFinished;
-        std::shared_ptr<::nvinfer1::IExecutionContext> m_Context;
+    std::function<double()> m_ElapsedTimer;
+    cudaEvent_t m_ExecutionContextFinished;
+    std::shared_ptr<::nvinfer1::IExecutionContext> m_Context;
 
-        std::unique_ptr<CudaDeviceMemory> m_Workspace;
+    std::unique_ptr<CudaDeviceMemory> m_Workspace;
 
-        friend class InferenceManager;
-    };
+    friend class InferenceManager;
+};
 
 } // namespace TensorRT
 } // namespace trtlab

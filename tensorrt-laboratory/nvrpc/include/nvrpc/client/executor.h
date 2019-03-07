@@ -44,7 +44,7 @@ class Executor : public std::enable_shared_from_this<Executor>
 
     Executor(Executor&& other) noexcept = delete;
     Executor& operator=(Executor&& other) noexcept = delete;
-    
+
     Executor(const Executor& other) = delete;
     Executor& operator=(const Executor& other) = delete;
 
@@ -62,4 +62,4 @@ class Executor : public std::enable_shared_from_this<Executor>
 };
 
 } // namespace client
-} // namespace nvrp
+} // namespace nvrpc

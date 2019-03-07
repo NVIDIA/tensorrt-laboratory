@@ -65,8 +65,8 @@ ImageClient::ImageClient(std::string hostname)
         detection_prepare_fn, executor);
 }
 
-std::shared_future<ClassifyResult>
-    ImageClient::Classify(const std::string& model_name, const std::string& image_uuid)
+std::shared_future<ClassifyResult> ImageClient::Classify(const std::string& model_name,
+                                                         const std::string& image_uuid)
 {
     ImageInfo image_info;
     image_info.set_model_name(model_name);
@@ -80,8 +80,8 @@ std::shared_future<ClassifyResult>
     return m_ClassifyClient->Enqueue(std::move(image_info), post, headers);
 }
 
-std::shared_future<DetectionResult>
-    ImageClient::Detection(const std::string& model_name, const std::string& image_uuid)
+std::shared_future<DetectionResult> ImageClient::Detection(const std::string& model_name,
+                                                           const std::string& image_uuid)
 {
     ImageInfo image_info;
     image_info.set_model_name(model_name);
@@ -96,10 +96,14 @@ std::shared_future<DetectionResult>
 }
 
 ClassifyResult::ClassifyResult(const ::trtlab::deploy::image_client::Classifications& pb)
-  : m_UUID(pb.image_uuid()) {}
+    : m_UUID(pb.image_uuid())
+{
+}
 
 DetectionResult::DetectionResult(const ::trtlab::deploy::image_client::Detections& pb)
-  : m_UUID(pb.image_uuid()) {}
+    : m_UUID(pb.image_uuid())
+{
+}
 
 using PyClassifyFuture = std::shared_future<ClassifyResult>;
 using PyDetectionFuture = std::shared_future<DetectionResult>;
@@ -121,7 +125,6 @@ PYBIND11_MODULE(deploy_image_client, m)
     py::class_<PyDetectionFuture, std::shared_ptr<PyDetectionFuture>>(m, "DetectionFuture")
         .def("wait", &PyDetectionFuture::wait, py::call_guard<py::gil_scoped_release>())
         .def("get", &PyDetectionFuture::get, py::call_guard<py::gil_scoped_release>());
-
 
     py::class_<ClassifyResult, std::shared_ptr<ClassifyResult>>(m, "ClassifyResult")
         .def_property_readonly("uuid", &ClassifyResult::UUID);

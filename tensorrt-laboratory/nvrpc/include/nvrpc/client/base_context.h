@@ -33,22 +33,16 @@ class BaseContext
 {
   public:
     BaseContext() : m_MasterContext(this) {}
-    BaseContext(BaseContext *master) : m_MasterContext(master) {}
+    BaseContext(BaseContext* master) : m_MasterContext(master) {}
 
     virtual ~BaseContext() {}
     virtual bool RunNextState(bool ok) = 0;
 
     virtual bool ExecutorShouldDeleteContext() const = 0;
 
-    void* Tag()
-    {
-        return static_cast<void*>(this);
-    }
+    void* Tag() { return static_cast<void*>(this); }
 
-    static BaseContext* Detag(void* tag)
-    {
-        return static_cast<BaseContext*>(tag);
-    }
+    static BaseContext* Detag(void* tag) { return static_cast<BaseContext*>(tag); }
 
   protected:
     BaseContext* m_MasterContext;

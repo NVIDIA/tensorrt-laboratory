@@ -26,10 +26,10 @@
  */
 #pragma once
 
+#include "tensorrt/laboratory/bindings.h"
 #include "tensorrt/laboratory/core/async_compute.h"
 #include "tensorrt/laboratory/inference_manager.h"
 #include "tensorrt/laboratory/model.h"
-#include "tensorrt/laboratory/bindings.h"
 
 namespace trtlab {
 namespace TensorRT {
@@ -116,10 +116,7 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
         return trt_ctx;
     }
 
-    inline ThreadPool& Workers(std::string name)
-    {
-        return m_Resources->AcquireThreadPool(name);
-    }
+    inline ThreadPool& Workers(std::string name) { return m_Resources->AcquireThreadPool(name); }
     /*
         void CopyInputsToInputBindings(const HostMap& inputs, BindingsHandle& bindings)
         {
@@ -133,40 +130,31 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
             }
         }
     */
-/*j
-    const Model& Model() const
-    {
-        return *m_Model;
-    }
+    /*j
+        const Model& Model() const
+        {
+            return *m_Model;
+        }
 
-    const InferenceManager& Resources() const
-    {
-        return *m_Resources;
-    }
-*/
+        const InferenceManager& Resources() const
+        {
+            return *m_Resources;
+        }
+    */
 
   public:
-    const int MaxBatchSize() const
-    {
-        return m_Model->GetMaxBatchSize();
-    }
+    const int MaxBatchSize() const { return m_Model->GetMaxBatchSize(); }
 
-    const Model& GetModel() const
-    {
-        return *m_Model;
-    }
+    const Model& GetModel() const { return *m_Model; }
 
     const std::shared_ptr<Model> GetModelSmartPtr() const { return m_Model; }
 
-    InferenceManager& Resources()
-    {
-        return *m_Resources;
-    }
+    InferenceManager& Resources() { return *m_Resources; }
 
   private:
     std::shared_ptr<Model> m_Model;
     std::shared_ptr<InferenceManager> m_Resources;
 };
 
-}
-}
+} // namespace TensorRT
+} // namespace trtlab

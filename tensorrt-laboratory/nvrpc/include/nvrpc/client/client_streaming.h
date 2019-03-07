@@ -51,27 +51,24 @@ struct ClientStreaming : public BaseContext
     using WriteCallback = std::function<void(Request&&)>;
 
     ClientStreaming(PrepareFn, std::shared_ptr<Executor>, WriteCallback, ReadCallback);
-    ~ClientStreaming()
-    {
-        DLOG(INFO) << "ClientStreaming dtor";
-    }
+    ~ClientStreaming() { DLOG(INFO) << "ClientStreaming dtor"; }
 
     // void Write(Request*);
     bool Write(Request&&);
 
-    std::future<::grpc::Status> Status();
-    std::future<::grpc::Status> Done();
+    std::shared_future<::grpc::Status> Status();
+    std::shared_future<::grpc::Status> Done();
 
-    bool ExecutorShouldDeleteContext() const override
-    {
-        return false;
-    }
+    bool SetCorked(bool true_or_false) { m_Corked = true_or_false; }
+
+    bool IsCorked() const { return m_Corked; }
+
+    bool ExecutorShouldDeleteContext() const override { return false; }
+
+    void ExecutorShouldDeleteContext(bool true_or_false) { m_ShouldDelete = true_or_false; }
 
   private:
-    bool RunNextState(bool ok) final override
-    {
-        return (this->*m_NextState)(ok);
-    }
+    bool RunNextState(bool ok) final override { return (this->*m_NextState)(ok); }
 
     bool RunNextState(bool (ClientStreaming<Request, Response>::*state_fn)(bool), bool ok)
     {
@@ -93,10 +90,7 @@ struct ClientStreaming : public BaseContext
 
         bool (ClientStreaming<Request, Response>::*m_NextState)(bool);
 
-        bool ExecutorShouldDeleteContext() const override
-        {
-            return false;
-        }
+        bool ExecutorShouldDeleteContext() const override { return false; }
 
         friend class ClientStreaming<Request, Response>;
     };
@@ -122,6 +116,9 @@ struct ClientStreaming : public BaseContext
     std::queue<Request> m_WriteQueue;
 
     std::shared_ptr<Executor> m_Executor;
+
+    bool m_Corked;
+    bool m_ShouldDelete;
 
     using ReadHandle = bool;
     using WriteHandle = bool;
@@ -155,7 +152,7 @@ ClientStreaming<Request, Response>::ClientStreaming(PrepareFn prepare_fn,
     : m_Executor(executor), m_PrepareFn(prepare_fn), m_ReadState(this), m_WriteState(this),
       m_ReadCallback(OnRead), m_WriteCallback(OnWrite), m_Reading(false), m_Writing(false),
       m_Finishing(false), m_Closing(false), m_ReadsDone(false), m_WritesDone(false),
-      m_FinishDone(false)
+      m_FinishDone(false), m_ShouldDelete(false), m_Corked(false)
 {
     m_NextState = &ClientStreaming<Request, Response>::StateStreamInitialized;
     m_ReadState.m_NextState = &ClientStreaming<Request, Response>::StateInvalid;
@@ -198,7 +195,7 @@ bool ClientStreaming<Request, Response>::Write(Request&& request)
 }
 
 template<typename Request, typename Response>
-std::future<::grpc::Status> ClientStreaming<Request, Response>::Done()
+std::shared_future<::grpc::Status> ClientStreaming<Request, Response>::Done()
 {
     Actions actions;
     {
@@ -214,7 +211,7 @@ std::future<::grpc::Status> ClientStreaming<Request, Response>::Done()
 }
 
 template<typename Request, typename Response>
-std::future<::grpc::Status> ClientStreaming<Request, Response>::Status()
+std::shared_future<::grpc::Status> ClientStreaming<Request, Response>::Status()
 {
     return m_Promise.get_future();
 }
@@ -302,7 +299,16 @@ void ClientStreaming<Request, Response>::ForwardProgress(Actions& actions)
     if(should_write)
     {
         DLOG(INFO) << "Writing/Sending Request";
-        m_Stream->Write(m_WriteQueue.front(), m_WriteState.Tag());
+        if(m_Corked)
+        {
+            ::grpc::WriteOptions options;
+            options.set_corked();
+            m_Stream->Write(m_WriteQueue.front(), options, m_WriteState.Tag());
+        }
+        else
+        {
+            m_Stream->Write(m_WriteQueue.front(), m_WriteState.Tag());
+        }
     }
     if(should_close)
     {

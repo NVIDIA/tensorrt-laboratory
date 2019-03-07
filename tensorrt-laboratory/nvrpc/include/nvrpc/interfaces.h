@@ -31,8 +31,7 @@
 
 #include "tensorrt/laboratory/core/resources.h"
 
-namespace nvrpc
-{
+namespace nvrpc {
 
 class IContext;
 class IExecutor;
@@ -42,20 +41,20 @@ class IService;
 
 /**
  * The IContext object and it's subsequent derivations are the single more important class
- * in this library. Contexts are responsible for maintaining the state of a message and 
+ * in this library. Contexts are responsible for maintaining the state of a message and
  * performing the custom code for an RPC invocation.
  */
 class IContext
 {
   public:
     virtual ~IContext() {}
-    static IContext *Detag(void *tag) { return static_cast<IContext *>(tag); }
+    static IContext* Detag(void* tag) { return static_cast<IContext*>(tag); }
 
   protected:
     IContext() : m_MasterContext(this) {}
     IContext(IContext* master) : m_MasterContext(master) {}
 
-    void *Tag() { return reinterpret_cast<void *>(this); }
+    void* Tag() { return reinterpret_cast<void*>(this); }
 
   protected:
     IContext* m_MasterContext;
@@ -89,7 +88,7 @@ class IService
     IService() = default;
     virtual ~IService() {}
 
-    virtual void Initialize(::grpc::ServerBuilder &) = 0;
+    virtual void Initialize(::grpc::ServerBuilder&) = 0;
 };
 
 class IRPC
@@ -99,7 +98,8 @@ class IRPC
     virtual ~IRPC() {}
 
   protected:
-    virtual std::unique_ptr<IContext> CreateContext(::grpc::ServerCompletionQueue *, std::shared_ptr<::trtlab::Resources>) = 0;
+    virtual std::unique_ptr<IContext> CreateContext(::grpc::ServerCompletionQueue*,
+                                                    std::shared_ptr<::trtlab::Resources>) = 0;
 
     friend class IExecutor;
 };
@@ -110,9 +110,10 @@ class IExecutor
     IExecutor() = default;
     virtual ~IExecutor() {}
 
-    virtual void Initialize(::grpc::ServerBuilder &) = 0;
+    virtual void Initialize(::grpc::ServerBuilder&) = 0;
     virtual void Run() = 0;
-    virtual void RegisterContexts(IRPC *rpc, std::shared_ptr<::trtlab::Resources> resources, int numContextsPerThread) = 0;
+    virtual void RegisterContexts(IRPC* rpc, std::shared_ptr<::trtlab::Resources> resources,
+                                  int numContextsPerThread) = 0;
     virtual void Shutdown() = 0;
 
   protected:
@@ -120,9 +121,10 @@ class IExecutor
 
     virtual void SetTimeout(time_point, std::function<void()>) = 0;
 
-    inline bool RunContext(IContext *ctx, bool ok) { return ctx->RunNextState(ok); }
-    inline void ResetContext(IContext *ctx) { ctx->Reset(); }
-    inline std::unique_ptr<IContext> CreateContext(IRPC *rpc, ::grpc::ServerCompletionQueue *cq, std::shared_ptr<::trtlab::Resources> res)
+    inline bool RunContext(IContext* ctx, bool ok) { return ctx->RunNextState(ok); }
+    inline void ResetContext(IContext* ctx) { ctx->Reset(); }
+    inline std::unique_ptr<IContext> CreateContext(IRPC* rpc, ::grpc::ServerCompletionQueue* cq,
+                                                   std::shared_ptr<::trtlab::Resources> res)
     {
         return rpc->CreateContext(cq, res);
     }

@@ -32,10 +32,11 @@
 
 namespace trtlab {
 
-
-void Copy(HostMemory& dst, size_t dst_offset, const DeviceMemory& src, size_t src_offset, size_t size);
-void Copy(DeviceMemory& dst, size_t dst_offset, const HostMemory& src, size_t src_offset, size_t size);
-void Copy(DeviceMemory& dst, size_t dst_offset, const DeviceMemory& src, size_t src_offset, size_t size);
-
+void Copy(HostMemory& dst, size_t dst_offset, const DeviceMemory& src, size_t src_offset,
+          size_t size);
+void Copy(DeviceMemory& dst, size_t dst_offset, const HostMemory& src, size_t src_offset,
+          size_t size);
+void Copy(DeviceMemory& dst, size_t dst_offset, const DeviceMemory& src, size_t src_offset,
+          size_t size);
 
 } // namespace trtlab

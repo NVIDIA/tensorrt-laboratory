@@ -26,27 +26,31 @@
  */
 #include <benchmark/benchmark.h>
 
+#include "tensorrt/laboratory/core/memory/cyclic_allocator.h"
 #include "tensorrt/laboratory/core/memory/malloc.h"
-#include "tensorrt/laboratory/core/memory/system_v.h"
 #include "tensorrt/laboratory/core/memory/memory_stack.h"
 #include "tensorrt/laboratory/core/memory/smart_stack.h"
-#include "tensorrt/laboratory/core/memory/cyclic_allocator.h"
+#include "tensorrt/laboratory/core/memory/system_v.h"
 
 using namespace trtlab;
 using namespace trtlab;
 
-template <typename MemoryType>
+template<typename MemoryType>
 struct StackWithInternalDescriptor
 {
     StackWithInternalDescriptor(size_t size) : m_Stack(size) {}
     class InternalDescriptor final : public Descriptor<MemoryType>
     {
       public:
-        InternalDescriptor(void *ptr, size_t size) : Descriptor<MemoryType>(ptr, size, "BenchmarkInternalDesc") {}
+        InternalDescriptor(void* ptr, size_t size)
+            : Descriptor<MemoryType>(ptr, size, "BenchmarkInternalDesc")
+        {
+        }
         ~InternalDescriptor() final override {}
     };
 
-    DescriptorHandle<typename MemoryType::BaseType> Allocate(size_t size) {
+    DescriptorHandle<typename MemoryType::BaseType> Allocate(size_t size)
+    {
         return std::move(std::make_unique<InternalDescriptor>(m_Stack.Allocate(size), size));
     }
 
@@ -56,20 +60,20 @@ struct StackWithInternalDescriptor
     MemoryStack<MemoryType> m_Stack;
 };
 
-static void BM_MemoryStack_Allocate(benchmark::State &state)
+static void BM_MemoryStack_Allocate(benchmark::State& state)
 {
-    auto stack = std::make_shared<MemoryStack<Malloc>>(1024*1024);
-    for (auto _ : state)
+    auto stack = std::make_shared<MemoryStack<Malloc>>(1024 * 1024);
+    for(auto _ : state)
     {
         auto ptr = stack->Allocate(1024);
         stack->Reset();
     }
 }
 
-static void BM_MemoryStackWithDescriptor_Allocate(benchmark::State &state)
+static void BM_MemoryStackWithDescriptor_Allocate(benchmark::State& state)
 {
-    auto stack = std::make_shared<MemoryStack<Malloc>>(1024*1024);
-    for (auto _ : state)
+    auto stack = std::make_shared<MemoryStack<Malloc>>(1024 * 1024);
+    for(auto _ : state)
     {
         auto ptr = stack->Allocate(1024);
         stack->Reset();
@@ -82,29 +86,29 @@ static void BM_MemoryStackWithDescriptor_Allocate(benchmark::State &state)
  * by value.  The lifecycle management of the shared_ptr exhibits a small performance
  * penalty of 100-200ns dependingn on the system
  */
-static void BM_SmartStack_Allocate(benchmark::State &state)
+static void BM_SmartStack_Allocate(benchmark::State& state)
 {
-    auto stack = std::make_shared<StackWithInternalDescriptor<Malloc>>(1024*1024);
-    for (auto _ : state)
+    auto stack = std::make_shared<StackWithInternalDescriptor<Malloc>>(1024 * 1024);
+    for(auto _ : state)
     {
         auto ptr = stack->Allocate(1024);
         stack->Reset();
     }
 }
 
-static void BM_CyclicAllocator_Malloc_Allocate(benchmark::State &state)
+static void BM_CyclicAllocator_Malloc_Allocate(benchmark::State& state)
 {
-    auto stack = std::make_unique<CyclicAllocator<Malloc>>(10, 1024*1024);
-    for (auto _ : state)
+    auto stack = std::make_unique<CyclicAllocator<Malloc>>(10, 1024 * 1024);
+    for(auto _ : state)
     {
         auto ptr = stack->Allocate(1024);
     }
 }
 
-static void BM_CyclicAllocator_SystemV_Allocate(benchmark::State &state)
+static void BM_CyclicAllocator_SystemV_Allocate(benchmark::State& state)
 {
-    auto stack = std::make_unique<CyclicAllocator<SystemV>>(10, 1024*1024);
-    for (auto _ : state)
+    auto stack = std::make_unique<CyclicAllocator<SystemV>>(10, 1024 * 1024);
+    for(auto _ : state)
     {
         auto ptr = stack->Allocate(1024);
     }

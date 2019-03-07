@@ -47,10 +47,10 @@ using nvrpc::Server;
 #include "api.grpc.pb.h"
 #include "api.pb.h"
 
-using trtlab::deploy::image_client::Inference;
-using trtlab::deploy::image_client::ImageInfo;
 using trtlab::deploy::image_client::Classifications;
 using trtlab::deploy::image_client::Detections;
+using trtlab::deploy::image_client::ImageInfo;
+using trtlab::deploy::image_client::Inference;
 
 // CLI Options
 DEFINE_string(hostname, "localhost", "Hostname");
@@ -60,10 +60,7 @@ class TestResources : public Resources
 {
   public:
     TestResources(const std::string& hostname) : m_Hostname(hostname) {}
-    const std::string& Hostname() const
-    {
-        return m_Hostname;
-    }
+    const std::string& Hostname() const { return m_Hostname; }
 
   private:
     std::string m_Hostname;
@@ -88,8 +85,8 @@ int main(int argc, char* argv[])
 
     Server server(FLAGS_ip_port);
     auto service = server.RegisterAsyncService<Inference>();
-    auto rpc_classify = 
-        service->RegisterRPC<TestContext<Classifications>>(&Inference::AsyncService::RequestClassify);
+    auto rpc_classify = service->RegisterRPC<TestContext<Classifications>>(
+        &Inference::AsyncService::RequestClassify);
     auto rpc_detection =
         service->RegisterRPC<TestContext<Detections>>(&Inference::AsyncService::RequestDetection);
 

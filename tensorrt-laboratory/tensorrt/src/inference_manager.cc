@@ -41,14 +41,15 @@ namespace TensorRT {
 /**
  * @brief General TensorRT Resource class
  *
- * Derived from trtlab::Resources, this InferenceManager object provides the basic memory and compute
- * resources needed for using with a TensorRT Context.  Limited quanity resources such as Buffers
- * and ExecutionContexts are managed by thead-safe Pools.  In general, the compute is always limited
- * by the number of resources. For example, limiting the number of ExecutionContexts to 1 will
- * ensure only 1 Inference calcuation is using the GPU.  This will ensure best possible latency.
- * However, if you wish to improve throughput at the cost of increased latency, you can increase the
- * number of in-flight ExecutionContexts.  This will cause competition between the multiple forward
- * passes; however, it will also allow the GPU to better utilize the compute resources of the GPU.
+ * Derived from trtlab::Resources, this InferenceManager object provides the basic memory and
+ * compute resources needed for using with a TensorRT Context.  Limited quanity resources such as
+ * Buffers and ExecutionContexts are managed by thead-safe Pools.  In general, the compute is always
+ * limited by the number of resources. For example, limiting the number of ExecutionContexts to 1
+ * will ensure only 1 Inference calcuation is using the GPU.  This will ensure best possible
+ * latency. However, if you wish to improve throughput at the cost of increased latency, you can
+ * increase the number of in-flight ExecutionContexts.  This will cause competition between the
+ * multiple forward passes; however, it will also allow the GPU to better utilize the compute
+ * resources of the GPU.
  *
  * Note: the number of Buffers should alway be nExec+1 or larger to ensure you are not resource
  * bound on the Buffers used for the Input and Output Tensors of the DNN.
@@ -56,8 +57,9 @@ namespace TensorRT {
  * @see Pool for more details on how limited quantity Resources are managed.
  */
 InferenceManager::InferenceManager(int max_executions, int max_buffers)
-    : m_MaxExecutions(max_executions), m_MaxBuffers(max_buffers ? max_buffers : max_executions * 2), m_HostStackSize(0),
-      m_DeviceStackSize(0), m_ActivationsSize(0), m_Buffers{nullptr}, m_ActiveRuntime{nullptr}
+    : m_MaxExecutions(max_executions), m_MaxBuffers(max_buffers ? max_buffers : max_executions * 2),
+      m_HostStackSize(0), m_DeviceStackSize(0),
+      m_ActivationsSize(0), m_Buffers{nullptr}, m_ActiveRuntime{nullptr}
 {
     // RegisterRuntime("default", std::make_unique<CustomRuntime<StandardAllocator>>());
     // SetActiveRuntime("default");
@@ -66,20 +68,11 @@ InferenceManager::InferenceManager(int max_executions, int max_buffers)
     LOG(INFO) << "Maximum Copy Concurrency: " << m_MaxBuffers;
 }
 
-InferenceManager::~InferenceManager()
-{
-    JoinAllThreads();
-}
+InferenceManager::~InferenceManager() { JoinAllThreads(); }
 
-int InferenceManager::MaxExecConcurrency() const
-{
-    return m_MaxExecutions;
-}
+int InferenceManager::MaxExecConcurrency() const { return m_MaxExecutions; }
 
-int InferenceManager::MaxCopyConcurrency() const
-{
-    return m_MaxBuffers;
-}
+int InferenceManager::MaxCopyConcurrency() const { return m_MaxBuffers; }
 
 /**
  * @brief Register a Model with the InferenceManager object
@@ -151,8 +144,7 @@ void InferenceManager::RegisterModel(const std::string& name, std::shared_ptr<Mo
     LOG(INFO) << "Execution Activations require "
               << BytesToString(model->GetActivationsMemorySize());
     auto weights = model->GetWeightsMemorySize();
-    if(weights)
-        LOG(INFO) << "Weights require " << BytesToString(weights);
+    if(weights) LOG(INFO) << "Weights require " << BytesToString(weights);
 
     model->SetName(name);
     m_Models[name] = model;
@@ -163,16 +155,13 @@ void InferenceManager::RegisterModel(const std::string& name, std::shared_ptr<Mo
     }
 }
 
-Runtime& InferenceManager::ActiveRuntime()
-{
-    return *m_ActiveRuntime;
-}
+Runtime& InferenceManager::ActiveRuntime() { return *m_ActiveRuntime; }
 
 void InferenceManager::RegisterRuntime(const std::string& name, std::shared_ptr<Runtime> runtime)
 {
     auto search = m_Runtimes.find(name);
     CHECK(search == m_Runtimes.end());
-    m_Runtimes[name] = std::move(runtime);    
+    m_Runtimes[name] = std::move(runtime);
 }
 
 void InferenceManager::SetActiveRuntime(const std::string& name)
@@ -336,7 +325,6 @@ void InferenceManager::ForEachModel(std::function<void(const Model&)> callback)
         callback(*(item.second));
     }
 }
-
 
 } // namespace TensorRT
 } // namespace trtlab

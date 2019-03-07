@@ -67,10 +67,7 @@ class alignas(16) hybrid_mutex final
 
     /**
      */
-    ~hybrid_mutex() noexcept
-    {
-        assert(m_lock.u == 0x0);
-    }
+    ~hybrid_mutex() noexcept { assert(m_lock.u == 0x0); }
 
     /**
      */

@@ -50,10 +50,7 @@ Executor::Executor(std::unique_ptr<ThreadPool> threadpool) : m_ThreadPool(std::m
     }
 }
 
-Executor::~Executor()
-{
-    ShutdownAndJoin();
-}
+Executor::~Executor() { ShutdownAndJoin(); }
 
 void Executor::ShutdownAndJoin()
 {

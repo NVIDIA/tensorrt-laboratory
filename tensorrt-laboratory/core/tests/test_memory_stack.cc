@@ -43,15 +43,9 @@ static size_t one_mb = 1024 * 1024;
 class TestMemoryStack : public ::testing::Test
 {
   protected:
-    virtual void SetUp()
-    {
-        stack = std::make_shared<MemoryStack<Malloc>>(one_mb);
-    }
+    virtual void SetUp() { stack = std::make_shared<MemoryStack<Malloc>>(one_mb); }
 
-    virtual void TearDown()
-    {
-        stack->Reset();
-    }
+    virtual void TearDown() { stack->Reset(); }
 
     std::shared_ptr<MemoryStack<Malloc>> stack;
 };
@@ -59,15 +53,11 @@ class TestMemoryStack : public ::testing::Test
 class TestSmartStack : public ::testing::Test
 {
   protected:
-    virtual void SetUp()
-    {
-        stack = SmartStack<SystemV>::Create(one_mb);
-    }
+    virtual void SetUp() { stack = SmartStack<SystemV>::Create(one_mb); }
 
     virtual void TearDown()
     {
-        if(stack)
-            stack->Reset();
+        if(stack) stack->Reset();
     }
 
     std::shared_ptr<SmartStack<SystemV>> stack;

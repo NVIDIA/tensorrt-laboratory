@@ -115,20 +115,11 @@ class CyclicAllocator
         m_Alignment = m_CurrentSegment->Alignment();
     }
 
-    virtual ~CyclicAllocator()
-    {
-        m_CurrentSegment.reset();
-    }
+    virtual ~CyclicAllocator() { m_CurrentSegment.reset(); }
 
-    Descriptor Allocate(size_t size)
-    {
-        return InternalAllocate(size);
-    }
+    Descriptor Allocate(size_t size) { return InternalAllocate(size); }
 
-    size_t MaxAllocationSize() const
-    {
-        return m_MaximumAllocationSize;
-    }
+    size_t MaxAllocationSize() const { return m_MaximumAllocationSize; }
 
     /*
         std::shared_ptr<MemoryStack<BaseType>> AllocateStack(size_t size)
@@ -136,20 +127,11 @@ class CyclicAllocator
             return std::make_shared<MemoryStack<BaseType>>(InternalAllocate(size));
         }
     */
-    void AddSegment()
-    {
-        InternalPushSegment();
-    }
+    void AddSegment() { InternalPushSegment(); }
 
-    void DropSegment()
-    {
-        InternalDropSegment();
-    }
+    void DropSegment() { InternalDropSegment(); }
 
-    auto AvailableSegments()
-    {
-        return m_Segments->Size() + (m_CurrentSegment ? 1 : 0);
-    }
+    auto AvailableSegments() { return m_Segments->Size() + (m_CurrentSegment ? 1 : 0); }
 
     auto AvailableBytes()
     {
@@ -157,10 +139,7 @@ class CyclicAllocator
                (m_CurrentSegment ? m_CurrentSegment->Available() : 0);
     }
 
-    auto Alignment()
-    {
-        return m_Alignment;
-    }
+    auto Alignment() { return m_Alignment; }
 
   private:
     // The returned shared_ptr<MemoryType> holds a reference to the RotatingSegment object

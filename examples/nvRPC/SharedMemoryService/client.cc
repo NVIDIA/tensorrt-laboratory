@@ -25,10 +25,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <algorithm>
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <chrono>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -42,88 +42,95 @@
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::Status;
+using simple::Inference;
 using simple::Input;
 using simple::Output;
-using simple::Inference;
 
 using trtlab::CyclicAllocator;
 using trtlab::SystemV;
 
-static constexpr size_t one_mb = 1024*1024;
+static constexpr size_t one_mb = 1024 * 1024;
 
 DEFINE_int32(count, 1, "number of grpc messages to send");
 
-class SimpleClient final {
- public:
-  SimpleClient(std::shared_ptr<Channel> channel)
-      : m_Stub(Inference::NewStub(channel)), m_Memory(5, one_mb) {}
-
-  // Generate and send RPC message
-  int Compute(const int batch_id) {
-
-    // Allocate some SysV shared memory from the CyclicAllocator
-    CyclicAllocator<SystemV>::Descriptor mdesc = RandomAllocation();
-
-    // Populate the request object
-    Input request;
-    request.set_batch_id(batch_id);
-    auto sysv = request.mutable_sysv();
-    sysv->set_shm_id(mdesc->Stack().Memory().ShmID());
-    sysv->set_offset(mdesc->Offset());
-    sysv->set_size(mdesc->Size());
-
-    // Write the batch_id to the shared memory segment
-    // This will validated against the batch_id in the message body on the server
-    auto data = mdesc->CastToArray<size_t>();
-    data[0] = batch_id;
-    data[1] = 0xDEADBEEF;
-
-    // Container for the data we expect from the server.
-    Output reply;
-
-    // Context for the client. It could be used to convey extra information to
-    // the server and/or tweak certain RPC behaviors.
-    ClientContext context;
-
-    // The actual RPC.
-    Status status = m_Stub->Compute(&context, request, &reply);
-
-    if (status.ok()) {
-      CHECK_EQ(data[1], batch_id);
-      return reply.batch_id();
-    } else {
-      LOG(ERROR) << status.error_code() << ": " << status.error_message();
-      return -1;
+class SimpleClient final
+{
+  public:
+    SimpleClient(std::shared_ptr<Channel> channel)
+        : m_Stub(Inference::NewStub(channel)), m_Memory(5, one_mb)
+    {
     }
-  }
 
- private:
-  CyclicAllocator<SystemV>::Descriptor RandomAllocation() {
-    size_t bytes = rand() % (m_Memory.MaxAllocationSize() / 4);
-    bytes = std::max(bytes, 16UL); // guarantee at least 16 bytes (2x size_t)
-    DLOG(INFO) << "RandomAllocation: " << bytes << " bytes";
-    return m_Memory.Allocate(bytes);
-  }
+    // Generate and send RPC message
+    int Compute(const int batch_id)
+    {
+        // Allocate some SysV shared memory from the CyclicAllocator
+        CyclicAllocator<SystemV>::Descriptor mdesc = RandomAllocation();
 
-  std::unique_ptr<Inference::Stub> m_Stub;
-  CyclicAllocator<SystemV> m_Memory;
+        // Populate the request object
+        Input request;
+        request.set_batch_id(batch_id);
+        auto sysv = request.mutable_sysv();
+        sysv->set_shm_id(mdesc->Stack().Memory().ShmID());
+        sysv->set_offset(mdesc->Offset());
+        sysv->set_size(mdesc->Size());
+
+        // Write the batch_id to the shared memory segment
+        // This will validated against the batch_id in the message body on the server
+        auto data = mdesc->CastToArray<size_t>();
+        data[0] = batch_id;
+        data[1] = 0xDEADBEEF;
+
+        // Container for the data we expect from the server.
+        Output reply;
+
+        // Context for the client. It could be used to convey extra information to
+        // the server and/or tweak certain RPC behaviors.
+        ClientContext context;
+
+        // The actual RPC.
+        Status status = m_Stub->Compute(&context, request, &reply);
+
+        if(status.ok())
+        {
+            CHECK_EQ(data[1], batch_id);
+            return reply.batch_id();
+        }
+        else
+        {
+            LOG(ERROR) << status.error_code() << ": " << status.error_message();
+            return -1;
+        }
+    }
+
+  private:
+    CyclicAllocator<SystemV>::Descriptor RandomAllocation()
+    {
+        size_t bytes = rand() % (m_Memory.MaxAllocationSize() / 4);
+        bytes = std::max(bytes, 16UL); // guarantee at least 16 bytes (2x size_t)
+        DLOG(INFO) << "RandomAllocation: " << bytes << " bytes";
+        return m_Memory.Allocate(bytes);
+    }
+
+    std::unique_ptr<Inference::Stub> m_Stub;
+    CyclicAllocator<SystemV> m_Memory;
 };
 
-int main(int argc, char** argv) 
+int main(int argc, char** argv)
 {
-  FLAGS_alsologtostderr = 1; // It will dump to console
-  ::google::ParseCommandLineFlags(&argc, &argv, true);
+    FLAGS_alsologtostderr = 1; // It will dump to console
+    ::google::ParseCommandLineFlags(&argc, &argv, true);
 
-  SimpleClient client(grpc::CreateChannel(
-      "localhost:50051", grpc::InsecureChannelCredentials()));
+    SimpleClient client(grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials()));
 
-  auto start = std::chrono::steady_clock::now();
-  for(int i=0; i<FLAGS_count; i++) {
-      auto reply = client.Compute(i);
-      LOG_IF(INFO, reply == -1) << "BatchId received: " << reply;
-  }
-  auto end = std::chrono::steady_clock::now();
-  float elapsed = std::chrono::duration<float>(end - start).count();
-  std::cout << FLAGS_count << " requests in " << elapsed << "seconds" << std::endl;
-  return 0;
+    auto start = std::chrono::steady_clock::now();
+    for(int i = 0; i < FLAGS_count; i++)
+    {
+        auto reply = client.Compute(i);
+        LOG_IF(INFO, reply == -1) << "BatchId received: " << reply;
+    }
+    auto end = std::chrono::steady_clock::now();
+    float elapsed = std::chrono::duration<float>(end - start).count();
+    std::cout << FLAGS_count << " requests in " << elapsed << "seconds" << std::endl;
+    return 0;
 }

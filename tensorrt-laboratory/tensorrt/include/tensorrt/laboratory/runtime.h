@@ -32,8 +32,8 @@
 #include <type_traits>
 #include <vector>
 
-#include "tensorrt/laboratory/common.h"
 #include "tensorrt/laboratory/allocator.h"
+#include "tensorrt/laboratory/common.h"
 #include "tensorrt/laboratory/model.h"
 
 namespace trtlab {
@@ -58,7 +58,8 @@ class Runtime : public std::enable_shared_from_this<Runtime>
     std::shared_ptr<Model> DeserializeEngine(const std::string&);
     std::shared_ptr<Model> DeserializeEngine(const std::string&, ::nvinfer1::IPluginFactory*);
     std::shared_ptr<Model> DeserializeEngine(const void*, size_t);
-    virtual std::shared_ptr<Model> DeserializeEngine(const void*, size_t, ::nvinfer1::IPluginFactory*) = 0;
+    virtual std::shared_ptr<Model> DeserializeEngine(const void*, size_t,
+                                                     ::nvinfer1::IPluginFactory*) = 0;
 
   protected:
     Runtime();
@@ -82,7 +83,7 @@ class Runtime : public std::enable_shared_from_this<Runtime>
     std::unique_ptr<::nvinfer1::IRuntime, NvInferDeleter> m_NvRuntime;
 };
 
-class RuntimeWithAllocator : public Runtime 
+class RuntimeWithAllocator : public Runtime
 {
   public:
     using Runtime::Runtime;
@@ -90,11 +91,9 @@ class RuntimeWithAllocator : public Runtime
 
   protected:
     RuntimeWithAllocator(std::unique_ptr<NvAllocator> allocator);
-    std::shared_ptr<Model> DeserializeEngine(const void*, size_t, ::nvinfer1::IPluginFactory*) final override;
-    NvAllocator& Allocator()
-    {
-        return *m_Allocator;
-    }
+    std::shared_ptr<Model> DeserializeEngine(const void*, size_t,
+                                             ::nvinfer1::IPluginFactory*) final override;
+    NvAllocator& Allocator() { return *m_Allocator; }
 
   private:
     std::unique_ptr<NvAllocator> m_Allocator;

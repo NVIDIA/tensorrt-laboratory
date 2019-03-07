@@ -44,15 +44,9 @@ Runtime::Runtime()
     m_Logger->log(::nvinfer1::ILogger::Severity::kINFO, "IRuntime Logger Initialized");
 }
 
-Runtime::~Runtime()
-{
-    DLOG(INFO) << "Destorying Runtime " << this;
-}
+Runtime::~Runtime() { DLOG(INFO) << "Destorying Runtime " << this; }
 
-::nvinfer1::IRuntime& Runtime::NvRuntime() const
-{
-    return *m_NvRuntime;
-}
+::nvinfer1::IRuntime& Runtime::NvRuntime() const { return *m_NvRuntime; }
 
 std::shared_ptr<Model> Runtime::DeserializeEngine(const std::string& plan_file)
 {
@@ -85,10 +79,7 @@ std::vector<char> Runtime::ReadEngineFile(const std::string& plan_file) const
     return buffer;
 }
 
-Runtime::Logger::~Logger()
-{
-    DLOG(INFO) << "Destroying Logger";
-}
+Runtime::Logger::~Logger() { DLOG(INFO) << "Destroying Logger"; }
 
 void Runtime::Logger::log(::nvinfer1::ILogger::Severity severity, const char* msg)
 {
@@ -126,7 +117,7 @@ RuntimeWithAllocator::~RuntimeWithAllocator()
 
 std::shared_ptr<Model>
     RuntimeWithAllocator::DeserializeEngine(const void* data, size_t size,
-                                                  ::nvinfer1::IPluginFactory* plugin_factory)
+                                            ::nvinfer1::IPluginFactory* plugin_factory)
 {
     DLOG(INFO) << "Deserializing Custom TensorRT ICudaEngine";
     return Allocator().UseWeightAllocator(

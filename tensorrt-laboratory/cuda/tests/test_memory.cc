@@ -37,18 +37,16 @@
 using namespace trtlab;
 using namespace trtlab;
 
-namespace
-{
+namespace {
 
-static size_t one_mb = 1024*1024;
+static size_t one_mb = 1024 * 1024;
 
-template <typename T>
+template<typename T>
 class TestMemory : public ::testing::Test
 {
 };
 
 using MemoryTypes = ::testing::Types<CudaDeviceMemory, CudaManagedMemory, CudaPinnedHostMemory>;
-
 
 TYPED_TEST_CASE(TestMemory, MemoryTypes);
 

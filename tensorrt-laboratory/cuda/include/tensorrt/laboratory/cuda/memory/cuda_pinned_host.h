@@ -32,7 +32,6 @@
 
 namespace trtlab {
 
-
 /**
  * @brief Allocates Page Locked (Pinned) Memory on the Host
  *
@@ -49,6 +48,5 @@ class CudaPinnedHostMemory : public HostMemory, public IAllocatable
     void* Allocate(size_t) final override;
     void Free() final override;
 };
-
 
 } // namespace trtlab

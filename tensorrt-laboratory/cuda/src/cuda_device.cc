@@ -32,7 +32,6 @@
 
 namespace trtlab {
 
-
 void* CudaDeviceMemory::Allocate(size_t size)
 {
     void* ptr;
@@ -40,16 +39,12 @@ void* CudaDeviceMemory::Allocate(size_t size)
     return ptr;
 }
 
-void CudaDeviceMemory::Free()
-{
-    CHECK_EQ(cudaFree(Data()), CUDA_SUCCESS);
-}
+void CudaDeviceMemory::Free() { CHECK_EQ(cudaFree(Data()), CUDA_SUCCESS); }
 
 const std::string& CudaDeviceMemory::Type() const
 {
     static std::string type = "CudaMalloc";
     return type;
 }
-
 
 } // namespace trtlab

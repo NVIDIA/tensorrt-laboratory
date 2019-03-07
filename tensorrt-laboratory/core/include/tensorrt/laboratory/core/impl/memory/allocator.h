@@ -30,14 +30,13 @@
 
 namespace trtlab {
 
-
 // Allocator
 
 template<typename MemoryType>
 Allocator<MemoryType>::Allocator(size_t size) : MemoryType(this->Allocate(size), size, true)
 {
-    DLOG(INFO) << "Allocator<" << this->Type() << "> size_ctor [" << this << "]: ptr=" << this->Data()
-               << "; size=" << this->Size();
+    DLOG(INFO) << "Allocator<" << this->Type() << "> size_ctor [" << this
+               << "]: ptr=" << this->Data() << "; size=" << this->Size();
 }
 
 template<typename MemoryType>
@@ -64,6 +63,5 @@ Allocator<MemoryType>::~Allocator()
         this->Free();
     }
 }
-
 
 } // namespace trtlab

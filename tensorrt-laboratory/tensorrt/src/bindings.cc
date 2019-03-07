@@ -31,19 +31,21 @@
 #include "tensorrt/laboratory/core/memory/descriptor.h"
 
 using trtlab::Descriptor;
-using trtlab::HostMemory;
-using trtlab::DeviceMemory;
 using trtlab::DescriptorHandle;
+using trtlab::DeviceMemory;
+using trtlab::HostMemory;
 
-namespace
+namespace {
+class RawHostMemoryDescriptor final : public Descriptor<HostMemory>
 {
-    class RawHostMemoryDescriptor final : public Descriptor<HostMemory>
+  public:
+    RawHostMemoryDescriptor(void* ptr, size_t size)
+        : Descriptor<HostMemory>(ptr, size, "BindingsRawPtr")
     {
-      public:
-        RawHostMemoryDescriptor(void *ptr, size_t size) : Descriptor<HostMemory>(ptr, size, "BindingsRawPtr") {}
-        ~RawHostMemoryDescriptor() final override {}
-    };
-}
+    }
+    ~RawHostMemoryDescriptor() final override {}
+};
+} // namespace
 
 namespace trtlab {
 namespace TensorRT {
@@ -54,7 +56,7 @@ Bindings::Bindings(const std::shared_ptr<Model> model, const std::shared_ptr<Buf
     auto count = model->GetBindingsCount();
     m_HostAddresses.resize(count);
     m_DeviceAddresses.resize(count);
-    for (auto i = 0; i < count; i++)
+    for(auto i = 0; i < count; i++)
     {
         m_HostAddresses[i] = m_DeviceAddresses[i] = nullptr;
     }
@@ -68,7 +70,7 @@ typename Bindings::HostDescriptor& Bindings::HostMemoryDescriptor(int binding_id
     return m_HostDescriptors[binding_id];
 }
 
-void Bindings::SetHostAddress(int binding_id, void *addr)
+void Bindings::SetHostAddress(int binding_id, void* addr)
 {
     CHECK_LT(binding_id, m_HostAddresses.size());
     auto mdesc = std::make_unique<RawHostMemoryDescriptor>(addr, BindingSize(binding_id));
@@ -76,7 +78,7 @@ void Bindings::SetHostAddress(int binding_id, void *addr)
     m_HostAddresses[binding_id] = addr;
 }
 
-void Bindings::SetDeviceAddress(int binding_id, void *addr)
+void Bindings::SetDeviceAddress(int binding_id, void* addr)
 {
     CHECK_LT(binding_id, m_DeviceAddresses.size());
     m_DeviceDescriptors.erase(binding_id);
@@ -97,22 +99,19 @@ void Bindings::SetDeviceAddress(int binding_id, DescriptorHandle<DeviceMemory> m
     m_DeviceDescriptors[binding_id] = std::move(mdesc);
 }
 
-void *Bindings::HostAddress(uint32_t binding_id)
+void* Bindings::HostAddress(uint32_t binding_id)
 {
     CHECK_LT(binding_id, m_HostAddresses.size());
     return m_HostAddresses[binding_id];
 }
 
-void *Bindings::DeviceAddress(uint32_t binding_id)
+void* Bindings::DeviceAddress(uint32_t binding_id)
 {
     CHECK_LT(binding_id, m_DeviceAddresses.size());
     return m_DeviceAddresses[binding_id];
 }
 
-void **Bindings::DeviceAddresses()
-{
-    return (void **)m_DeviceAddresses.data();
-}
+void** Bindings::DeviceAddresses() { return (void**)m_DeviceAddresses.data(); }
 
 void Bindings::CopyToDevice(uint32_t device_binding_id)
 {
@@ -121,15 +120,15 @@ void Bindings::CopyToDevice(uint32_t device_binding_id)
     CopyToDevice(device_binding_id, host_src, bytes);
 }
 
-void Bindings::CopyToDevice(const std::vector<uint32_t> &ids)
+void Bindings::CopyToDevice(const std::vector<uint32_t>& ids)
 {
-    for (auto id : ids)
+    for(auto id : ids)
     {
         CopyToDevice(id);
     }
 }
 
-void Bindings::CopyToDevice(uint32_t device_binding_id, void *src, size_t bytes)
+void Bindings::CopyToDevice(uint32_t device_binding_id, void* src, size_t bytes)
 {
     auto dst = DeviceAddress(device_binding_id);
     DLOG(INFO) << "CopyToDevice binding_id: " << device_binding_id << "; size: " << bytes;
@@ -145,15 +144,15 @@ void Bindings::CopyFromDevice(uint32_t device_binding_id)
     CopyFromDevice(device_binding_id, host_dst, bytes);
 }
 
-void Bindings::CopyFromDevice(const std::vector<uint32_t> &ids)
+void Bindings::CopyFromDevice(const std::vector<uint32_t>& ids)
 {
-    for (auto id : ids)
+    for(auto id : ids)
     {
         CopyFromDevice(id);
     }
 }
 
-void Bindings::CopyFromDevice(uint32_t device_binding_id, void *dst, size_t bytes)
+void Bindings::CopyFromDevice(uint32_t device_binding_id, void* dst, size_t bytes)
 {
     auto src = DeviceAddress(device_binding_id);
     DLOG(INFO) << "CopyFromDevice binding_id: " << device_binding_id << "; size: " << bytes;
@@ -170,7 +169,8 @@ void Bindings::SetBatchSize(uint32_t batch_size)
 
 size_t Bindings::BindingSize(uint32_t binding_id) const
 {
-    return m_Model->GetBinding(binding_id).bytesPerBatchItem * (m_BatchSize ? m_BatchSize : m_Model->GetMaxBatchSize());
+    return m_Model->GetBinding(binding_id).bytesPerBatchItem *
+           (m_BatchSize ? m_BatchSize : m_Model->GetMaxBatchSize());
 }
 
 } // namespace TensorRT

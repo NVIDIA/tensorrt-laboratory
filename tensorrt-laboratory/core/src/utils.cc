@@ -31,8 +31,7 @@
 
 #include <glog/logging.h>
 
-namespace trtlab
-{
+namespace trtlab {
 /**
  * @brief Converts bytes into a more friend human readable format
  *

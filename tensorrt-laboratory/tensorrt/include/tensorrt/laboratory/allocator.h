@@ -37,7 +37,7 @@ namespace TensorRT {
 
 class NvAllocator : public ::nvinfer1::IGpuAllocator
 {
-    struct Pointer; 
+    struct Pointer;
 
   public:
     NvAllocator() : m_UseWeightAllocator(false) {}

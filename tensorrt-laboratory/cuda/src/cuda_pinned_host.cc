@@ -32,7 +32,6 @@
 
 namespace trtlab {
 
-
 void* CudaPinnedHostMemory::Allocate(size_t size)
 {
     void* ptr;
@@ -40,16 +39,12 @@ void* CudaPinnedHostMemory::Allocate(size_t size)
     return ptr;
 }
 
-void CudaPinnedHostMemory::Free()
-{
-    CHECK_EQ(cudaFreeHost(Data()), CUDA_SUCCESS);
-}
+void CudaPinnedHostMemory::Free() { CHECK_EQ(cudaFreeHost(Data()), CUDA_SUCCESS); }
 
 const std::string& CudaPinnedHostMemory::Type() const
 {
     static std::string type = "CudaMallocHost";
     return type;
 }
-
 
 } // namespace trtlab

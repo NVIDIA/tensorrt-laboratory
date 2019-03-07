@@ -29,10 +29,8 @@
 
 #include <NvInfer.h>
 
-namespace trtlab
-{
-namespace TensorRT
-{
+namespace trtlab {
+namespace TensorRT {
 
 /**
  * @brief Number of bytes for a given TensorRT DataType

@@ -32,8 +32,7 @@
 
 #include "nvrpc/service.h"
 
-namespace nvrpc
-{
+namespace nvrpc {
 
 using std::chrono::milliseconds;
 
@@ -44,7 +43,7 @@ class Server
 
     Server() : Server("0.0.0.0:50051") {}
 
-    template <class ServiceType>
+    template<class ServiceType>
     AsyncService<typename ServiceType::AsyncService>* RegisterAsyncService();
 
     IExecutor* RegisterExecutor(IExecutor* executor)
@@ -63,7 +62,6 @@ class Server
 
     ::grpc::ServerBuilder& Builder();
 
-
   private:
     bool m_Running;
     std::mutex m_Mutex;
@@ -75,11 +73,10 @@ class Server
     std::vector<std::unique_ptr<IExecutor>> m_Executors;
 };
 
-
-template <class ServiceType>
+template<class ServiceType>
 AsyncService<typename ServiceType::AsyncService>* Server::RegisterAsyncService()
 {
-    if (m_Running) 
+    if(m_Running)
     {
         throw std::runtime_error("Error: cannot register service on a running server");
     }
@@ -89,9 +86,6 @@ AsyncService<typename ServiceType::AsyncService>* Server::RegisterAsyncService()
     service->Initialize(m_Builder);
     return service;
 }
-
-
-
 
 } // namespace nvrpc
 

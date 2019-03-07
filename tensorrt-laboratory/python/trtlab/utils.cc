@@ -30,26 +30,24 @@
 
 namespace py = pybind11;
 
-namespace trtlab
-{
-namespace TensorRT
-{
+namespace trtlab {
+namespace TensorRT {
 
 py::dtype DataTypeToNumpy(::nvinfer1::DataType dtype)
 {
-    switch (dtype)
+    switch(dtype)
     {
-    case nvinfer1::DataType::kFLOAT:
-        return py::dtype("float32");
-    case nvinfer1::DataType::kHALF:
-        return py::dtype("float16");
-    case nvinfer1::DataType::kINT32:
-        return py::dtype("int32");
-    case nvinfer1::DataType::kINT8: 
-        return py::dtype("int8");
-    default:
-        LOG(FATAL) << "Unknown TensorRT DataType";
-    }    
+        case nvinfer1::DataType::kFLOAT:
+            return py::dtype("float32");
+        case nvinfer1::DataType::kHALF:
+            return py::dtype("float16");
+        case nvinfer1::DataType::kINT32:
+            return py::dtype("int32");
+        case nvinfer1::DataType::kINT8:
+            return py::dtype("int8");
+        default:
+            LOG(FATAL) << "Unknown TensorRT DataType";
+    }
 }
 
 } // namespace TensorRT

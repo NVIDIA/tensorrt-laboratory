@@ -84,18 +84,9 @@ class CoreMemory : public virtual IMemory
   public:
     virtual ~CoreMemory() override;
 
-    inline void* Data() const final override
-    {
-        return m_MemoryAddress;
-    }
-    inline size_t Size() const final override
-    {
-        return m_BytesAllocated;
-    }
-    inline bool Allocated() const final override
-    {
-        return m_Allocated;
-    }
+    inline void* Data() const final override { return m_MemoryAddress; }
+    inline size_t Size() const final override { return m_BytesAllocated; }
+    inline bool Allocated() const final override { return m_Allocated; }
 
     void* operator[](size_t offset) const
     {
@@ -200,7 +191,6 @@ class SystemV : public HostMemory, public IAllocatable
   private:
     int m_ShmID;
 };
-
 
 } // namespace trtlab
 

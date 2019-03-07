@@ -111,17 +111,12 @@ class PyInferenceManager final : public InferenceManager
                                                casted_shared_from_this<PyInferenceManager>());
     }
 
-    void Serve(int port)
-    {
-        BasicInferService(casted_shared_from_this<PyInferenceManager>(), port);
-    }
+    void Serve(int port) { BasicInferService(casted_shared_from_this<PyInferenceManager>(), port); }
 
     std::vector<std::string> Models()
     {
         std::vector<std::string> model_names;
-        ForEachModel([&model_names](const Model& model) {
-            model_names.push_back(model.Name());
-        });
+        ForEachModel([&model_names](const Model& model) { model_names.push_back(model.Name()); });
         return model_names;
     }
 };
@@ -267,10 +262,7 @@ struct TrtisModel : BaseModel
     }
     ~TrtisModel() override {}
 
-    int GetMaxBatchSize() const final override
-    {
-        return m_MaxBatchSize;
-    }
+    int GetMaxBatchSize() const final override { return m_MaxBatchSize; }
 
   private:
     int m_MaxBatchSize;
@@ -289,10 +281,7 @@ struct PyInferRemoteRunner
     using InferResults = py::dict;
     using InferFuture = std::shared_future<InferResults>;
 
-    const BaseModel& GetModel() const
-    {
-        return *m_Model;
-    }
+    const BaseModel& GetModel() const { return *m_Model; }
 
     InferFuture Infer(py::kwargs kwargs)
     {
@@ -437,27 +426,30 @@ struct PyInferRunner : public InferRunner
                 LOG_IF(FATAL, !binding.isInput) << item.first << " is not an InputBinding";
                 if(binding.isInput)
                 {
-                    const void *ptr;
+                    const void* ptr;
                     size_t size;
                     size_t batch;
                     CHECK(py::isinstance<py::array>(item.second));
                     switch(binding.dtype)
                     {
-                        case nvinfer1::DataType::kFLOAT: {
+                        case nvinfer1::DataType::kFLOAT:
+                        {
                             auto data = py::cast<py::array_t<float>>(item.second);
                             ptr = data.data();
                             size = data.nbytes();
                             batch = data.shape(0);
                             break;
                         }
-                        case nvinfer1::DataType::kINT8: {
+                        case nvinfer1::DataType::kINT8:
+                        {
                             auto data = py::cast<py::array_t<std::int8_t>>(item.second);
                             ptr = data.data();
                             size = data.nbytes();
                             batch = data.shape(0);
                             break;
                         }
-                        case nvinfer1::DataType::kINT32: {
+                        case nvinfer1::DataType::kINT32:
+                        {
                             auto data = py::cast<py::array_t<std::int32_t>>(item.second);
                             ptr = data.data();
                             size = data.nbytes();

@@ -36,19 +36,12 @@
 
 #define test_bit(_n, _p) (_n & (1UL << _p))
 
-namespace
-{
+namespace {
 struct nvmlState
 {
-    nvmlState()
-    {
-        CHECK_EQ(nvmlInit(), NVML_SUCCESS) << "Failed to initialize NVML";
-    }
+    nvmlState() { CHECK_EQ(nvmlInit(), NVML_SUCCESS) << "Failed to initialize NVML"; }
 
-    ~nvmlState()
-    {
-        CHECK_EQ(nvmlShutdown(), NVML_SUCCESS) << "Failed to Shutdown NVML";
-    }
+    ~nvmlState() { CHECK_EQ(nvmlShutdown(), NVML_SUCCESS) << "Failed to Shutdown NVML"; }
 };
 
 static auto nvmlInstatnce = std::make_unique<nvmlState>();
@@ -62,8 +55,7 @@ nvmlDevice_t GetHandleById(unsigned int device_id)
 
 } // namespace
 
-namespace trtlab
-{
+namespace trtlab {
 CpuSet DeviceInfo::Affinity(int device_id)
 {
     nvmlDevice_t gpu = GetHandleById(device_id);

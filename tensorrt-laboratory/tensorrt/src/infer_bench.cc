@@ -36,14 +36,15 @@ namespace TensorRT {
 InferBench::InferBench(std::shared_ptr<InferenceManager> resources) : m_Resources(resources) {}
 InferBench::~InferBench() {}
 
-std::unique_ptr<InferBench::Results> InferBench::Run(std::shared_ptr<Model> model, uint32_t batch_size,
-                                    double seconds)
+std::unique_ptr<InferBench::Results> InferBench::Run(std::shared_ptr<Model> model,
+                                                     uint32_t batch_size, double seconds)
 {
     std::vector<std::shared_ptr<Model>> models = {model};
     return std::move(Run(models, batch_size, seconds));
 }
 
-std::unique_ptr<InferBench::Results> InferBench::Run(const ModelsList& models, uint32_t batch_size, double seconds)
+std::unique_ptr<InferBench::Results> InferBench::Run(const ModelsList& models, uint32_t batch_size,
+                                                     double seconds)
 {
     size_t batch_count = 0;
     std::vector<std::shared_future<void>> futures;
@@ -85,7 +86,7 @@ std::unique_ptr<InferBench::Results> InferBench::Run(const ModelsList& models, u
     auto inferences = batch_count * batch_size;
 
     auto results_ptr = std::make_unique<InferBench::Results>();
-    Results &results = *results_ptr;
+    Results& results = *results_ptr;
     results[kBatchSize] = batch_size;
     results[kMaxExecConcurrency] = m_Resources->MaxExecConcurrency();
     results[kMaxCopyConcurrency] = m_Resources->MaxCopyConcurrency();
@@ -99,11 +100,11 @@ std::unique_ptr<InferBench::Results> InferBench::Run(const ModelsList& models, u
     DLOG(INFO) << "Benchmark Run Complete";
 
     DLOG(INFO) << "Inference Results: " << results[kBatchesComputed] << " batches computed in "
-              << results[kWalltime] << " seconds on " << results[kMaxExecConcurrency]
-              << " compute streams using batch_size: " << results[kBatchSize]
-              << "; inf/sec: " << results[kInferencesPerSecond]
-              << "; batches/sec: " << results[kBatchesPerSecond]
-              << "; execution time per batch: " << results[kExecutionTimePerBatch];
+               << results[kWalltime] << " seconds on " << results[kMaxExecConcurrency]
+               << " compute streams using batch_size: " << results[kBatchSize]
+               << "; inf/sec: " << results[kInferencesPerSecond]
+               << "; batches/sec: " << results[kBatchesPerSecond]
+               << "; execution time per batch: " << results[kExecutionTimePerBatch];
 
     return std::move(results_ptr);
 }

@@ -24,17 +24,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <benchmark/benchmark.h>
 #include "tensorrt/laboratory/core/pool.h"
+#include <benchmark/benchmark.h>
 
-static void BM_Pool_Pop(benchmark::State &state)
+static void BM_Pool_Pop(benchmark::State& state)
 {
     using trtlab::Pool;
-    struct Object {};
+    struct Object
+    {
+    };
     auto pool = Pool<Object>::Create();
     pool->EmplacePush(new Object);
 
-    for (auto _ : state)
+    for(auto _ : state)
     {
         auto obj = pool->Pop();
     }

@@ -61,15 +61,9 @@ class SmartStack : public MemoryStack<MemoryType>,
 
         virtual ~StackDescriptorImpl() override {}
 
-        size_t Offset() const
-        {
-            return m_Offset;
-        }
+        size_t Offset() const { return m_Offset; }
 
-        const MemoryStack<MemoryType>& Stack() const
-        {
-            return *m_Stack;
-        }
+        const MemoryStack<MemoryType>& Stack() const { return *m_Stack; }
 
       private:
         std::shared_ptr<const SmartStack<MemoryType>> m_Stack;
@@ -82,10 +76,7 @@ class SmartStack : public MemoryStack<MemoryType>,
     using StackType = std::shared_ptr<SmartStack<MemoryType>>;
     using StackDescriptor = std::unique_ptr<StackDescriptorImpl>;
 
-    static StackType Create(size_t size)
-    {
-        return StackType(new SmartStack(size));
-    }
+    static StackType Create(size_t size) { return StackType(new SmartStack(size)); }
     static StackType Create(std::unique_ptr<MemoryType> memory)
     {
         return StackType(new SmartStack(memory));

@@ -26,8 +26,6 @@
  */
 #pragma once
 
-
-
 #include "tensorrt/laboratory/inference_manager.h"
 #include "tensorrt/laboratory/model.h"
 
@@ -36,15 +34,15 @@ namespace TensorRT {
 
 enum InferBenchKey
 {
-   kMaxExecConcurrency = 0,
-   kMaxCopyConcurrency,
-   kBatchSize,
-   kWalltime,
-   kBatchesComputed,
-   kBatchesPerSecond,
-   kInferencesPerSecond,
-   kSecondsPerBatch,
-   kExecutionTimePerBatch
+    kMaxExecConcurrency = 0,
+    kMaxCopyConcurrency,
+    kBatchSize,
+    kWalltime,
+    kBatchesComputed,
+    kBatchesPerSecond,
+    kInferencesPerSecond,
+    kSecondsPerBatch,
+    kExecutionTimePerBatch
 };
 
 class InferBench
@@ -56,8 +54,10 @@ class InferBench
     using ModelsList = std::vector<std::shared_ptr<Model>>;
     using Results = std::map<InferBenchKey, double>;
 
-    std::unique_ptr<Results> Run(const std::shared_ptr<Model> model, uint32_t batch_size, double seconds = 5.0);
-    std::unique_ptr<Results> Run(const ModelsList& models, uint32_t batch_size, double seconds = 5.0);
+    std::unique_ptr<Results> Run(const std::shared_ptr<Model> model, uint32_t batch_size,
+                                 double seconds = 5.0);
+    std::unique_ptr<Results> Run(const ModelsList& models, uint32_t batch_size,
+                                 double seconds = 5.0);
 
   protected:
     InferenceManager& InferResources() { return *m_Resources; }

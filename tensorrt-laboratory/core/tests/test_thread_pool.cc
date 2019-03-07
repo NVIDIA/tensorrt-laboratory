@@ -33,10 +33,7 @@ using namespace trtlab;
 class TestThreadPool : public ::testing::Test
 {
   protected:
-    virtual void SetUp()
-    {
-        thread_pool = std::make_shared<ThreadPool>(3);
-    }
+    virtual void SetUp() { thread_pool = std::make_shared<ThreadPool>(3); }
 
     virtual void TearDown() {}
 
@@ -56,10 +53,7 @@ TEST_F(TestThreadPool, ReturnChainedInt)
     ASSERT_EQ(1, should_be_1.get().get());
 }
 
-TEST_F(TestThreadPool, MakeUnique)
-{
-    auto unqiue = std::make_unique<ThreadPool>(1);
-}
+TEST_F(TestThreadPool, MakeUnique) { auto unqiue = std::make_unique<ThreadPool>(1); }
 
 TEST_F(TestThreadPool, CaptureThis)
 {
@@ -99,10 +93,7 @@ TEST_F(TestThreadPool, CaptureThis)
             ValueObject() : value(42) {}
             DELETE_COPYABILITY(ValueObject);
             DELETE_MOVEABILITY(ValueObject);
-            ~ValueObject()
-            {
-                LOG(INFO) << "Destroying ValueObject";
-            }
+            ~ValueObject() { LOG(INFO) << "Destroying ValueObject"; }
             int value;
         };
         std::unique_ptr<ValueObject> m_Object;

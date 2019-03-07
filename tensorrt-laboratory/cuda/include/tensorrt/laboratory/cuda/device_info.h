@@ -28,8 +28,7 @@
 
 #include "tensorrt/laboratory/core/affinity.h"
 
-namespace trtlab
-{
+namespace trtlab {
 
 struct DeviceInfo
 {

@@ -25,9 +25,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "tensorrt/laboratory/core/memory/allocator.h"
+#include "tensorrt/laboratory/core/memory/copy.h"
 #include "tensorrt/laboratory/core/memory/malloc.h"
 #include "tensorrt/laboratory/core/memory/system_v.h"
-#include "tensorrt/laboratory/core/memory/copy.h"
 #include "tensorrt/laboratory/core/utils.h"
 
 #include <list>
@@ -37,8 +37,7 @@
 using namespace trtlab;
 using namespace trtlab;
 
-namespace
-{
+namespace {
 static size_t one_mb = 1024 * 1024;
 
 template<typename T>
@@ -109,15 +108,15 @@ TYPED_TEST(TestMemory, alignment)
     EXPECT_EQ(TypeParam::AllocationSizeWithAlignment(64), 64);
     EXPECT_EQ(TypeParam::AllocationSizeWithAlignment(65), 128);
 
-/*
-    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<float>(15), 64);
-    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<float>(16), 64);
-    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<float>(17), 128);
+    /*
+        EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<float>(15), 64);
+        EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<float>(16), 64);
+        EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<float>(17), 128);
 
-    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<double>(7), 64);
-    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<double>(8), 64);
-    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<double>(9), 128);
-*/
+        EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<double>(7), 64);
+        EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<double>(8), 64);
+        EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<double>(9), 128);
+    */
 }
 
 class TestSystemVMemory : public ::testing::Test
@@ -149,7 +148,7 @@ TEST_F(TestSystemVMemory, smart_ptrs)
     EXPECT_EQ(master->Size(), attached->Size());
 
     // different virtual address pointing at the same memory
-    EXPECT_NE(master->Data(), attached->Data()); 
+    EXPECT_NE(master->Data(), attached->Data());
 
     // ensure both segments point to the same data
     auto master_ptr = static_cast<long*>(master->Data());
@@ -182,15 +181,15 @@ TEST_F(TestCopy, MallocToMalloc)
     char v1 = 222;
 
     Allocator<Malloc> m0(1024);
-    auto m1 = std::make_unique<Allocator<Malloc>>(1024*1024);
+    auto m1 = std::make_unique<Allocator<Malloc>>(1024 * 1024);
 
     m0.Fill(v0);
-    auto m0_array =  m0.CastToArray<char>();
+    auto m0_array = m0.CastToArray<char>();
     EXPECT_EQ(m0_array[0], v0);
     EXPECT_EQ(m0_array[0], m0_array[1023]);
 
     m1->Fill(v1);
-    auto m1_array =  m1->CastToArray<char>();
+    auto m1_array = m1->CastToArray<char>();
     EXPECT_EQ(m1_array[0], v1);
     EXPECT_EQ(m1_array[0], m1_array[1024]);
 

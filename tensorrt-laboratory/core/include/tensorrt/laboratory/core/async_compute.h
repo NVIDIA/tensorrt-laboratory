@@ -63,15 +63,9 @@ struct AsyncCompute<void(Args...)>
         };
     }
 
-    std::future<void> Future()
-    {
-        return m_Promise.get_future();
-    }
+    std::future<void> Future() { return m_Promise.get_future(); }
 
-    void operator()(Args&&... args)
-    {
-        m_WrappedFn(args...);
-    }
+    void operator()(Args&&... args) { m_WrappedFn(args...); }
 
   private:
     WrappedFn m_WrappedFn;
@@ -91,15 +85,9 @@ struct AsyncCompute<ResultType(Args...)>
         };
     }
 
-    std::future<ResultType> Future()
-    {
-        return m_Promise.get_future();
-    }
+    std::future<ResultType> Future() { return m_Promise.get_future(); }
 
-    void operator()(Args&&... args)
-    {
-        m_WrappedFn(args...);
-    }
+    void operator()(Args&&... args) { m_WrappedFn(args...); }
 
   private:
     WrappedFn m_WrappedFn;

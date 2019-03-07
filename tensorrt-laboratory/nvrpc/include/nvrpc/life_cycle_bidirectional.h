@@ -72,10 +72,7 @@ class BidirectionalLifeCycleStreaming : public IContextLifeCycle
             return static_cast<BidirectionalLifeCycleStreaming*>(m_MasterContext)
                 ->RunNextState(m_NextState, ok);
         }
-        void Reset() final override
-        {
-            LOG(FATAL) << "ooops; call reset on master";
-        }
+        void Reset() final override { LOG(FATAL) << "ooops; call reset on master"; }
 
         bool (BidirectionalLifeCycleStreaming<RequestType, ResponseType>::*m_NextState)(bool);
 

@@ -33,19 +33,17 @@
 
 #include <NvInfer.h>
 
-#include "tensorrt/laboratory/core/pool.h"
-#include "tensorrt/laboratory/core/thread_pool.h"
-#include "tensorrt/laboratory/core/resources.h"
-#include "tensorrt/laboratory/common.h"
-#include "tensorrt/laboratory/runtime.h"
-#include "tensorrt/laboratory/model.h"
 #include "tensorrt/laboratory/buffers.h"
+#include "tensorrt/laboratory/common.h"
+#include "tensorrt/laboratory/core/pool.h"
+#include "tensorrt/laboratory/core/resources.h"
+#include "tensorrt/laboratory/core/thread_pool.h"
 #include "tensorrt/laboratory/execution_context.h"
+#include "tensorrt/laboratory/model.h"
+#include "tensorrt/laboratory/runtime.h"
 
-namespace trtlab
-{
-namespace TensorRT
-{
+namespace trtlab {
+namespace TensorRT {
 
 class InferenceManager : public ::trtlab::Resources
 {
@@ -54,17 +52,20 @@ class InferenceManager : public ::trtlab::Resources
     virtual ~InferenceManager();
 
     void RegisterModel(const std::string& name, std::shared_ptr<Model> model);
-    void RegisterModel(const std::string& name, std::shared_ptr<Model> model, uint32_t max_concurrency);
+    void RegisterModel(const std::string& name, std::shared_ptr<Model> model,
+                       uint32_t max_concurrency);
 
-    // void RegisterModel(const std::string& name, const std::string& model_path, uint32_t max_concurrency);
-    // void RegisterModel(const std::string& name, const std::string& model_path, uint32_t max_concurrency);
+    // void RegisterModel(const std::string& name, const std::string& model_path, uint32_t
+    // max_concurrency); void RegisterModel(const std::string& name, const std::string& model_path,
+    // uint32_t max_concurrency);
 
     void AllocateResources();
 
     auto GetBuffers() -> std::shared_ptr<Buffers>;
     auto GetModel(std::string model_name) -> std::shared_ptr<Model>;
-    auto GetExecutionContext(const Model *model) -> std::shared_ptr<ExecutionContext>;
-    auto GetExecutionContext(const std::shared_ptr<Model> &model) -> std::shared_ptr<ExecutionContext>;
+    auto GetExecutionContext(const Model* model) -> std::shared_ptr<ExecutionContext>;
+    auto GetExecutionContext(const std::shared_ptr<Model>& model)
+        -> std::shared_ptr<ExecutionContext>;
 
     auto AcquireThreadPool(const std::string&) -> ThreadPool&;
     void RegisterThreadPool(const std::string&, std::unique_ptr<ThreadPool> threads);
@@ -87,12 +88,13 @@ class InferenceManager : public ::trtlab::Resources
     size_t m_HostStackSize;
     size_t m_DeviceStackSize;
     size_t m_ActivationsSize;
-    Runtime *m_ActiveRuntime;
+    Runtime* m_ActiveRuntime;
 
     std::map<std::string, std::unique_ptr<ThreadPool>> m_ThreadPools;
     std::map<std::string, std::shared_ptr<Runtime>> m_Runtimes;
     std::map<std::string, std::shared_ptr<Model>> m_Models;
-    std::map<const Model *, std::shared_ptr<Pool<::nvinfer1::IExecutionContext>>> m_ModelExecutionContexts;
+    std::map<const Model*, std::shared_ptr<Pool<::nvinfer1::IExecutionContext>>>
+        m_ModelExecutionContexts;
 
     std::shared_ptr<Pool<Buffers>> m_Buffers;
     std::shared_ptr<Pool<ExecutionContext>> m_ExecutionContexts;

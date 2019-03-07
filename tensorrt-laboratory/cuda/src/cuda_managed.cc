@@ -32,7 +32,6 @@
 
 namespace trtlab {
 
-
 void* CudaManagedMemory::Allocate(size_t size)
 {
     void* ptr;
@@ -40,16 +39,12 @@ void* CudaManagedMemory::Allocate(size_t size)
     return ptr;
 }
 
-void CudaManagedMemory::Free()
-{
-    CHECK_EQ(cudaFree(Data()), CUDA_SUCCESS);
-}
+void CudaManagedMemory::Free() { CHECK_EQ(cudaFree(Data()), CUDA_SUCCESS); }
 
 const std::string& CudaManagedMemory::Type() const
 {
     static std::string type = "CudaMallocManaged";
     return type;
 }
-
 
 } // namespace trtlab

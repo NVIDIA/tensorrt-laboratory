@@ -33,20 +33,20 @@
 using namespace trtlab;
 using namespace trtlab;
 
-static void BM_Memory_SystemMalloc(benchmark::State &state)
+static void BM_Memory_SystemMalloc(benchmark::State& state)
 {
-    for (auto _ : state)
+    for(auto _ : state)
     {
-        auto unique = std::make_unique<Allocator<Malloc>>(1024*1024);
-        auto shared = std::make_shared<Allocator<Malloc>>(1024*1024);
-        Allocator<Malloc> memory(1024*1024);
+        auto unique = std::make_unique<Allocator<Malloc>>(1024 * 1024);
+        auto shared = std::make_shared<Allocator<Malloc>>(1024 * 1024);
+        Allocator<Malloc> memory(1024 * 1024);
     }
 }
 
-static void BM_Memory_SystemV_descriptor(benchmark::State &state)
+static void BM_Memory_SystemV_descriptor(benchmark::State& state)
 {
-    auto master = std::make_unique<Allocator<SystemV>>(1024*1024);
-    for (auto _ : state)
+    auto master = std::make_unique<Allocator<SystemV>>(1024 * 1024);
+    for(auto _ : state)
     {
         auto mdesc = SystemV::Attach(master->ShmID());
     }

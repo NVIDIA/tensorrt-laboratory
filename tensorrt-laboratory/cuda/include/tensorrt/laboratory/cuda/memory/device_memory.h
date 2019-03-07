@@ -31,7 +31,6 @@
 
 namespace trtlab {
 
-
 class DeviceMemory : public BaseMemory<DeviceMemory>
 {
   public:
@@ -41,6 +40,5 @@ class DeviceMemory : public BaseMemory<DeviceMemory>
     void Fill(char) override;
     static size_t DefaultAlignment();
 };
-
 
 } // namespace trtlab

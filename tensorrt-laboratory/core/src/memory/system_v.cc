@@ -91,10 +91,7 @@ void* SystemV::Allocate(size_t size)
     return ShmAt(m_ShmID);
 }
 
-void SystemV::Free()
-{
-    DisableAttachment();
-}
+void SystemV::Free() { DisableAttachment(); }
 
 DescriptorHandle<SystemV> SystemV::Attach(int shm_id)
 {
@@ -135,9 +132,6 @@ void SystemV::DisableAttachment()
     }
 }
 
-int SystemV::ShmID() const
-{
-    return m_ShmID;
-}
+int SystemV::ShmID() const { return m_ShmID; }
 
 } // namespace trtlab

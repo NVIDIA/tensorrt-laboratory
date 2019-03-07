@@ -23,10 +23,10 @@
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * Original Copyright proivded below.
  * This work extends the original gRPC client examples to work with the
- * implemented server.  
+ * implemented server.
  *
  * Copyright 2015 gRPC authors.
  *
@@ -44,16 +44,16 @@
  *
  */
 
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <chrono>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include <grpcpp/grpcpp.h>
 #include <grpc/support/log.h>
+#include <grpcpp/grpcpp.h>
 #include <thread>
 
 #include "inference.grpc.pb.h"
@@ -71,20 +71,26 @@ using ssd::Inference;
 
 static int g_BatchSize = 1;
 
-class GreeterClient {
+class GreeterClient
+{
   public:
     explicit GreeterClient(std::shared_ptr<Channel> channel, int max_outstanding)
-            : stub_(Inference::NewStub(channel)), m_OutstandingMessageCount(0),
-              m_MaxOutstandingMessageCount(max_outstanding) {}
+        : stub_(Inference::NewStub(channel)), m_OutstandingMessageCount(0),
+          m_MaxOutstandingMessageCount(max_outstanding)
+    {
+    }
 
     // Assembles the client's payload and sends it to the server.
-    void SayHello(const size_t batch_id, const int batch_size, char *bytes, uint64_t total) {
+    void SayHello(const size_t batch_id, const int batch_size, char* bytes, uint64_t total)
+    {
         // Data we are sending to the server.
         {
             std::unique_lock<std::mutex> lock(m_Mutex);
             m_OutstandingMessageCount++;
-            while(m_OutstandingMessageCount >= m_MaxOutstandingMessageCount) {
-                LOG_FIRST_N(WARNING, 10) << "Initiated Backoff - (Siege Rate > Server Compute Rate) - Server Queues are full.";
+            while(m_OutstandingMessageCount >= m_MaxOutstandingMessageCount)
+            {
+                LOG_FIRST_N(WARNING, 10) << "Initiated Backoff - (Siege Rate > Server Compute "
+                                            "Rate) - Server Queues are full.";
                 m_Condition.wait(lock);
             }
         }
@@ -94,7 +100,8 @@ class GreeterClient {
         BatchInput request;
         request.set_batch_id(batch_id);
         request.set_batch_size(batch_size);
-        if(total) {
+        if(total)
+        {
             request.set_data(bytes, total);
         }
 
@@ -105,8 +112,7 @@ class GreeterClient {
         // an instance to store in "call" but does not actually start the RPC
         // Because we are using the asynchronous API, we need to hold on to
         // the "call" instance in order to get updates on the ongoing RPC.
-        call->response_reader =
-            stub_->PrepareAsyncCompute(&call->context, request, &cq_);
+        call->response_reader = stub_->PrepareAsyncCompute(&call->context, request, &cq_);
 
         // StartCall initiates the RPC call
         call->response_reader->StartCall();
@@ -116,7 +122,8 @@ class GreeterClient {
         // was successful. Tag the request with the memory address of the call object.
         call->response_reader->Finish(&call->reply, &call->status, (void*)call);
 
-        float elapsed = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count();
+        float elapsed =
+            std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count();
         m_RequestCalls++;
         m_TotalRequestTime += elapsed;
         // LOG_EVERY_N(INFO, 200) << "Request overhead: " << m_TotalRequestTime/m_RequestCalls;
@@ -124,7 +131,8 @@ class GreeterClient {
 
     // Loop while listening for completed responses.
     // Prints out the response from the server.
-    void AsyncCompleteRpc() {
+    void AsyncCompleteRpc()
+    {
         void* got_tag;
         bool ok = false;
         size_t cntr = 0;
@@ -132,7 +140,8 @@ class GreeterClient {
         float last = 0.0;
 
         // Block until the next result is available in the completion queue "cq".
-        while (cq_.Next(&got_tag, &ok)) {
+        while(cq_.Next(&got_tag, &ok))
+        {
             // The tag in this example is the memory location of the call object
             AsyncClientCall* call = static_cast<AsyncClientCall*>(got_tag);
 
@@ -140,19 +149,24 @@ class GreeterClient {
             // corresponds solely to the request for updates introduced by Finish().
             GPR_ASSERT(ok);
 
-            if (call->status.ok()) {
+            if(call->status.ok())
+            {
                 // std::cout << "Greeter received: " << call->reply.batch_id() << std::endl;
-            } else {
+            }
+            else
+            {
                 std::cout << "RPC failed" << std::endl;
             }
             // Once we're complete, deallocate the call object.
             delete call;
 
             cntr++;
-            float elapsed = std::chrono::duration<float>(std::chrono::steady_clock::now() - start).count();
-            if (elapsed - last > 0.5) {
-                LOG(INFO) << "avg. rate: " << (float)cntr/(elapsed - last) 
-                    << "( " << (float)(cntr*g_BatchSize)/(elapsed - last) << " inf/sec)";
+            float elapsed =
+                std::chrono::duration<float>(std::chrono::steady_clock::now() - start).count();
+            if(elapsed - last > 0.5)
+            {
+                LOG(INFO) << "avg. rate: " << (float)cntr / (elapsed - last) << "( "
+                          << (float)(cntr * g_BatchSize) / (elapsed - last) << " inf/sec)";
                 last = elapsed;
                 cntr = 0;
             }
@@ -165,15 +179,12 @@ class GreeterClient {
         }
     }
 
-    void Shutdown()
-    {
-        cq_.Shutdown();
-    }
+    void Shutdown() { cq_.Shutdown(); }
 
   private:
-
     // struct for keeping state and data information
-    struct AsyncClientCall {
+    struct AsyncClientCall
+    {
         // Container for the data we expect from the server.
         BatchPredictions reply;
 
@@ -183,7 +194,6 @@ class GreeterClient {
 
         // Storage for the status of the RPC upon completion.
         Status status;
-
 
         std::unique_ptr<ClientAsyncResponseReader<BatchPredictions>> response_reader;
     };
@@ -205,7 +215,7 @@ class GreeterClient {
     size_t m_RequestCalls;
 };
 
-static bool ValidateBytes(const char *flagname, const std::string &value)
+static bool ValidateBytes(const char* flagname, const std::string& value)
 {
     trtlab::StringToBytes(value);
     return true;
@@ -223,9 +233,8 @@ DEFINE_string(func, "constant", "constant, linear or cyclic");
 DEFINE_string(bytes, "0B", "add extra bytes to the request payload");
 DEFINE_validator(bytes, &ValidateBytes);
 
-
-int main(int argc, char** argv) {
-
+int main(int argc, char** argv)
+{
     FLAGS_alsologtostderr = 1; // It will dump to console
     ::google::ParseCommandLineFlags(&argc, &argv, true);
 
@@ -233,8 +242,9 @@ int main(int argc, char** argv) {
 
     auto bytes = trtlab::StringToBytes(FLAGS_bytes);
     char extra_bytes[bytes];
-    if (bytes)
-        LOG(INFO) << "Sending an addition " << trtlab::BytesToString(bytes) << " bytes in request payload";
+    if(bytes)
+        LOG(INFO) << "Sending an addition " << trtlab::BytesToString(bytes)
+                  << " bytes in request payload";
 
     // using a fixed rate of 15us per rpc call.  i could adjust dynamically as i'm tracking
     // the call overhead, but it's close enough.
@@ -243,21 +253,23 @@ int main(int argc, char** argv) {
         return std::chrono::duration<double>(std::chrono::system_clock::now() - start).count();
     };
     std::map<std::string, std::function<double()>> rates_by_name;
-    rates_by_name["constant"] = []() -> double {
-        return std::min(FLAGS_rate, FLAGS_max_rate);
-    };
+    rates_by_name["constant"] = []() -> double { return std::min(FLAGS_rate, FLAGS_max_rate); };
     rates_by_name["linear"] = [start, walltime]() -> double {
-        return std::min(FLAGS_rate + (FLAGS_alpha/60.0)*walltime(), FLAGS_max_rate); 
+        return std::min(FLAGS_rate + (FLAGS_alpha / 60.0) * walltime(), FLAGS_max_rate);
     };
     rates_by_name["cyclic"] = [start, walltime]() -> double {
-        return std::min(FLAGS_rate + FLAGS_alpha * std::sin(2.0*3.14159*(FLAGS_beta/60.0)*walltime()), FLAGS_max_rate);
+        return std::min(FLAGS_rate + FLAGS_alpha *
+                                         std::sin(2.0 * 3.14159 * (FLAGS_beta / 60.0) * walltime()),
+                        FLAGS_max_rate);
     };
     auto search = rates_by_name.find(FLAGS_func);
-    if (search == rates_by_name.end()) {
+    if(search == rates_by_name.end())
+    {
         LOG(FATAL) << "--func must be constant, linear or cyclic; your value = " << FLAGS_func;
     }
     auto sleepy = [search]() -> double {
-        auto sleep_time = ((std::chrono::seconds(1) / std::max((search->second)(), 2.0))) - std::chrono::microseconds(15);
+        auto sleep_time = ((std::chrono::seconds(1) / std::max((search->second)(), 2.0))) -
+                          std::chrono::microseconds(15);
         return std::chrono::duration<double>(sleep_time).count();
     };
 
@@ -267,29 +279,32 @@ int main(int argc, char** argv) {
     // (use of InsecureChannelCredentials()).
     std::ostringstream ip_port;
     ip_port << "localhost:" << FLAGS_port;
-   
+
     grpc::ChannelArguments ch_args;
     ch_args.SetMaxReceiveMessageSize(-1);
     GreeterClient greeter(
         grpc::CreateCustomChannel(ip_port.str(), grpc::InsecureChannelCredentials(), ch_args),
-        FLAGS_max_outstanding
-    );
+        FLAGS_max_outstanding);
 
     // Spawn reader thread that loops indefinitely
     std::thread thread_ = std::thread(&GreeterClient::AsyncCompleteRpc, &greeter);
 
-    for (size_t i = 0; i < FLAGS_count; i++) {
-        greeter.SayHello(i, FLAGS_batch_size, extra_bytes, bytes);  // The actual RPC call!
+    for(size_t i = 0; i < FLAGS_count; i++)
+    {
+        greeter.SayHello(i, FLAGS_batch_size, extra_bytes, bytes); // The actual RPC call!
         auto start = std::chrono::high_resolution_clock::now();
-        while (std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count() < sleepy()) {
+        while(std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start)
+                  .count() < sleepy())
+        {
             std::this_thread::yield();
         }
     }
 
     greeter.Shutdown();
-    thread_.join();  //blocks forever
+    thread_.join(); // blocks forever
     auto elapsed = walltime();
-    std::cout << FLAGS_count << " requests in " << elapsed << "seconds; inf/sec: " << FLAGS_count*FLAGS_batch_size/elapsed << std::endl;
+    std::cout << FLAGS_count << " requests in " << elapsed
+              << "seconds; inf/sec: " << FLAGS_count * FLAGS_batch_size / elapsed << std::endl;
 
     return 0;
 }

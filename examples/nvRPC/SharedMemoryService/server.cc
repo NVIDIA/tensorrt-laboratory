@@ -49,8 +49,8 @@ using nvrpc::AsyncRPC;
 using nvrpc::AsyncService;
 using nvrpc::Context;
 using nvrpc::Executor;
-using trtlab::Resources;
 using nvrpc::Server;
+using trtlab::Resources;
 using trtlab::ThreadPool;
 
 using trtlab::Descriptor;
@@ -70,14 +70,16 @@ class ExternalSharedMemoryManager final
     class PartialSegmentDescriptor final : public Descriptor<SystemV>
     {
       public:
-        PartialSegmentDescriptor(const std::shared_ptr<SystemV>& segment, size_t offset, size_t size)
-            : Descriptor<SystemV>((*segment)[offset], size, "PartialSysVSegment"), m_Segment(segment)
+        PartialSegmentDescriptor(const std::shared_ptr<SystemV>& segment, size_t offset,
+                                 size_t size)
+            : Descriptor<SystemV>((*segment)[offset], size, "PartialSysVSegment"),
+              m_Segment(segment)
         {
         }
 
         PartialSegmentDescriptor(PartialSegmentDescriptor&& other)
-            : Descriptor<SystemV>(std::move(other)),
-              m_Segment{std::exchange(other.m_Segment, nullptr)}
+            : Descriptor<SystemV>(std::move(other)), m_Segment{
+                                                         std::exchange(other.m_Segment, nullptr)}
         {
         }
 

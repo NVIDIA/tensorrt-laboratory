@@ -31,10 +31,7 @@ namespace testing {
 
 TestResources::TestResources(int numThreadsInPool) : m_ThreadPool(numThreadsInPool) {}
 
-::trtlab::ThreadPool& TestResources::AcquireThreadPool()
-{
-    return m_ThreadPool;
-}
+::trtlab::ThreadPool& TestResources::AcquireThreadPool() { return m_ThreadPool; }
 
 void TestResources::StreamManagerInit()
 {

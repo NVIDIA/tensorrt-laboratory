@@ -24,17 +24,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NVIS_SERVICE_H_
-#define NVIS_SERVICE_H_
 #pragma once
 
 #include "nvrpc/interfaces.h"
 #include "nvrpc/rpc.h"
 
-namespace nvrpc
-{
+namespace nvrpc {
 
-template <class ServiceType>
+template<class ServiceType>
 class AsyncService : public IService
 {
   public:
@@ -48,7 +45,7 @@ class AsyncService : public IService
         builder.RegisterService(m_Service.get());
     }
 
-    template <typename ContextType, typename RequestFuncType>
+    template<typename ContextType, typename RequestFuncType>
     IRPC* RegisterRPC(RequestFuncType req_fn)
     {
         auto q_fn = ContextType::LifeCycleType::BindServiceQueueFunc(req_fn, m_Service.get());
@@ -57,12 +54,10 @@ class AsyncService : public IService
         m_RPCs.emplace_back(base);
         return base;
     }
- 
+
   private:
     std::unique_ptr<ServiceType> m_Service;
     std::vector<std::unique_ptr<IRPC>> m_RPCs;
 };
 
 } // namespace nvrpc
-
-#endif // NVIS_SERVICE_H_

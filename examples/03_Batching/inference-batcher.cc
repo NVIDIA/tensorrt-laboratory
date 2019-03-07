@@ -24,15 +24,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <chrono>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <chrono>
 #include <thread>
 
-#include "tensorrt/laboratory/core/thread_pool.h"
 #include "nvrpc/context.h"
 #include "nvrpc/executor.h"
 #include "nvrpc/server.h"
+#include "tensorrt/laboratory/core/thread_pool.h"
 
 using nvrpc::Context;
 using nvrpc::Executor;
@@ -45,40 +45,39 @@ using moodycamel::BlockingConcurrentQueue;
 using moodycamel::ConsumerToken;
 using moodycamel::ProducerToken;
 
-#include "echo.pb.h"
 #include "echo.grpc.pb.h"
-
+#include "echo.pb.h"
 
 /**
  * @brief Batching Service for Unary Requests
- * 
+ *
  * Exposes a Unary (send/recv) interface for a given RPC, but rather than
  * computing the RPC, the service simply batches the incoming requests and
  * forwards them via a gRPC stream to a service that implements the actual
  * compute portion of the RPC.
- * 
+ *
  * The backend compute service is not a Unary service.  Rather it must
  * implemented the LifeCycleBatching service Context, i.e. BatchingContext.
  * The other application in this folder implements the backend service.
- * 
+ *
  * Streams are used as a forwarding mechanism because of how they interact
  * with a load-balancer.  Unlike unary requests which get balanced on each
  * request, a stream only get balanced when it is opened.  All items of a stream
  * go to the same endpoint service.
- * 
+ *
  * @tparam ServiceType
  * @tparam Request
  * @tparam Response
  */
-template <class ServiceType, class Request, class Response>
+template<class ServiceType, class Request, class Response>
 struct BatchingService
 {
     using Callback = std::function<void(bool)>;
 
     struct MessageType
     {
-        Request *request;
-        Response *response;
+        Request* request;
+        Response* response;
         Callback callback;
     };
 
@@ -89,31 +88,29 @@ struct BatchingService
     class Client
     {
       public:
-        using PrepareFunc = std::function<std::unique_ptr<::grpc::ClientAsyncReaderWriter<Request, Response>>(::grpc::ClientContext*, ::grpc::CompletionQueue*)>;
+        using PrepareFunc =
+            std::function<std::unique_ptr<::grpc::ClientAsyncReaderWriter<Request, Response>>(
+                ::grpc::ClientContext*, ::grpc::CompletionQueue*)>;
 
-        Client(
-            PrepareFunc prepare_func,
-            std::shared_ptr<ThreadPool> thread_pool)
+        Client(PrepareFunc prepare_func, std::shared_ptr<ThreadPool> thread_pool)
             : m_PrepareFunc(prepare_func), m_ThreadPool(thread_pool), m_CurrentCQ(0)
         {
-            for (decltype(m_ThreadPool->Size()) i = 0; i < m_ThreadPool->Size(); i++)
+            for(decltype(m_ThreadPool->Size()) i = 0; i < m_ThreadPool->Size(); i++)
             {
                 LOG(INFO) << "Starting Client Progress Engine #" << i;
                 m_CQs.emplace_back(new ::grpc::CompletionQueue);
                 auto cq = m_CQs.back().get();
-                m_ThreadPool->enqueue([this, cq] {
-                    ProgressEngine(*cq);
-                });
+                m_ThreadPool->enqueue([this, cq] { ProgressEngine(*cq); });
             }
         }
 
-        void WriteAndCloseStream(uint32_t messages_count, MessageType *messages)
+        void WriteAndCloseStream(uint32_t messages_count, MessageType* messages)
         {
             auto cq = m_CQs[++m_CurrentCQ % m_CQs.size()].get();
-            LOG(INFO) << "Client using CQ: " << (void *)cq;
+            LOG(INFO) << "Client using CQ: " << (void*)cq;
 
             auto ctx = new Call;
-            for (uint32_t i=0; i < messages_count; i++)
+            for(uint32_t i = 0; i < messages_count; i++)
             {
                 ctx->Push(messages[i]);
             }
@@ -129,10 +126,9 @@ struct BatchingService
             Call() : m_Started(false), m_NextState(&Call::StateInvalid) {}
             virtual ~Call() {}
 
-            void Push(MessageType &message)
+            void Push(MessageType& message)
             {
-                if (m_Started)
-                    LOG(FATAL) << "Stream started; No pushing allowed.";
+                if(m_Started) LOG(FATAL) << "Stream started; No pushing allowed.";
                 m_Requests.push(message.request);
                 m_Responses.push(message.response);
                 m_CallbackByResponse[message.response] = message.callback;
@@ -140,7 +136,8 @@ struct BatchingService
 
             void Start()
             {
-                LOG(INFO) << "Starting Batch Forwarding of Size " << m_Requests.size() << " for Tag " << Tag();
+                LOG(INFO) << "Starting Batch Forwarding of Size " << m_Requests.size()
+                          << " for Tag " << Tag();
                 m_NextState = &Call::StateWriteDone;
                 m_Stream->StartCall(Tag());
             }
@@ -149,15 +146,11 @@ struct BatchingService
             bool RunNextState(bool ok)
             {
                 bool ret = (this->*m_NextState)(ok);
-                if (!ret)
-                    DLOG(INFO) << "RunNextState returning false";
+                if(!ret) DLOG(INFO) << "RunNextState returning false";
                 return ret;
             }
 
-            void *Tag()
-            {
-                return static_cast<void *>(this);
-            }
+            void* Tag() { return static_cast<void*>(this); }
 
             bool Fail()
             {
@@ -167,7 +160,7 @@ struct BatchingService
 
             void WriteNext()
             {
-                if (m_Requests.size())
+                if(m_Requests.size())
                 {
                     auto request = m_Requests.front();
                     m_Requests.pop();
@@ -185,7 +178,7 @@ struct BatchingService
 
             void ReadNext()
             {
-                if (m_Responses.size())
+                if(m_Responses.size())
                 {
                     DLOG(INFO) << "waiting on response";
                     auto response = m_Responses.front();
@@ -202,8 +195,7 @@ struct BatchingService
 
             bool StateWriteDone(bool ok)
             {
-                if (!ok)
-                    return Fail();
+                if(!ok) return Fail();
                 DLOG(INFO) << "request forwarded!";
                 WriteNext();
                 return true;
@@ -211,13 +203,12 @@ struct BatchingService
 
             bool StateReadDone(bool ok)
             {
-                if (!ok)
-                    return Fail();
+                if(!ok) return Fail();
                 DLOG(INFO) << "response received";
                 auto response = m_Responses.front();
                 m_Responses.pop();
                 auto search = m_CallbackByResponse.find(response);
-                if (search == m_CallbackByResponse.end())
+                if(search == m_CallbackByResponse.end())
                     LOG(FATAL) << "Callback for response not found";
                 ReadNext();
                 // Execute callback which will complete the unary request for this stream item
@@ -229,8 +220,7 @@ struct BatchingService
 
             bool StateCloseStreamDone(bool ok)
             {
-                if (!ok)
-                    return Fail();
+                if(!ok) return Fail();
                 DLOG(INFO) << "closed client stream for writing";
                 ReadNext();
                 return true;
@@ -238,7 +228,7 @@ struct BatchingService
 
             bool StateFinishedDone(bool ok)
             {
-                if (m_Status.ok())
+                if(m_Status.ok())
                     DLOG(INFO) << "ClientContext: " << Tag() << " finished with OK";
                 else
                     DLOG(INFO) << "ClientContext: " << Tag() << " finished with CANCELLED";
@@ -247,15 +237,12 @@ struct BatchingService
                 return false;
             }
 
-            bool StateInvalid(bool ok)
-            {
-                LOG(FATAL) << "This should never be called";
-            }
+            bool StateInvalid(bool ok) { LOG(FATAL) << "This should never be called"; }
 
           private:
-            std::queue<Request *> m_Requests;
-            std::queue<Response *> m_Responses;
-            std::map<const Response *, Callback> m_CallbackByResponse;
+            std::queue<Request*> m_Requests;
+            std::queue<Response*> m_Responses;
+            std::map<const Response*, Callback> m_CallbackByResponse;
 
             bool (Call::*m_NextState)(bool);
 
@@ -267,16 +254,16 @@ struct BatchingService
             friend class Client;
         };
 
-        void ProgressEngine(::grpc::CompletionQueue &cq)
+        void ProgressEngine(::grpc::CompletionQueue& cq)
         {
-            void *tag;
+            void* tag;
             bool ok = false;
 
-            while (cq.Next(&tag, &ok))
+            while(cq.Next(&tag, &ok))
             {
                 CHECK(ok) << "not ok";
-                Call *call = static_cast<Call *>(tag);
-                if (!call->RunNextState(ok))
+                Call* call = static_cast<Call*>(tag);
+                if(!call->RunNextState(ok))
                 {
                     DLOG(INFO) << "Deleting Stream: " << tag;
                     delete call;
@@ -294,11 +281,13 @@ struct BatchingService
     {
       public:
         Resources(uint32_t max_batch_size, uint64_t timeout, std::shared_ptr<Client> client)
-            : m_MaxBatchsize(max_batch_size), m_Timeout(timeout), m_Client(client) {}
+            : m_MaxBatchsize(max_batch_size), m_Timeout(timeout), m_Client(client)
+        {
+        }
 
-        virtual void PreprocessRequest(Request *req) {}
+        virtual void PreprocessRequest(Request* req) {}
 
-        void Push(Request *req, Response *resp, Callback callback)
+        void Push(Request* req, Response* resp, Callback callback)
         {
             // thread_local ProducerToken token(m_MessageQueue);
             // m_MessageQueue.enqueue(token, MessageType(req, resp, callback));
@@ -312,24 +301,36 @@ struct BatchingService
             const double timeout = static_cast<double>(m_Timeout - quanta) / 1000000.0;
             size_t total_count;
             size_t max_batch;
+            std::vector<MessageType> messages;
+            messages.resize(m_MaxBatch)
 
-            thread_local ConsumerToken token(m_MessageQueue);
-            for (;;)
+                thread_local ConsumerToken token(m_MessageQueue);
+            for(;;)
             {
-                MessageType messages[m_MaxBatchsize];
                 max_batch = m_MaxBatchsize;
                 total_count = 0;
                 auto start = std::chrono::steady_clock::now();
                 auto elapsed = [start]() -> double {
-                    return std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+                    return std::chrono::duration<double>(std::chrono::steady_clock::now() - start)
+                        .count();
                 };
+
+                // initial pull - if not successful, restart loop
+
+                // if successful, then open a stream, push message to stream and continue to collect
+                // requests until the max_batch_size is reach for the timeout is triggered
+
+                // finish sending
+
+                // r
                 do
                 {
-                    auto count = m_MessageQueue.wait_dequeue_bulk_timed(token, &messages[total_count], max_batch, quanta);
+                    auto count = m_MessageQueue.wait_dequeue_bulk_timed(
+                        token, &messages[total_count], max_batch, quanta);
                     total_count += count;
                     max_batch -= count;
-                } while (total_count && total_count < m_MaxBatchsize && elapsed() < timeout);
-                if (total_count)
+                } while(total_count && total_count < m_MaxBatchsize && elapsed() < timeout);
+                if(total_count)
                 {
                     m_Client->WriteAndCloseStream(total_count, messages);
                 }
@@ -345,11 +346,11 @@ struct BatchingService
 
     class ReceiveContext final : public ::nvrpc::Context<Request, Response, Resources>
     {
-        void ExecuteRPC(Request &request, Response &response) final override
+        void ExecuteRPC(Request& request, Response& response) final override
         {
             LOG(INFO) << "incoming unary request";
             this->GetResources()->Push(&request, &response, [this](bool ok) {
-                if (ok)
+                if(ok)
                     this->FinishResponse();
                 else
                 {
@@ -370,7 +371,7 @@ DEFINE_string(forwarding_target, "localhost:50051", "Batched Compute Service / L
 
 using InferenceBatchingService = BatchingService<simple::Inference, simple::Input, simple::Output>;
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     FLAGS_alsologtostderr = 1; // Log to console
     ::google::InitGoogleLogging("simpleBatchingService");
@@ -378,12 +379,14 @@ int main(int argc, char *argv[])
     auto forwarding_threads = std::make_shared<ThreadPool>(FLAGS_forwarding_threads);
     auto channel = grpc::CreateChannel(FLAGS_forwarding_target, grpc::InsecureChannelCredentials());
     auto stub = ::simple::Inference::NewStub(channel);
-    auto forwarding_prepare_func = [&stub](::grpc::ClientContext *context, ::grpc::CompletionQueue *cq) -> auto {
+    auto forwarding_prepare_func = [&stub](::grpc::ClientContext * context,
+                                           ::grpc::CompletionQueue * cq) -> auto
+    {
         return std::move(stub->PrepareAsyncBatchedCompute(context, cq));
     };
 
-    auto client = std::make_shared<InferenceBatchingService::Client>(
-        forwarding_prepare_func, forwarding_threads);
+    auto client = std::make_shared<InferenceBatchingService::Client>(forwarding_prepare_func,
+                                                                     forwarding_threads);
 
     auto rpcResources = std::make_shared<InferenceBatchingService::Resources>(
         FLAGS_max_batch_size, FLAGS_timeout_usecs, client);
@@ -400,9 +403,7 @@ int main(int argc, char *argv[])
     executor->RegisterContexts(rpcCompute, rpcResources, contexts_per_executor_thread);
 
     LOG(INFO) << "Running Server";
-    server.Run(std::chrono::milliseconds(1), [rpcResources] {
-        rpcResources->ProgressEngine();
-    });
+    server.Run(std::chrono::milliseconds(1), [rpcResources] { rpcResources->ProgressEngine(); });
 
     return 0;
 }

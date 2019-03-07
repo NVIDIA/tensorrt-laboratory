@@ -30,7 +30,6 @@
 
 namespace trtlab {
 
-
 // Descriptor
 
 template<typename MemoryType>
@@ -75,6 +74,5 @@ const std::string& Descriptor<MemoryType>::Type() const
 {
     return m_Desc;
 }
-
 
 } // namespace trtlab

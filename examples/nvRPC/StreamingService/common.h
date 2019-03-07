@@ -27,9 +27,9 @@
 #pragma once
 
 #include <chrono>
-#include <thread>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <thread>
 
 #include "tensorrt/laboratory/core/pool.h"
 #include "tensorrt/laboratory/core/resources.h"

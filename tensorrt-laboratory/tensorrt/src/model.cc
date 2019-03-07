@@ -47,29 +47,28 @@ void BaseModel::AddBinding(TensorBindingInfo&& binding)
     m_Bindings.push_back(std::move(binding));
     auto id = m_Bindings.size() - 1;
     m_BindingIdByName[name] = id;
-    if(binding.isInput) {
+    if(binding.isInput)
+    {
         m_InputBindings.push_back(id);
-    } else {
+    }
+    else
+    {
         m_OutputBindings.push_back(id);
     }
 }
-
 
 Model::Model(std::shared_ptr<ICudaEngine> engine) : BaseModel(), m_Engine(engine)
 {
     CHECK(m_Engine) << "Model required an initialzed ICudaEngine*";
     DLOG(INFO) << "Initializing Bindings from Engine";
-    for(int i=0; i<m_Engine->getNbBindings(); i++)
+    for(int i = 0; i < m_Engine->getNbBindings(); i++)
     {
         AddBinding(ConfigureBinding(i));
     }
     CHECK_EQ(GetBindingsCount(), m_Engine->getNbBindings());
 }
 
-Model::~Model()
-{
-    DLOG(INFO) << "Destroying Model: " << Name();
-}
+Model::~Model() { DLOG(INFO) << "Destroying Model: " << Name(); }
 
 Model::TensorBindingInfo Model::ConfigureBinding(uint32_t i)
 {
@@ -144,10 +143,7 @@ auto Model::CreateExecutionContext() const -> std::shared_ptr<IExecutionContext>
                                         });
 }
 
-void Model::AddWeights(void* ptr, size_t size)
-{
-    m_Weights.push_back(Weights{ptr, size});
-}
+void Model::AddWeights(void* ptr, size_t size) { m_Weights.push_back(Weights{ptr, size}); }
 
 void Model::PrefetchWeights(cudaStream_t stream) const
 {

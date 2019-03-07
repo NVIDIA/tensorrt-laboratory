@@ -29,12 +29,12 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "YAIS/YAIS.h"
 #include "YAIS/TensorRT/TensorRT.h"
+#include "YAIS/YAIS.h"
 
 // NVIDIA Inference Server Protos
-#include "nvidia_inference.pb.h"
 #include "nvidia_inference.grpc.pb.h"
+#include "nvidia_inference.pb.h"
 
 using nvidia::inferenceserver::ModelConfig;
 
@@ -42,45 +42,47 @@ using trtlab::TensorRT::Runtime;
 
 static size_t DataTypeToBytes(nvidia::inferenceserver::DataType dataType)
 {
-    switch (dataType) {
-    case nvidia::inferenceserver::TYPE_INVALID:
-        CHECK(false) << "Invalid DataType used";
-        return 0;
-    case nvidia::inferenceserver::TYPE_BOOL:
-    case nvidia::inferenceserver::TYPE_UINT8:
-    case nvidia::inferenceserver::TYPE_INT8:
-        return 1;
-    case nvidia::inferenceserver::TYPE_UINT16:
-    case nvidia::inferenceserver::TYPE_INT16:
-    case nvidia::inferenceserver::TYPE_FP16:
-        return 2;
-    case nvidia::inferenceserver::TYPE_UINT32:
-    case nvidia::inferenceserver::TYPE_INT32:
-    case nvidia::inferenceserver::TYPE_FP32:
-        return 4;
-    case nvidia::inferenceserver::TYPE_UINT64:
-    case nvidia::inferenceserver::TYPE_INT64:
-    case nvidia::inferenceserver::TYPE_FP64:
-        return 8;
-    default:
-        CHECK(false) << "Invalid DataType used";
-        return 0;
+    switch(dataType)
+    {
+        case nvidia::inferenceserver::TYPE_INVALID:
+            CHECK(false) << "Invalid DataType used";
+            return 0;
+        case nvidia::inferenceserver::TYPE_BOOL:
+        case nvidia::inferenceserver::TYPE_UINT8:
+        case nvidia::inferenceserver::TYPE_INT8:
+            return 1;
+        case nvidia::inferenceserver::TYPE_UINT16:
+        case nvidia::inferenceserver::TYPE_INT16:
+        case nvidia::inferenceserver::TYPE_FP16:
+            return 2;
+        case nvidia::inferenceserver::TYPE_UINT32:
+        case nvidia::inferenceserver::TYPE_INT32:
+        case nvidia::inferenceserver::TYPE_FP32:
+            return 4;
+        case nvidia::inferenceserver::TYPE_UINT64:
+        case nvidia::inferenceserver::TYPE_INT64:
+        case nvidia::inferenceserver::TYPE_FP64:
+            return 8;
+        default:
+            CHECK(false) << "Invalid DataType used";
+            return 0;
     }
 }
 
 static nvidia::inferenceserver::DataType ConvertTensorRTDataType(nvinfer1::DataType trt_datatype)
 {
-    switch(trt_datatype) {
-    case nvinfer1::DataType::kFLOAT:
-        return nvidia::inferenceserver::TYPE_FP32;
-    case nvinfer1::DataType::kHALF:
-        return nvidia::inferenceserver::TYPE_FP16;
-    case nvinfer1::DataType::kINT8:
-        return nvidia::inferenceserver::TYPE_INT8;
-    case nvinfer1::DataType::kINT32:
-        return nvidia::inferenceserver::TYPE_INT32;
-    default:
-        LOG(FATAL) << "Unknown TensorRT DataType";
+    switch(trt_datatype)
+    {
+        case nvinfer1::DataType::kFLOAT:
+            return nvidia::inferenceserver::TYPE_FP32;
+        case nvinfer1::DataType::kHALF:
+            return nvidia::inferenceserver::TYPE_FP16;
+        case nvinfer1::DataType::kINT8:
+            return nvidia::inferenceserver::TYPE_INT8;
+        case nvinfer1::DataType::kINT32:
+            return nvidia::inferenceserver::TYPE_INT32;
+        default:
+            LOG(FATAL) << "Unknown TensorRT DataType";
     }
 }
 
@@ -92,20 +94,28 @@ std::string tensorrt_engine(std::string model_name, std::string engine, int conc
     config.set_platform("tensorrt_plan");
     config.set_max_batch_size(model->GetMaxBatchSize());
 
-    for(auto i : model->GetInputBindingIds()) {
+    for(auto i : model->GetInputBindingIds())
+    {
         const auto& binding = model->GetBinding(i);
         auto input = config.add_input();
         input->set_name(binding.name);
         input->set_data_type(ConvertTensorRTDataType(binding.dtype));
-        for(auto d : binding.dims) { input->add_dims(d); }
+        for(auto d : binding.dims)
+        {
+            input->add_dims(d);
+        }
     }
 
-    for(auto i : model->GetOutputBindingIds()) {
+    for(auto i : model->GetOutputBindingIds())
+    {
         const auto& binding = model->GetBinding(i);
         auto output = config.add_output();
         output->set_name(binding.name);
         output->set_data_type(ConvertTensorRTDataType(binding.dtype));
-        for(auto d : binding.dims) { output->add_dims(d); }
+        for(auto d : binding.dims)
+        {
+            output->add_dims(d);
+        }
     }
 
     auto instance_group = config.add_instance_group();
@@ -118,7 +128,8 @@ std::string tensorrt_engine(std::string model_name, std::string engine, int conc
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(config_generator, m) {
+PYBIND11_MODULE(config_generator, m)
+{
     m.doc() = R"pbdoc(
         Pybind11 Yais plugin
         --------------------
@@ -138,4 +149,3 @@ PYBIND11_MODULE(config_generator, m) {
     m.attr("__version__") = "dev";
 #endif
 }
-

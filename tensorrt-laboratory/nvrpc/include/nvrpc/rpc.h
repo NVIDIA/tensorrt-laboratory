@@ -27,13 +27,12 @@
 #ifndef NVIS_RPC_H_
 #define NVIS_RPC_H_
 
-#include "tensorrt/laboratory/core/resources.h"
 #include "nvrpc/context.h"
+#include "tensorrt/laboratory/core/resources.h"
 
-namespace nvrpc
-{
+namespace nvrpc {
 
-template <class ContextType, class ServiceType>
+template<class ContextType, class ServiceType>
 class AsyncRPC : public IRPC
 {
   public:
@@ -45,24 +44,26 @@ class AsyncRPC : public IRPC
     ~AsyncRPC() override {}
 
   protected:
-    std::unique_ptr<IContext> CreateContext(::grpc::ServerCompletionQueue *, std::shared_ptr<::trtlab::Resources>) final override;
+    std::unique_ptr<IContext> CreateContext(::grpc::ServerCompletionQueue*,
+                                            std::shared_ptr<::trtlab::Resources>) final override;
 
   private:
     ServiceQueueFuncType m_RequestFunc;
 };
 
-template <class ContextType, class ServiceType>
-AsyncRPC<ContextType, ServiceType>::AsyncRPC(ServiceQueueFuncType req_fn)
-    : m_RequestFunc(req_fn)
+template<class ContextType, class ServiceType>
+AsyncRPC<ContextType, ServiceType>::AsyncRPC(ServiceQueueFuncType req_fn) : m_RequestFunc(req_fn)
 {
 }
 
-template <class ContextType, class ServiceType>
-std::unique_ptr<IContext> AsyncRPC<ContextType, ServiceType>::CreateContext(
-    ::grpc::ServerCompletionQueue *cq, std::shared_ptr<::trtlab::Resources> r)
+template<class ContextType, class ServiceType>
+std::unique_ptr<IContext>
+    AsyncRPC<ContextType, ServiceType>::CreateContext(::grpc::ServerCompletionQueue* cq,
+                                                      std::shared_ptr<::trtlab::Resources> r)
 {
-    auto ctx_resources = std::dynamic_pointer_cast<typename ContextType::ResourcesType::element_type>(r);
-    if (!ctx_resources)
+    auto ctx_resources =
+        std::dynamic_pointer_cast<typename ContextType::ResourcesType::element_type>(r);
+    if(!ctx_resources)
     {
         throw std::runtime_error("Incompatible Resource object");
     }

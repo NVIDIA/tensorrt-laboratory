@@ -23,10 +23,10 @@
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * Original Copyright proivded below.
  * This work extends the original gRPC client examples to work with the
- * implemented server.  
+ * implemented server.
  *
  * Copyright 2015 gRPC authors.
  *
@@ -43,10 +43,10 @@
  * limitations under the License.
  *
  */
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <chrono>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -64,8 +64,7 @@ using ssd::Inference;
 class SimpleClient
 {
   public:
-    SimpleClient(std::shared_ptr<Channel> channel)
-        : stub_(Inference::NewStub(channel)) {}
+    SimpleClient(std::shared_ptr<Channel> channel) : stub_(Inference::NewStub(channel)) {}
 
     // Assembles the client's payload, sends it and presents the response back
     // from the server.
@@ -87,14 +86,13 @@ class SimpleClient
         Status status = stub_->Compute(&context, request, &reply);
 
         // Act upon its status.
-        if (status.ok())
+        if(status.ok())
         {
             return reply.batch_id();
         }
         else
         {
-            std::cout << status.error_code() << ": " << status.error_message()
-                      << std::endl;
+            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
             return -1;
         }
     }
@@ -107,7 +105,7 @@ DEFINE_int32(count, 1000, "number of grpc messages to send");
 DEFINE_int32(port, 50051, "server_port");
 DEFINE_int32(batch, 1, "batch size");
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     // Instantiate the client. It requires a channel, out of which the actual RPCs
     // are created. This channel models a connection to an endpoint (in this case,
@@ -120,14 +118,14 @@ int main(int argc, char **argv)
     ip_port << "localhost:" << FLAGS_port;
     SimpleClient client(grpc::CreateChannel(ip_port.str(), grpc::InsecureChannelCredentials()));
     auto start = std::chrono::steady_clock::now();
-    for (int i = 0; i < FLAGS_count; i++)
+    for(int i = 0; i < FLAGS_count; i++)
     {
         auto reply = client.Compute(i, FLAGS_batch);
-        if (reply == -1 || reply != i)
-            std::cout << "BatchId received: " << reply << std::endl;
+        if(reply == -1 || reply != i) std::cout << "BatchId received: " << reply << std::endl;
     }
     auto end = std::chrono::steady_clock::now();
     float elapsed = std::chrono::duration<float>(end - start).count();
-    std::cout << FLAGS_count << " requests in " << elapsed << " seconds; inf/sec: " << FLAGS_count * FLAGS_batch / elapsed << std::endl;
+    std::cout << FLAGS_count << " requests in " << elapsed
+              << " seconds; inf/sec: " << FLAGS_count * FLAGS_batch / elapsed << std::endl;
     return 0;
 }

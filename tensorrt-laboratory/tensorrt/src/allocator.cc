@@ -57,10 +57,7 @@ void NvAllocator::free(void* ptr)
     CHECK_EQ(cudaFree(ptr), CUDA_SUCCESS) << "Failed to free TensorRT device memory";
 }
 
-const std::vector<NvAllocator::Pointer>& NvAllocator::GetPointers()
-{
-    return m_Pointers;
-}
+const std::vector<NvAllocator::Pointer>& NvAllocator::GetPointers() { return m_Pointers; }
 
 void StandardAllocator::WeightAllocator(void** ptr, size_t size)
 {

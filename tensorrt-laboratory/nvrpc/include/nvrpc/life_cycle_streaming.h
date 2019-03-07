@@ -94,10 +94,7 @@ class LifeCycleStreaming : public IContextLifeCycle
         ServerStream(LifeCycleStreaming<Request, Response>* master) : m_Master(master) {}
         ~ServerStream() {}
 
-        bool IsConnected()
-        {
-            return m_Master;
-        }
+        bool IsConnected() { return m_Master; }
 
         std::uint64_t StreamID()
         {
@@ -130,7 +127,6 @@ class LifeCycleStreaming : public IContextLifeCycle
                 DLOG(WARNING) << "Attempted to cancel to a disconnected stream";
                 return false;
             }
-            CHECK(m_Master);
             m_Master->CancelResponse();
             return false;
         }
@@ -143,7 +139,6 @@ class LifeCycleStreaming : public IContextLifeCycle
                 DLOG(WARNING) << "Attempted to finish to a disconnected stream";
                 return false;
             }
-            CHECK(m_Master);
             m_Master->FinishResponse();
             return false;
         }
@@ -175,10 +170,7 @@ class LifeCycleStreaming : public IContextLifeCycle
         {
             return static_cast<LifeCycleStreaming*>(m_MasterContext)->RunNextState(m_NextState, ok);
         }
-        void Reset() final override
-        {
-            static_cast<LifeCycleStreaming*>(m_MasterContext)->Reset();
-        }
+        void Reset() final override { static_cast<LifeCycleStreaming*>(m_MasterContext)->Reset(); }
 
         bool (LifeCycleStreaming<RequestType, ResponseType>::*m_NextState)(bool);
 
@@ -364,7 +356,7 @@ typename LifeCycleStreaming<Request, Response>::Actions
         };
     }
 
-    if (m_Status && !m_Status->ok())
+    if(m_Status && !m_Status->ok())
     {
         DLOG(INFO) << "Stream was CANCELLED by Server - Cancel All Callbacks";
         should_execute = nullptr;

@@ -55,10 +55,7 @@ class Buffers : public std::enable_shared_from_this<Buffers>
 
     auto CreateBindings(const std::shared_ptr<Model>&) -> std::shared_ptr<Bindings>;
 
-    inline cudaStream_t Stream()
-    {
-        return m_Stream;
-    }
+    inline cudaStream_t Stream() { return m_Stream; }
     void Synchronize();
 
   protected:
@@ -79,8 +76,7 @@ class FixedBuffers : public Buffers
   public:
     FixedBuffers(size_t host_size, size_t device_size)
         : m_HostStack(std::make_unique<MemoryStack<HostMemoryType>>(host_size)),
-          m_DeviceStack(std::make_unique<MemoryStack<DeviceMemoryType>>(device_size)),
-          Buffers()
+          m_DeviceStack(std::make_unique<MemoryStack<DeviceMemoryType>>(device_size)), Buffers()
     {
     }
 

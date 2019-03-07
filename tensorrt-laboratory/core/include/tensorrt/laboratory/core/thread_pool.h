@@ -150,10 +150,7 @@ class BaseThreadPool
     // transwarp interface: get_name, execute
 
     // The name of the executor
-    std::string get_name() const final override
-    {
-        return "trtlab::BaseThreadPool";
-    }
+    std::string get_name() const final override { return "trtlab::BaseThreadPool"; }
 
     // Only ever called on the thread of the caller to schedule()
     void execute(const std::function<void()>& functor,
@@ -197,8 +194,7 @@ auto BaseThreadPool<MutexType, ConditionType>::enqueue(F&& f, Args&&... args)
         std::lock_guard<MutexType> lock(m_QueueMutex);
 
         // don't allow enqueueing after stopping the pool
-        if(stop)
-            throw std::runtime_error("enqueue on stopped BaseThreadPool");
+        if(stop) throw std::runtime_error("enqueue on stopped BaseThreadPool");
 
         tasks.emplace([task]() { (*task)(); });
     }
@@ -249,8 +245,7 @@ void BaseThreadPool<MutexType, ConditionType>::CreateThread(const CpuSet& affini
                 std::unique_lock<MutexType> lock(this->m_QueueMutex);
                 this->m_Condition.wait(lock,
                                        [this]() { return this->stop || !this->tasks.empty(); });
-                if(this->stop && this->tasks.empty())
-                    return;
+                if(this->stop && this->tasks.empty()) return;
                 task = move(this->tasks.front());
                 this->tasks.pop();
             }

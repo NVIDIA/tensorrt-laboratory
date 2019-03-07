@@ -32,7 +32,6 @@
 
 namespace trtlab {
 
-
 /**
  * @brief Allocates CUDA Device Memory
  *
@@ -48,6 +47,5 @@ class CudaDeviceMemory : public DeviceMemory, public IAllocatable
     void* Allocate(size_t) final override;
     void Free() final override;
 };
-
 
 } // namespace trtlab

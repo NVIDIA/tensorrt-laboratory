@@ -77,6 +77,5 @@ void Buffers::Synchronize()
     CHECK_EQ(cudaStreamSynchronize(m_Stream), CUDA_SUCCESS) << "Stream Sync failed";
 }
 
-
 } // namespace TensorRT
 } // namespace trtlab

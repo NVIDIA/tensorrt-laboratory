@@ -34,22 +34,14 @@
 
 namespace trtlab {
 
+size_t DeviceMemory::DefaultAlignment() { return DeviceInfo::Alignment(); }
 
-size_t DeviceMemory::DefaultAlignment()
-{
-    return DeviceInfo::Alignment();
-}
-
-void DeviceMemory::Fill(char val)
-{
-    CHECK_EQ(cudaMemset(Data(), val, Size()), CUDA_SUCCESS);
-}
+void DeviceMemory::Fill(char val) { CHECK_EQ(cudaMemset(Data(), val, Size()), CUDA_SUCCESS); }
 
 const std::string& DeviceMemory::Type() const
 {
     static std::string type = "DeviceMemory";
     return type;
 }
-
 
 } // namespace trtlab

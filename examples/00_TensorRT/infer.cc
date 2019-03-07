@@ -134,8 +134,9 @@ int main(int argc, char* argv[])
         MPI_CHECK(MPI_Finalize());
 
         using namespace trtlab::TensorRT;
-        LOG(INFO) << "Inference Results: " << (*results)[kBatchesComputed] << " batches computed in "
-                  << (*results)[kWalltime] << " seconds on " << (*results)[kMaxExecConcurrency]
+        LOG(INFO) << "Inference Results: " << (*results)[kBatchesComputed]
+                  << " batches computed in " << (*results)[kWalltime] << " seconds on "
+                  << (*results)[kMaxExecConcurrency]
                   << " compute streams using batch_size: " << (*results)[kBatchSize]
                   << "; inf/sec: " << (*results)[kInferencesPerSecond]
                   << "; batches/sec: " << (*results)[kBatchesPerSecond]

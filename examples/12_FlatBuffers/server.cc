@@ -41,12 +41,11 @@ using nvrpc::AsyncRPC;
 using nvrpc::AsyncService;
 using nvrpc::Context;
 using nvrpc::Executor;
-using trtlab::Resources;
 using nvrpc::Server;
+using trtlab::Resources;
 
 using Request = flatbuffers::grpc::Message<HelloRequest>;
 using Response = flatbuffers::grpc::Message<HelloReply>;
-
 
 struct SimpleResources : public Resources
 {

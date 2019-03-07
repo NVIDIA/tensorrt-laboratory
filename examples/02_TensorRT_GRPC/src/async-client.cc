@@ -23,10 +23,10 @@
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * Original Copyright proivded below.
  * This work extends the original gRPC client examples to work with the
- * implemented server.  
+ * implemented server.
  *
  * Copyright 2015 gRPC authors.
  *
@@ -44,16 +44,16 @@
  *
  */
 
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <chrono>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include <grpcpp/grpcpp.h>
 #include <grpc/support/log.h>
+#include <grpcpp/grpcpp.h>
 #include <thread>
 
 #include "inference.grpc.pb.h"
@@ -67,13 +67,14 @@ using ssd::BatchInput;
 using ssd::BatchPredictions;
 using ssd::Inference;
 
-class GreeterClient {
+class GreeterClient
+{
   public:
-    explicit GreeterClient(std::shared_ptr<Channel> channel)
-            : stub_(Inference::NewStub(channel)) {}
+    explicit GreeterClient(std::shared_ptr<Channel> channel) : stub_(Inference::NewStub(channel)) {}
 
     // Assembles the client's payload and sends it to the server.
-    void SayHello(const size_t batch_id, const int batch_size) {
+    void SayHello(const size_t batch_id, const int batch_size)
+    {
         // Data we are sending to the server.
         BatchInput request;
         request.set_batch_id(batch_id);
@@ -86,8 +87,7 @@ class GreeterClient {
         // an instance to store in "call" but does not actually start the RPC
         // Because we are using the asynchronous API, we need to hold on to
         // the "call" instance in order to get updates on the ongoing RPC.
-        call->response_reader =
-            stub_->PrepareAsyncCompute(&call->context, request, &cq_);
+        call->response_reader = stub_->PrepareAsyncCompute(&call->context, request, &cq_);
 
         // StartCall initiates the RPC call
         call->response_reader->StartCall();
@@ -96,17 +96,18 @@ class GreeterClient {
         // server's response; "status" with the indication of whether the operation
         // was successful. Tag the request with the memory address of the call object.
         call->response_reader->Finish(&call->reply, &call->status, (void*)call);
-
     }
 
     // Loop while listening for completed responses.
     // Prints out the response from the server.
-    void AsyncCompleteRpc() {
+    void AsyncCompleteRpc()
+    {
         void* got_tag;
         bool ok = false;
 
         // Block until the next result is available in the completion queue "cq".
-        while (cq_.Next(&got_tag, &ok)) {
+        while(cq_.Next(&got_tag, &ok))
+        {
             // The tag in this example is the memory location of the call object
             AsyncClientCall* call = static_cast<AsyncClientCall*>(got_tag);
 
@@ -114,9 +115,12 @@ class GreeterClient {
             // corresponds solely to the request for updates introduced by Finish().
             GPR_ASSERT(ok);
 
-            if (call->status.ok()) {
+            if(call->status.ok())
+            {
                 // std::cout << "Greeter received: " << call->reply.batch_id() << std::endl;
-            } else {
+            }
+            else
+            {
                 std::cout << "RPC failed" << std::endl;
             }
             // Once we're complete, deallocate the call object.
@@ -124,15 +128,12 @@ class GreeterClient {
         }
     }
 
-    void Shutdown()
-    {
-        cq_.Shutdown();
-    }
+    void Shutdown() { cq_.Shutdown(); }
 
   private:
-
     // struct for keeping state and data information
-    struct AsyncClientCall {
+    struct AsyncClientCall
+    {
         // Container for the data we expect from the server.
         BatchPredictions reply;
 
@@ -142,7 +143,6 @@ class GreeterClient {
 
         // Storage for the status of the RPC upon completion.
         Status status;
-
 
         std::unique_ptr<ClientAsyncResponseReader<BatchPredictions>> response_reader;
     };
@@ -160,8 +160,8 @@ DEFINE_int32(count, 500, "number of grpc messages to send");
 DEFINE_int32(batch_size, 1, "batch_size");
 DEFINE_int32(port, 50051, "server_port");
 
-int main(int argc, char** argv) {
-
+int main(int argc, char** argv)
+{
     FLAGS_alsologtostderr = 1; // It will dump to console
     ::google::ParseCommandLineFlags(&argc, &argv, true);
 
@@ -171,22 +171,23 @@ int main(int argc, char** argv) {
     // (use of InsecureChannelCredentials()).
     std::ostringstream ip_port;
     ip_port << "localhost:" << FLAGS_port;
-    GreeterClient greeter(grpc::CreateChannel(
-            ip_port.str(), grpc::InsecureChannelCredentials()));
+    GreeterClient greeter(grpc::CreateChannel(ip_port.str(), grpc::InsecureChannelCredentials()));
 
     // Spawn reader thread that loops indefinitely
     std::thread thread_ = std::thread(&GreeterClient::AsyncCompleteRpc, &greeter);
 
     auto start = std::chrono::steady_clock::now();
-    for (size_t i = 0; i < FLAGS_count; i++) {
-        greeter.SayHello(i, FLAGS_batch_size);  // The actual RPC call!
+    for(size_t i = 0; i < FLAGS_count; i++)
+    {
+        greeter.SayHello(i, FLAGS_batch_size); // The actual RPC call!
     }
 
     greeter.Shutdown();
-    thread_.join();  //blocks forever
+    thread_.join(); // blocks forever
     auto end = std::chrono::steady_clock::now();
     float elapsed = std::chrono::duration<float>(end - start).count();
-    std::cout << FLAGS_count << " requests in " << elapsed << "seconds; inf/sec: " << FLAGS_count*FLAGS_batch_size/elapsed << std::endl;
+    std::cout << FLAGS_count << " requests in " << elapsed
+              << "seconds; inf/sec: " << FLAGS_count * FLAGS_batch_size / elapsed << std::endl;
 
     return 0;
 }

@@ -70,24 +70,24 @@ int main(int argc, char** argv)
     auto channel = grpc::CreateChannel(FLAGS_hostname, grpc::InsecureChannelCredentials());
     auto stub = Inference::NewStub(channel);
 
-    auto infer_prepare_fn = [&stub](::grpc::ClientContext * context, ::grpc::CompletionQueue* cq) -> auto
+    auto infer_prepare_fn = [&stub](::grpc::ClientContext * context,
+                                    ::grpc::CompletionQueue * cq) -> auto
     {
         return std::move(stub->PrepareAsyncBidirectional(context, cq));
     };
 
     auto stream = std::make_unique<ClientBidirectional<Input, Output>>(
-        infer_prepare_fn, 
-        executor,
+        infer_prepare_fn, executor,
         [](Input&& request) {
             LOG_FIRST_N(INFO, 10) << "Sent Request with BatchID: " << request.batch_id();
             static size_t last = 0;
             CHECK_EQ(last + 1, request.batch_id());
             ++last;
-            //CHECK(request.batch_id());
+            // CHECK(request.batch_id());
         },
         [&mutex, &count](Output&& response) {
             LOG_FIRST_N(INFO, 10) << "Received Response with BatchID: " << response.batch_id();
-            //CHECK(response.batch_id());
+            // CHECK(response.batch_id());
             std::lock_guard<std::mutex> lock(mutex);
             --count;
         });
@@ -97,7 +97,7 @@ int main(int argc, char** argv)
         return std::chrono::duration<float>(std::chrono::steady_clock::now() - start).count();
     };
 
-    for(int i = 1; i < FLAGS_count+1; i++)
+    for(int i = 1; i < FLAGS_count + 1; i++)
     {
         {
             std::lock_guard<std::mutex> lock(mutex);

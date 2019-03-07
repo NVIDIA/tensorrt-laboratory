@@ -29,7 +29,6 @@
 #include "nvrpc/interfaces.h"
 #include "nvrpc/life_cycle_batching.h"
 #include "nvrpc/life_cycle_bidirectional.h"
-#include "nvrpc/life_cycle_bidirectional.h"
 #include "nvrpc/life_cycle_streaming.h"
 #include "nvrpc/life_cycle_unary.h"
 
@@ -49,7 +48,8 @@ template<class Request, class Response, class Resources>
 using BatchingContext = BaseContext<LifeCycleBatching<Request, Response>, Resources>;
 
 template<class Request, class Response, class Resources>
-using BidirectionalContext = BaseContext<BidirectionalLifeCycleStreaming<Request, Response>, Resources>;
+using BidirectionalContext =
+    BaseContext<BidirectionalLifeCycleStreaming<Request, Response>, Resources>;
 
 template<class Request, class Response, class Resources>
 using StreamingContext = BaseContext<LifeCycleStreaming<Request, Response>, Resources>;
@@ -67,10 +67,7 @@ class BaseContext : public LifeCycle
     virtual ~BaseContext() override {}
 
   protected:
-    const ResourcesType& GetResources() const
-    {
-        return m_Resources;
-    }
+    const ResourcesType& GetResources() const { return m_Resources; }
     double Walltime() const;
 
     virtual void OnContextStart() {}

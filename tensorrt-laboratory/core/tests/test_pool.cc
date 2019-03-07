@@ -34,24 +34,12 @@ struct Object
 {
     Object(std::string name) : m_Name(name), m_Original(name) {}
     Object(Object&& other) : m_Name(std::move(other.m_Name)) {}
-    ~Object()
-    {
-        DLOG(INFO) << "Destroying Object " << m_Name;
-    }
+    ~Object() { DLOG(INFO) << "Destroying Object " << m_Name; }
 
-    void SetName(std::string name)
-    {
-        m_Name = name;
-    }
-    const std::string GetName() const
-    {
-        return m_Name;
-    }
+    void SetName(std::string name) { m_Name = name; }
+    const std::string GetName() const { return m_Name; }
 
-    void Reset()
-    {
-        m_Name = m_Original;
-    }
+    void Reset() { m_Name = m_Original; }
 
   private:
     std::string m_Name;
@@ -80,10 +68,7 @@ class TestPool : public ::testing::Test
     std::shared_ptr<Pool<Object>> p2;
 };
 
-TEST_F(TestPool, EmptyOnCreate)
-{
-    ASSERT_EQ(0, p0->Size());
-}
+TEST_F(TestPool, EmptyOnCreate) { ASSERT_EQ(0, p0->Size()); }
 
 TEST_F(TestPool, Push)
 {

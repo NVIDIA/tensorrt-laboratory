@@ -46,7 +46,6 @@ namespace TensorRT {
 class BaseModel // TODO: inherit from IModel so we can have non-TensorRT models that conform
 {
   public:
-
     enum BindingType
     {
         Input,
@@ -64,15 +63,9 @@ class BaseModel // TODO: inherit from IModel so we can have non-TensorRT models 
     BaseModel() = default;
     virtual ~BaseModel() {}
 
-    auto Name() const -> const std::string&
-    {
-        return m_Name;
-    }
+    auto Name() const -> const std::string& { return m_Name; }
 
-    void SetName(const std::string& name)
-    {
-        m_Name = name;
-    }
+    void SetName(const std::string& name) { m_Name = name; }
 
     virtual int GetMaxBatchSize() const = 0;
 
@@ -85,33 +78,18 @@ class BaseModel // TODO: inherit from IModel so we can have non-TensorRT models 
 
     BindingType GetBindingType(const std::string&) const;
 
-    auto GetBindingsCount() const
-    {
-        return m_Bindings.size();
-    }
-    auto GetInputBindingCount() const
-    {
-        return m_InputBindings.size();
-    }
-    auto GetOutputBindingCount() const
-    {
-        return m_OutputBindings.size();
-    }
-    auto GetInputBindingIds() const -> const std::vector<uint32_t>
-    {
-        return m_InputBindings;
-    }
-    auto GetOutputBindingIds() const -> const std::vector<uint32_t>
-    {
-        return m_OutputBindings;
-    }
+    auto GetBindingsCount() const { return m_Bindings.size(); }
+    auto GetInputBindingCount() const { return m_InputBindings.size(); }
+    auto GetOutputBindingCount() const { return m_OutputBindings.size(); }
+    auto GetInputBindingIds() const -> const std::vector<uint32_t> { return m_InputBindings; }
+    auto GetOutputBindingIds() const -> const std::vector<uint32_t> { return m_OutputBindings; }
 
     auto DescribeInputs() const -> const std::map<std::string, TensorBindingInfo>
     {
         std::map<std::string, TensorBindingInfo> bindings;
-        for (const auto& b : m_Bindings)
+        for(const auto& b : m_Bindings)
         {
-            if (b.isInput)
+            if(b.isInput)
             {
                 bindings[b.name] = b;
             }
@@ -141,11 +119,9 @@ class BaseModel // TODO: inherit from IModel so we can have non-TensorRT models 
     std::string m_Name;
 };
 
-
 class Model final : public BaseModel
 {
   public:
-
     enum BindingType
     {
         Input,
@@ -165,18 +141,11 @@ class Model final : public BaseModel
     void PrefetchWeights(cudaStream_t) const;
     auto CreateExecutionContext() const -> std::shared_ptr<::nvinfer1::IExecutionContext>;
 
-    int GetMaxBatchSize() const final override
-    {
-        return m_Engine->getMaxBatchSize();
-    }
+    int GetMaxBatchSize() const final override { return m_Engine->getMaxBatchSize(); }
 
-    auto GetActivationsMemorySize() const
-    {
-        return m_Engine->getDeviceMemorySize();
-    }
+    auto GetActivationsMemorySize() const { return m_Engine->getDeviceMemorySize(); }
 
     auto GetWeightsMemorySize() const -> const size_t;
-
 
   protected:
     TensorBindingInfo ConfigureBinding(uint32_t);
@@ -192,7 +161,6 @@ class Model final : public BaseModel
     std::shared_ptr<const Runtime> m_Runtime;
     std::vector<Weights> m_Weights;
 };
-
 
 } // namespace TensorRT
 } // namespace trtlab

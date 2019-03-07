@@ -194,7 +194,8 @@ TEST_F(PingPongTest, UnaryTest)
                 std::lock_guard<std::mutex> lock(mutex);
                 --count;
                 ++recv_count;
-            }, headers));
+            },
+            headers));
     }
 
     for(auto& future : futures)
