@@ -41,7 +41,7 @@ spec:
     - destination:
         host: basic-trtis-deployment
         port:
-          number: 50051
+          number: 8001
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
