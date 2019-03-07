@@ -1,0 +1,18 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+  name: trtlab-s3-ingress
+  namespace: rook-ceph
+spec:
+  rules:
+  - host: s3.trt.lab
+    http:
+      paths:
+      - backend:
+          serviceName: rook-ceph-rgw-trtlab-s3
+          servicePort: 80
+        path: /

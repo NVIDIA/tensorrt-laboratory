@@ -17,28 +17,31 @@ static_resources:
               - "*"
               routes:
               - match:
-                  prefix: "/trtlab.deploy.image_client.Inference/Classify"
+                  prefix: /trtlab.deploy.image_client.Inference/Classify
                   headers:
-                  - name: content-type
-                    value: application/grpc
+#                 - name: content-type
+#                   value: application/grpc
                   - name: custom-metadata-model-name
-                    value: model_a
+                    exact_match: model_a
+                  grpc:
                 route:
                   cluster: classify_model_a
               - match:
-                  prefix: "/"
+                  prefix: /
                   headers:
-                  - name: content-type
-                    value: application/grpc
+#                 - name: content-type
+#                   value: application/grpc
                   - name: custom-metadata-model-name
-                    value: model_b
+                    exact_match: model_b
+                  grpc:
                 route:
                   cluster: model_b
               - match:
-                  prefix: "/"
-                  headers:
-                  - name: content-type
-                    value: application/grpc
+                  prefix: /
+#                 headers:
+#                 - name: content-type
+#                   value: application/grpc
+                  grpc:
                 route:
                   cluster: general_pool
           http_filters:

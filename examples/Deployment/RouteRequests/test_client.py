@@ -1,8 +1,13 @@
+import os
 
-import deploy_image_client
+import deploy_image_client as cpp_client
+
 
 def main():
-    router = deploy_image_client.ImageClient("localhost:50050")
+    if not os.environ.get("TRTLAB_ROUTING_TEST"):
+        raise RuntimeError(
+            "Plese run this script in the environment setup by test_routing.sh")
+    router = cpp_client.ImageClient("localhost:50050")
 
     a = router.classify("model_a", "via_router_uuid1").get()
     b = router.classify("model_b", "via_router_uuid2").get()
@@ -22,5 +27,11 @@ def main():
 
     print("\n**** Test Passed ****\n")
 
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except RuntimeError as e:
+        print("\n**** Error ****")
+        print(e)
+        print()

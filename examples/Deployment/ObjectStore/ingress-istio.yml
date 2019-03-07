@@ -1,0 +1,36 @@
+# not working yet
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: trtlab-s3-gateway
+spec:
+  selector:
+    app: trtlab-s3
+    istio: ingressgateway
+  servers:
+  - hosts:
+    - "s3.trt.lab"
+    port:
+      number: 80
+      name: http
+      protocol: HTTP
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: trtlab-s3-virtualservice
+spec:
+  hosts:
+  - "s3.trt.lab"
+  gateways:
+  - trtlab-s3-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: rook-ceph-rgw-trtlab-s3.rook-ceph
+        port:
+          number: 80
