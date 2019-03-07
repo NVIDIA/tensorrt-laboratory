@@ -138,9 +138,9 @@ RUN wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for
  && chmod +x wait-for-it.sh \
  && mv wait-for-it.sh /usr/local/bin/
 
+# Envoy v1.9
 # https://github.com/envoyproxy/envoy/commit/37bfd8ac347955661af695a417492655b21939dc
-#COPY --from=envoyproxy/envoy:37bfd8ac347955661af695a417492655b21939dc /usr/local/bin/envoy /usr/local/bin/envoy
-COPY --from=envoyproxy/envoy:latest /usr/local/bin/envoy /usr/local/bin/envoy
+COPY --from=envoyproxy/envoy:37bfd8ac347955661af695a417492655b21939dc /usr/local/bin/envoy /usr/local/bin/envoy
 
 RUN wget https://dl.influxdata.com/telegraf/releases/telegraf-1.7.1-static_linux_amd64.tar.gz \
  && tar xzf telegraf-1.7.1-static_linux_amd64.tar.gz \
@@ -175,7 +175,9 @@ COPY requirements.txt /tmp/requirements.txt
 RUN python3 -m pip install -r /tmp/requirements.txt \
  && rm -f /tmp/requirements.txt
 
+
 WORKDIR /work
 COPY . .
-RUN ./build.sh
+# RUN ./build.sh
 
+ENV PYTHONPATH=/work/build/tensorrt-laboratory/python/trtlab
