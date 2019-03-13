@@ -104,10 +104,12 @@ int main(int argc, char*argv[])
     const auto& cuda_thread_affinity = Affinity::GetCpusFromString("0");
     const auto& post_thread_affinity = Affinity::GetCpusFromString("1,2,3,4");
     const auto& batcher_thread_affinity = Affinity::GetCpusFromString("5");
+    const auto& death_thread_affinity = Affinity::GetCpusFromString("6");
 
     auto cuda_thread_pool = std::make_unique<ThreadPool>(cuda_thread_affinity);
     auto post_thread_pool = std::make_unique<ThreadPool>(post_thread_affinity);
     auto batcher_thread_pool = std::make_unique<ThreadPool>(batcher_thread_affinity);
+    auto death_thread_pool = std::make_unique<ThreadPool>(death_thread_affinity);
 
     resources->RegisterThreadPool("cuda", std::move(cuda_thread_pool));
     resources->RegisterThreadPool("post", std::move(post_thread_pool));
@@ -173,6 +175,7 @@ int main(int argc, char*argv[])
         std::chrono::nanoseconds start;
         int query;
         std::function<void()> completion_callback;
+        std::chrono::high_resolution_clock::time_point start_timestamp;
     };
 
     BlockingConcurrentQueue<WorkPacket> work_queue;
@@ -182,7 +185,7 @@ int main(int argc, char*argv[])
     futures.reserve(1048576);
 
     batcher_thread_pool->enqueue([&work_queue, &runners_by_batch_size, &runners_by_batching_window, &futures, &running,
-                                  resources, max_batch_size, timeout]() mutable {
+                                  resources, max_batch_size, timeout, &death_thread_pool]() mutable {
         size_t total_count;
         size_t max_deque;
         size_t adjustable_max_batch_size;
@@ -220,18 +223,29 @@ int main(int argc, char*argv[])
             if(total_count) {
                 // TODO: Move to independent thread
                 work_packets.resize(total_count);
+                auto budget = latency - estimated_compute_time * gamma;
+                auto deadline = work_packets[0].start_timestamp + ;
                 auto buffers = resources->GetBuffers(); // <=== Limited Resource; May Block !!!
                 auto runner = runners_by_batch_size.lower_bound(total_count)->second;
                 auto bindings = buffers->CreateBindings(runner->GetModelSmartPtr());
                 bindings->SetBatchSize(total_count);
                 futures.push_back(
-                    runner->Infer(
+                    runner->InferWithDeadline(
                         bindings, 
-                        [wps = std::move(work_packets)](std::shared_ptr<Bindings>& bindings) -> size_t {
+                        [wps = work_packets](std::shared_ptr<Bindings>& bindings) -> size_t {
                             for(const auto& wp : wps) { wp.completion_callback(); }
                             bindings.reset();
                             return wps.size();
-                    })
+                        },
+                        deadline,
+                        [wps = work_packets, &death_thread_pool] {
+                            // this function is called if the deadline check fails
+                            death_thread_pool->enqueue([wps = std::move(wps)] {
+                                std::this_thread::sleep_for(std::chrono::milliseconds(1337));
+                                for(const auto& wp : wps) { wp.completion_callback(); }
+                            });
+                        }
+                    );
                 );
                 //load_tracker.emplace_back(total_count, )
                 // reset work_packets
@@ -277,7 +291,7 @@ int main(int argc, char*argv[])
     // Immmediately enqueue work packet on the TensorRT batching work_queue
     TraceGenerator::EnqueueFn<int> enqueue =
         [&work_queue, &global_counter](std::chrono::nanoseconds start, int query, std::function<void(void)> completion_callback) {
-            work_queue.enqueue(WorkPacket{start, query, completion_callback});
+            work_queue.enqueue(WorkPacket{start, query, completion_callback, std::chrono::high_resolution_clock::now()});
             ++global_counter;
         };
 

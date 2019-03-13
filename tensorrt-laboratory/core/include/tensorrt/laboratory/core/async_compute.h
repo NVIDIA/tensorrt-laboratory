@@ -73,6 +73,11 @@ struct AsyncCompute<void(Args...)>
         m_WrappedFn(args...);
     }
 
+    void Cancel(std::exception_ptr e)
+    {
+        m_Promise.set_exception(e);
+    }
+
   private:
     WrappedFn m_WrappedFn;
     std::promise<void> m_Promise;
@@ -100,6 +105,11 @@ struct AsyncCompute<ResultType(Args...)>
     void operator()(Args&&... args)
     {
         m_WrappedFn(args...);
+    }
+
+    void Cancel(std::exception_ptr e)
+    {
+        m_Promise.set_exception(e);
     }
 
   private:

@@ -70,6 +70,19 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
         return future.share();
     }
 
+    using Clock = std::chrono::high_resolution_clock;
+    using Deadline = typename Clock::time_point;
+
+    template<typename Post>
+    auto InferWithDeadline(std::shared_ptr<Bindings> bindings, Post post, 
+            Deadline deadline, std::function<void()> on_timeout)
+    {
+        auto compute = Wrap(post);
+        auto future = compute->Future();
+        EnqueueWithDeadline(bindings, compute, deadline, on_timeout);
+        return future.share();
+    }
+
   protected:
     template<typename T>
     void Enqueue(PreFn Pre, std::shared_ptr<AsyncCompute<T>> Post)
@@ -85,6 +98,36 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
     void Enqueue(std::shared_ptr<Bindings> bindings, std::shared_ptr<AsyncCompute<T>> Post)
     {
         Workers("cuda").enqueue([this, bindings, Post]() mutable {
+            DLOG(INFO) << "H2D";
+            bindings->CopyToDevice(bindings->InputBindings());
+            DLOG(INFO) << "Compute";
+            auto trt_ctx = Compute(bindings);
+            bindings->CopyFromDevice(bindings->OutputBindings());
+            Workers("post").enqueue([this, bindings, trt_ctx, Post]() mutable {
+                trt_ctx->Synchronize();
+                trt_ctx.reset();
+                DLOG(INFO) << "Sync TRT";
+                bindings->Synchronize();
+                DLOG(INFO) << "Sync D2H";
+                (*Post)(bindings);
+                bindings.reset();
+                DLOG(INFO) << "Execute Finished";
+            });
+        });
+    }
+
+    template<typename T>
+    void EnqueueWithDeadline(std::shared_ptr<Bindings> bindings, std::shared_ptr<AsyncCompute<T>> Post, 
+            Deadline deadline, std::function<void()> on_timeout)
+    {
+        Workers("cuda").enqueue([this, bindings, Post, deadline, on_timeout]() mutable {
+            if (Clock::now() > deadline)
+            {
+                // deadline requirement failed - cancel task
+                on_timeout();
+                Post->Cancel(std::runtime_error("deadline failure"));
+                return;
+            }
             DLOG(INFO) << "H2D";
             bindings->CopyToDevice(bindings->InputBindings());
             DLOG(INFO) << "Compute";
