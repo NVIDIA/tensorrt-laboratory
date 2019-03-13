@@ -75,7 +75,7 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
 
     template<typename Post>
     auto InferWithDeadline(std::shared_ptr<Bindings> bindings, Post post, 
-            Deadline deadline, std::function<void()> on_timeout)
+            Deadline deadline, std::function<void(std::function<void()>)> on_timeout)
     {
         auto compute = Wrap(post);
         auto future = compute->Future();
@@ -118,14 +118,16 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
 
     template<typename T>
     void EnqueueWithDeadline(std::shared_ptr<Bindings> bindings, std::shared_ptr<AsyncCompute<T>> Post, 
-            Deadline deadline, std::function<void()> on_timeout)
+            Deadline deadline, std::function<void(std::function<void()>)> on_timeout)
     {
         Workers("cuda").enqueue([this, bindings, Post, deadline, on_timeout]() mutable {
             if (Clock::now() > deadline)
             {
                 // deadline requirement failed - cancel task
-                on_timeout();
-                Post->Cancel(std::runtime_error("deadline failure"));
+		size_t val = 1000 * bindings->BatchSize();
+                on_timeout([Post, val] {
+                    Post->Override(val);
+                });
                 return;
             }
             DLOG(INFO) << "H2D";

@@ -112,6 +112,11 @@ struct AsyncCompute<ResultType(Args...)>
         m_Promise.set_exception(e);
     }
 
+    void Override(ResultType value)
+    {
+        m_Promise.set_value(std::move(value));
+    }
+
   private:
     WrappedFn m_WrappedFn;
     std::promise<ResultType> m_Promise;

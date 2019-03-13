@@ -76,10 +76,11 @@ using moodycamel::ProducerToken;
 DEFINE_int32(concurrency, 4, "Number of concurrency execution streams");
 DEFINE_double(alpha, 1.5, "Parameter to account for overheads and queue depth - scalar");
 DEFINE_double(beta, 0.0, "Parameter to account for overheads and queue depth - constant in microseconds");
+DEFINE_double(gamma, 1.00, "Parameter to account for overheads and queue depth - scalar");
 DEFINE_int32(latency, 10000, "Latency Threshold in microseconds");
 DEFINE_int32(timeout,  3000, "Batching Timeout in microseconds");
 DEFINE_int64(seed, 0, "Random Seed");
-DEFINE_int32(percentile, 95, "Percentile");
+DEFINE_int32(percentile, 90, "Percentile");
 DEFINE_int32(duration, 5, "Min Trace Duration");
 
 int main(int argc, char*argv[])
@@ -104,7 +105,7 @@ int main(int argc, char*argv[])
     const auto& cuda_thread_affinity = Affinity::GetCpusFromString("0");
     const auto& post_thread_affinity = Affinity::GetCpusFromString("1,2,3,4");
     const auto& batcher_thread_affinity = Affinity::GetCpusFromString("5");
-    const auto& death_thread_affinity = Affinity::GetCpusFromString("6");
+    const auto& death_thread_affinity = Affinity::GetCpusFromString("6,7,8");
 
     auto cuda_thread_pool = std::make_unique<ThreadPool>(cuda_thread_affinity);
     auto post_thread_pool = std::make_unique<ThreadPool>(post_thread_affinity);
@@ -131,6 +132,7 @@ int main(int argc, char*argv[])
     std::shared_ptr<Runtime> runtime = std::make_shared<StandardRuntime>();
     std::map<int, std::shared_ptr<InferRunner>> runners_by_batch_size;
     std::map<double, std::shared_ptr<InferRunner>> runners_by_batching_window;
+    std::map<std::shared_ptr<InferRunner>, double> time_per_batch_by_runner;
     int max_batch_size = 0;
 
     for (const auto& file : engine_files)
@@ -154,6 +156,7 @@ int main(int argc, char*argv[])
 
         using namespace trtlab::TensorRT;
         auto time_per_batch = result->at(kExecutionTimePerBatch);
+        time_per_batch_by_runner[runner] = time_per_batch;
 
         auto batching_window = std::chrono::duration<double>(latency_bound).count() - (time_per_batch * FLAGS_alpha + 0.000001 * FLAGS_beta);
         if (batching_window <= 0.0) {
@@ -185,7 +188,8 @@ int main(int argc, char*argv[])
     futures.reserve(1048576);
 
     batcher_thread_pool->enqueue([&work_queue, &runners_by_batch_size, &runners_by_batching_window, &futures, &running,
-                                  resources, max_batch_size, timeout, &death_thread_pool]() mutable {
+                                  resources, max_batch_size, timeout, &death_thread_pool, &latency_bound,
+                                  &time_per_batch_by_runner, gamma = FLAGS_gamma]() mutable {
         size_t total_count;
         size_t max_deque;
         size_t adjustable_max_batch_size;
@@ -193,8 +197,13 @@ int main(int argc, char*argv[])
         thread_local ConsumerToken token(work_queue);
         double elapsed;
         double quanta_in_secs = quanta / 1000000.0; // convert microsecs to 
+        const double latency_budget = std::chrono::duration<double>(latency_bound).count();
 
         std::deque<std::pair<size_t, double>> load_tracker;
+
+        auto elapsed_time = [](std::chrono::high_resolution_clock::time_point start) -> double {
+            return std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start).count();
+        };
 
         // Batching Loop
         for (;likely(running);)
@@ -203,16 +212,13 @@ int main(int argc, char*argv[])
             max_deque = max_batch_size;
             adjustable_max_batch_size = max_batch_size;
             auto start = std::chrono::high_resolution_clock::now();
-            auto elapsed_time = [start]() -> double {
-                return std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start).count();
-            };
 
             // if we have a work packet, we stay in this loop and continue to batch until the timeout is reached
             do
             {
                 auto count = work_queue.wait_dequeue_bulk_timed(token, &work_packets[total_count], max_deque, quanta);
                 total_count += count;
-                elapsed = elapsed_time();
+                elapsed = elapsed_time(start);
                 auto runner = runners_by_batching_window.lower_bound(elapsed + quanta_in_secs)->second;
                 adjustable_max_batch_size = runner->GetModel().GetMaxBatchSize();
                 max_deque = adjustable_max_batch_size - total_count;
@@ -223,29 +229,37 @@ int main(int argc, char*argv[])
             if(total_count) {
                 // TODO: Move to independent thread
                 work_packets.resize(total_count);
-                auto budget = latency - estimated_compute_time * gamma;
-                auto deadline = work_packets[0].start_timestamp + ;
                 auto buffers = resources->GetBuffers(); // <=== Limited Resource; May Block !!!
                 auto runner = runners_by_batch_size.lower_bound(total_count)->second;
+                auto time_per_batch = time_per_batch_by_runner.at(runner);
+                //LOG_FIRST_N(INFO, 1000) << "tpb: " << time_per_batch << "; bs: " << total_count;
+                //LOG_FIRST_N(INFO, 1000) << "elapsed: " << elapsed_time(work_packets[0].start_timestamp);
+                const unsigned long tpb_us = static_cast<unsigned long>( time_per_batch * gamma * 1000000 );
+                auto deadline = (work_packets[0].start_timestamp + latency_bound) - std::chrono::microseconds(tpb_us);
+                auto time_to_deadline = std::chrono::duration<double>(deadline - std::chrono::high_resolution_clock::now()).count();
+                // LOG_FIRST_N(INFO, 1000) << "time to deadline: " << time_to_deadline;
                 auto bindings = buffers->CreateBindings(runner->GetModelSmartPtr());
                 bindings->SetBatchSize(total_count);
+                auto shared_wps = std::make_shared<std::vector<WorkPacket>>(std::move(work_packets));
                 futures.push_back(
                     runner->InferWithDeadline(
                         bindings, 
-                        [wps = work_packets](std::shared_ptr<Bindings>& bindings) -> size_t {
-                            for(const auto& wp : wps) { wp.completion_callback(); }
+                        [wps = shared_wps](std::shared_ptr<Bindings>& bindings) -> size_t {
+                            for(const auto& wp : *wps) { wp.completion_callback(); }
                             bindings.reset();
-                            return wps.size();
+                            return wps->size();
                         },
                         deadline,
-                        [wps = work_packets, &death_thread_pool] {
+                        [wps = shared_wps, &death_thread_pool](std::function<void()> completer) {
                             // this function is called if the deadline check fails
-                            death_thread_pool->enqueue([wps = std::move(wps)] {
-                                std::this_thread::sleep_for(std::chrono::milliseconds(1337));
-                                for(const auto& wp : wps) { wp.completion_callback(); }
+                            death_thread_pool->enqueue([wps, completer]() {
+                                // LOG_FIRST_N(INFO, 1000) << "skipping workpacket of size: " << wps->size();
+                                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                                for(const auto& wp : *wps) { wp.completion_callback(); }
+                                completer();
                             });
                         }
-                    );
+                    )
                 );
                 //load_tracker.emplace_back(total_count, )
                 // reset work_packets
@@ -259,12 +273,22 @@ int main(int argc, char*argv[])
         LOG(INFO) << "Syncing futures.";
         std::map<size_t, size_t> histogram;
         size_t count = 0;
+        size_t skipped_count = 0;
         auto iterator = futures.begin();
         while (count < global_counter)
         {
             auto batch_size = iterator->get();
-            count += batch_size;
-            histogram[batch_size]++;
+            if(batch_size < 1000)
+            {
+                count += batch_size;
+                histogram[batch_size]++;
+            }
+            else
+            {
+                auto bs = batch_size/1000;
+                count += bs;
+                skipped_count += bs;
+            }
             if (count == global_counter) { break; }
             while (iterator+1 == futures.end()) { std::this_thread::sleep_for(std::chrono::microseconds(200)); }
             iterator++;
@@ -278,7 +302,7 @@ int main(int argc, char*argv[])
         global_counter = 0;
         futures.clear();
         CHECK(futures.size() == 0);
-        LOG(INFO) << "Sync Complete - " << batches << " batches; " << count << " inferences";
+        LOG(INFO) << "Sync Complete - " << batches << " batches; " << count << " inferences (" << skipped_count << " skipped)";
     };
 
     // The enqueue function takes a start time, a query, and a
