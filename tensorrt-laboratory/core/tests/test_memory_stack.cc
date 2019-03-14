@@ -113,6 +113,7 @@ TEST_F(TestSmartStack, AllocateAndReset)
     auto p0 = stack->Allocate(128 * 1024);
     ASSERT_TRUE(p0);
     EXPECT_EQ(128 * 1024, stack->Allocated());
+    EXPECT_EQ(p0->DType(), DataType::bytes);
     stack->Reset();
     EXPECT_EQ(0, stack->Allocated());
     auto p1 = stack->Allocate(1);
@@ -151,6 +152,28 @@ TEST_F(TestSmartStack, Unaligned)
     DLOG(INFO) << "delete stack";
 
     stack.reset();
+}
+
+TEST_F(TestSmartStack, PassMemory)
+{
+    auto memory = std::make_unique<Allocator<Malloc>>(one_mb);
+    auto s = SmartStack<Malloc>::Create(std::move(memory));
+}
+
+TEST_F(TestSmartStack, PassSpecializedMemory)
+{
+    auto memory = std::make_unique<Allocator<Malloc>>(one_mb);
+    memory->Reshape({512, 512}, DataType::fp32);
+    EXPECT_EQ(memory->DType(), DataType::fp32);
+
+    auto s = SmartStack<Malloc>::Create(std::move(memory));
+    // MemoryStack will Reshape any CoreMemory object to bytes at full capacity
+    // This is ok since the MemoryStack is taking ownership of the object.
+    EXPECT_EQ(s->Memory().DType(), DataType::bytes);
+
+    // This no longer fails because MemoryStack is converting our memory object
+    // back into a useable form
+    // EXPECT_THROW(auto p0 = s->Allocate(1), std::invalid_argument);
 }
 
 } // namespace

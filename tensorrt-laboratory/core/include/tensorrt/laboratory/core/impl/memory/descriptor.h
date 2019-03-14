@@ -41,8 +41,8 @@ Descriptor<MemoryType>::Descriptor(MemoryType&& other, const std::string& desc)
 }
 
 template<class MemoryType>
-Descriptor<MemoryType>::Descriptor(void* ptr, size_t size, const std::string& desc)
-    : MemoryType(ptr, size, false), m_Desc(MemoryType::Type() + "(" + desc + ")")
+Descriptor<MemoryType>::Descriptor(void* ptr, size_t size, const DLTContainer& parent, const std::string& desc)
+    : MemoryType(ptr, size, false, parent), m_Desc(MemoryType::Type() + "(" + desc + ")")
 {
     DLOG(INFO) << "Descriptor<" << this->Type() << "> ptr_size_ctor [" << this
                << "]: ptr=" << this->Data() << "; size=" << this->Size();
@@ -55,12 +55,14 @@ Descriptor<MemoryType>::Descriptor(Descriptor&& other) noexcept : MemoryType(std
                << "]: ptr=" << this->Data() << "; size=" << this->Size();
 }
 
+/*
 template<class MemoryType>
 Descriptor<MemoryType>& Descriptor<MemoryType>::operator=(Descriptor<MemoryType>&& other) noexcept
 {
     MemoryType::operator=(std::move(other));
     return *this;
 }
+*/
 
 template<class MemoryType>
 Descriptor<MemoryType>::~Descriptor()

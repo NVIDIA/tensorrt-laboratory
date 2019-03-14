@@ -1,9 +1,11 @@
 find_package(glog 0.3.5 REQUIRED)
+find_package(dlpack REQUIRED)
 find_library(TCMALLOC_LIB NAMES libtcmalloc_minimal.a tcmalloc_minimal)
 
 add_library(core
   src/affinity.cc
   src/memory/copy.cc
+  src/memory/dlpack.cc
   src/memory/memory.cc
   src/memory/host_memory.cc
   src/memory/malloc.cc
@@ -15,6 +17,7 @@ add_library(${PROJECT_NAME}::core ALIAS core)
 
 target_link_libraries(core
   PRIVATE
+    dlpack::dlpack
     Threads::Threads
     $<$<AND:$<BOOL:UNIX>,$<NOT:$<BOOL:APPLE>>>:rt>
     glog

@@ -52,5 +52,31 @@ static void BM_Memory_SystemV_descriptor(benchmark::State& state)
     }
 }
 
+static void BM_Memory_HostDescriptor(benchmark::State& state)
+{
+    void *ptr = (void*)0xDEADBEEF;
+    mem_size_t size = 1337;
+
+    for(auto _ : state)
+    {
+        nextgen::HostDescriptor hdesc(ptr, size, []{});
+    }
+}
+
+static void BM_Memory_SharedHostDescriptor(benchmark::State& state)
+{
+    void *ptr = (void*)0xDEADBEEF;
+    mem_size_t size = 1337;
+
+    for(auto _ : state)
+    {
+        nextgen::Descriptor<HostMemory> hdesc(ptr, size, []{});
+        auto shared = std::make_shared<nextgen::SharedDescriptor<HostMemory>>(std::move(hdesc));
+    }
+}
+
+
 BENCHMARK(BM_Memory_SystemMalloc);
 BENCHMARK(BM_Memory_SystemV_descriptor);
+BENCHMARK(BM_Memory_HostDescriptor);
+BENCHMARK(BM_Memory_SharedHostDescriptor);

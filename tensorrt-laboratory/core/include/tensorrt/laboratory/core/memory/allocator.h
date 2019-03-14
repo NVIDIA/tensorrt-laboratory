@@ -36,12 +36,42 @@ class Allocator final : public MemoryType
     Allocator(size_t size);
     virtual ~Allocator() override;
 
+  protected:
     Allocator(Allocator&& other) noexcept;
-    Allocator& operator=(Allocator&& other) noexcept;
+    Allocator& operator=(Allocator&& other) noexcept = delete;
 
     Allocator(const Allocator&) = delete;
     Allocator& operator=(const Allocator&) = delete;
 };
+
+/*
+namespace nextgen {
+
+template<class MemoryType>
+class Allocator final : public Descriptor<MemoryType>
+{
+  public:
+    Allocator(size_t size)
+        : Descriptor<MemoryType>(MemoryType::Allocate(size), size,
+                                 [](void* ptr) { MemoryType::Free(ptr); })
+    {
+        auto ctx = this->DeviceContext();
+        this->m_Handle.ctx.device_type = ctx.device_type;
+        this->m_Handle.ctx.device_id = ctx.device_id;
+    }
+
+    virtual ~Allocator() override {}
+
+  protected:
+    Allocator(Allocator&& other) noexcept : Descriptor<MemoryType>(std::move(other)) {}
+    Allocator& operator=(Allocator&& other) noexcept = delete;
+
+    Allocator(const Allocator&) = delete;
+    Allocator& operator=(const Allocator&) = delete;
+};
+
+} // namespace nextgen
+*/
 
 } // namespace trtlab
 

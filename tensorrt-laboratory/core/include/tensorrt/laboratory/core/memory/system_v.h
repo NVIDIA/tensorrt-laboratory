@@ -38,9 +38,10 @@ class SystemV : public HostMemory, public IAllocatable
   protected:
     SystemV(int shm_id);
     SystemV(void* ptr, size_t size, bool allocated);
+    SystemV(void* ptr, size_t size, bool allocated, const DLTContainer&);
 
     SystemV(SystemV&& other) noexcept;
-    SystemV& operator=(SystemV&& other) noexcept;
+    SystemV& operator=(SystemV&& other) noexcept = delete;
 
     SystemV(const SystemV&) = delete;
     SystemV& operator=(const SystemV&) = delete;

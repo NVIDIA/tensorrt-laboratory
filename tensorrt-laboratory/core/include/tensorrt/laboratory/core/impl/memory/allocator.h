@@ -37,6 +37,11 @@ Allocator<MemoryType>::Allocator(size_t size) : MemoryType(this->Allocate(size),
 {
     DLOG(INFO) << "Allocator<" << this->Type() << "> size_ctor [" << this
                << "]: ptr=" << this->Data() << "; size=" << this->Size();
+
+    auto ctx = this->DeviceContext();
+    this->m_Handle.ctx.device_type = ctx.device_type;
+    this->m_Handle.ctx.device_id = ctx.device_id;
+
 }
 
 template<typename MemoryType>
@@ -45,14 +50,14 @@ Allocator<MemoryType>::Allocator(Allocator&& other) noexcept : MemoryType(std::m
     DLOG(INFO) << "Allocator<" << this->Type() << "> mv_ctor [" << this << "]: ptr=" << this->Data()
                << "; size=" << this->Size();
 }
-
+/*
 template<typename MemoryType>
 Allocator<MemoryType>& Allocator<MemoryType>::operator=(Allocator<MemoryType>&& other) noexcept
 {
     MemoryType::operator=(std::move(other));
     return *this;
 }
-
+*/
 template<typename MemoryType>
 Allocator<MemoryType>::~Allocator()
 {

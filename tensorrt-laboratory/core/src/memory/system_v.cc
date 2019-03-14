@@ -61,6 +61,14 @@ SystemV::SystemV(void* ptr, size_t size, bool allocated) : HostMemory(ptr, size,
     }
 }
 
+SystemV::SystemV(void* ptr, size_t size, bool allocated, const DLTContainer& parent) : HostMemory(ptr, size, allocated, parent)
+{
+    if(!Allocated())
+    {
+        m_ShmID = -1;
+    }
+}
+
 SystemV::SystemV(int shm_id) : HostMemory(ShmAt(shm_id), SegSize(shm_id), false), m_ShmID(shm_id) {}
 
 SystemV::SystemV(SystemV&& other) noexcept
@@ -105,11 +113,13 @@ DescriptorHandle<SystemV> SystemV::Attach(int shm_id)
         virtual ~DescriptorImpl() override {}
 
         DescriptorImpl(DescriptorImpl&& other) : Descriptor<SystemV>(std::move(other)) {}
+        /*
         DescriptorImpl& operator=(DescriptorImpl&& other)
         {
             Descriptor<SystemV>::operator=(std::move(other));
             return *this;
         }
+        */
 
         DescriptorImpl(const DescriptorImpl&) = delete;
         DescriptorImpl& operator=(const Descriptor&) = delete;

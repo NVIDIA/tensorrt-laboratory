@@ -27,9 +27,15 @@
 #pragma once
 #include <string>
 
+#include "tensorrt/laboratory/core/memory/descriptor.h"
 #include "tensorrt/laboratory/core/memory/memory.h"
+#include "tensorrt/laboratory/core/utils.h"
 
 namespace trtlab {
+
+namespace nextgen {
+class HostDescriptor;
+}
 
 class HostMemory : public BaseMemory<HostMemory>
 {
@@ -39,6 +45,80 @@ class HostMemory : public BaseMemory<HostMemory>
 
     void Fill(char) override;
     static size_t DefaultAlignment();
+
+  protected:
+    static DLContext DeviceContext();
+
+    friend class nextgen::HostDescriptor;
 };
 
+namespace nextgen {
+
+template<typename MemoryType>
+class Descriptor : public MemoryType
+{
+  public:
+    Descriptor(void* ptr, mem_size_t size, std::function<void()> deleter);
+    Descriptor(const DLTensor& dltensor, std::function<void()> deleter);
+    ~Descriptor() override { if(m_Deleter) { m_Deleter(); } }
+
+  protected:
+    // Moving should be allowed - with caveates
+    // Moving should be allowed from a Descriptor<T> to a smart pointer of a Descriptor<T>.
+    // Moving should not be allowed to downcast or change descriptor types
+    Descriptor(Descriptor<MemoryType>&&) noexcept;
+    Descriptor& operator=(Descriptor&&) noexcept = delete;
+
+    Descriptor(const Descriptor<MemoryType>&&) = delete;
+    Descriptor& operator=(const Descriptor&) = delete;
+
+  private: 
+    std::function<void()> m_Deleter;
+};
+
+template<typename MemoryType>
+class SharedDescriptor : public Descriptor<MemoryType>, public std::enable_shared_from_this<SharedDescriptor<MemoryType>>
+{
+  public:
+    explicit SharedDescriptor(Descriptor<MemoryType>&& owner)
+        : Descriptor<MemoryType>(std::move(owner))
+    {
+    }
+    ~SharedDescriptor() override {}
+
+    operator DLTensor() { return this->DLPackDescriptor(); }
+    operator DLTensor*() { return &(this->DLPackDescriptor()); }
+};
+
+class HostDescriptor : public Descriptor<HostMemory>
+{
+  public:
+    using Descriptor<HostMemory>::Descriptor;
+};
+
+template<typename MemoryType>
+Descriptor<MemoryType>::Descriptor(void* ptr, mem_size_t size, std::function<void()> deleter)
+    : MemoryType(ptr, size, false), m_Deleter(deleter)
+{
+  // need to remove the allocated option
+}
+
+template<typename MemoryType>
+Descriptor<MemoryType>::Descriptor(const DLTensor& dltensor, std::function<void()> deleter)
+    : MemoryType(dltensor)
+{
+    if(this->DLPackDescriptor().ctx.device_type != kDLCPU)
+    {
+        throw std::runtime_error("Cannot create a HostDescriptor from the DLTensor of differing type");
+    }
+}
+
+template<typename MemoryType>
+Descriptor<MemoryType>::Descriptor(Descriptor<MemoryType>&& other) noexcept
+    : m_Deleter(std::exchange(other.m_Deleter, nullptr)), MemoryType(std::move(other))
+{
+  CHECK(m_Deleter);
+}
+
+} // namespace nextgen
 } // namespace trtlab

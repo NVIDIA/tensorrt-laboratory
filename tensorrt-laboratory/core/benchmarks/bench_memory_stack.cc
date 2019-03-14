@@ -42,8 +42,8 @@ struct StackWithInternalDescriptor
     class InternalDescriptor final : public Descriptor<MemoryType>
     {
       public:
-        InternalDescriptor(void* ptr, size_t size)
-            : Descriptor<MemoryType>(ptr, size, "BenchmarkInternalDesc")
+        InternalDescriptor(void* ptr, size_t size, const DLTContainer& parent)
+            : Descriptor<MemoryType>(ptr, size, parent, "BenchmarkInternalDesc")
         {
         }
         ~InternalDescriptor() final override {}
@@ -51,7 +51,13 @@ struct StackWithInternalDescriptor
 
     DescriptorHandle<typename MemoryType::BaseType> Allocate(size_t size)
     {
-        return std::move(std::make_unique<InternalDescriptor>(m_Stack.Allocate(size), size));
+        return std::move(
+            std::make_unique<InternalDescriptor>(m_Stack.Allocate(size), size, m_Stack.Memory()));
+    }
+
+    typename MemoryType::BaseType&& Allocate2(size_t size)
+    {
+        return std::move(InternalDescriptor(m_Stack.Allocate(size), size, m_Stack.Memory()));
     }
 
     void Reset() { m_Stack.Reset(); }
@@ -65,33 +71,46 @@ static void BM_MemoryStack_Allocate(benchmark::State& state)
     auto stack = std::make_shared<MemoryStack<Malloc>>(1024 * 1024);
     for(auto _ : state)
     {
-        auto ptr = stack->Allocate(1024);
+        for(int i = 0; i < state.range(0); i++)
+        {
+            auto ptr = stack->Allocate(1024);
+        }
         stack->Reset();
     }
 }
 
 static void BM_MemoryStackWithDescriptor_Allocate(benchmark::State& state)
 {
-    auto stack = std::make_shared<MemoryStack<Malloc>>(1024 * 1024);
+    auto stack = std::make_shared<StackWithInternalDescriptor<Malloc>>(1024 * 1024);
     for(auto _ : state)
     {
-        auto ptr = stack->Allocate(1024);
+        for(int i = 0; i < state.range(0); i++)
+        {
+            auto ptr = stack->Allocate(1024);
+        }
         stack->Reset();
     }
 }
 
-/*
- * This demonstrates that the creation of the internal descriptor is not slow.
- * The SmartStack does virtually the same thing, except it captures a shared_ptr
- * by value.  The lifecycle management of the shared_ptr exhibits a small performance
- * penalty of 100-200ns dependingn on the system
- */
-static void BM_SmartStack_Allocate(benchmark::State& state)
+static void BM_MemoryStackWithDescriptor_Allocate2(benchmark::State& state)
 {
     auto stack = std::make_shared<StackWithInternalDescriptor<Malloc>>(1024 * 1024);
     for(auto _ : state)
     {
-        auto ptr = stack->Allocate(1024);
+        auto ptr = stack->Allocate2(1024);
+        stack->Reset();
+    }
+}
+
+static void BM_SmartStack_Allocate(benchmark::State& state)
+{
+    auto stack = std::make_shared<SmartStack<Malloc>>(1024 * 1024);
+    for(auto _ : state)
+    {
+        for(int i = 0; i < state.range(0); i++)
+        {
+            auto ptr = stack->Allocate(1024);
+        }
         stack->Reset();
     }
 }
@@ -101,7 +120,10 @@ static void BM_CyclicAllocator_Malloc_Allocate(benchmark::State& state)
     auto stack = std::make_unique<CyclicAllocator<Malloc>>(10, 1024 * 1024);
     for(auto _ : state)
     {
-        auto ptr = stack->Allocate(1024);
+        for(int i = 0; i < state.range(0); i++)
+        {
+            auto ptr = stack->Allocate(1024);
+        }
     }
 }
 
@@ -114,8 +136,9 @@ static void BM_CyclicAllocator_SystemV_Allocate(benchmark::State& state)
     }
 }
 
-BENCHMARK(BM_MemoryStack_Allocate);
-BENCHMARK(BM_MemoryStackWithDescriptor_Allocate);
-BENCHMARK(BM_SmartStack_Allocate);
-BENCHMARK(BM_CyclicAllocator_Malloc_Allocate);
+BENCHMARK(BM_MemoryStack_Allocate)->RangeMultiplier(2)->Range(1, 8 << 4);
+BENCHMARK(BM_MemoryStackWithDescriptor_Allocate)->RangeMultiplier(2)->Range(1, 8 << 4);
+BENCHMARK(BM_MemoryStackWithDescriptor_Allocate2);
+BENCHMARK(BM_SmartStack_Allocate)->RangeMultiplier(2)->Range(1, 8 << 4);
+BENCHMARK(BM_CyclicAllocator_Malloc_Allocate)->RangeMultiplier(2)->Range(1, 8 << 4);
 BENCHMARK(BM_CyclicAllocator_SystemV_Allocate);

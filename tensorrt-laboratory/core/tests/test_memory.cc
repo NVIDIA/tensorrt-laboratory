@@ -38,7 +38,7 @@ using namespace trtlab;
 using namespace trtlab;
 
 namespace {
-static size_t one_mb = 1024 * 1024;
+static int64_t one_mb = 1024 * 1024;
 
 template<typename T>
 class TestMemory : public ::testing::Test
@@ -61,6 +61,11 @@ TYPED_TEST(TestMemory, make_shared)
     auto shared = std::make_shared<Allocator<TypeParam>>(one_mb);
     EXPECT_TRUE(shared->Data());
     EXPECT_EQ(one_mb, shared->Size());
+
+    EXPECT_EQ(shared->DType(), DataType::bytes);
+    EXPECT_EQ(shared->DeviceInfo().device_type, kDLCPU);
+    EXPECT_EQ(shared->DeviceInfo().device_id, 0);
+
     shared.reset();
     EXPECT_FALSE(shared);
 }
@@ -70,6 +75,7 @@ TYPED_TEST(TestMemory, make_unique)
     auto unique = std::make_unique<Allocator<TypeParam>>(one_mb);
     EXPECT_TRUE(unique->Data());
     EXPECT_EQ(one_mb, unique->Size());
+    EXPECT_EQ(unique->DType(), DataType::bytes);
     unique.reset();
     EXPECT_FALSE(unique);
 }
@@ -78,9 +84,11 @@ TYPED_TEST(TestMemory, ctor)
 {
     Allocator<TypeParam> memory(one_mb);
     EXPECT_TRUE(memory.Data());
+    EXPECT_EQ(memory.DType(), DataType::bytes);
     EXPECT_EQ(one_mb, memory.Size());
 }
 
+/*
 TYPED_TEST(TestMemory, move_ctor)
 {
     Allocator<TypeParam> memory(one_mb);
@@ -88,17 +96,110 @@ TYPED_TEST(TestMemory, move_ctor)
 
     EXPECT_TRUE(host.Data());
     EXPECT_EQ(one_mb, host.Size());
+    EXPECT_EQ(host.Shape()[0], one_mb);
 
     EXPECT_FALSE(memory.Data());
     EXPECT_EQ(0, memory.Size());
 }
+*/
 
+/*
+TYPED_TEST(TestMemory, move_ctor_with_reshape)
+{
+    Allocator<TypeParam> shared(one_mb);
+    TypeParam& memory = shared;
+
+    memory.Reshape({512, 512}, DataType::fp32);
+
+    Allocator<TypeParam> host(std::move(memory));
+
+    EXPECT_TRUE(host.Data());
+    EXPECT_EQ(one_mb, host.Size());
+    EXPECT_EQ(one_mb, host.Capacity());
+    EXPECT_EQ(host.DType(), DataType::fp32);
+    EXPECT_EQ(host.Shape()[0], 512);
+    EXPECT_EQ(host.Shape()[1], 512);
+
+    EXPECT_FALSE(memory.Data());
+    EXPECT_EQ(memory.Size(), 0);
+    EXPECT_EQ(memory.Capacity(), 0);
+    EXPECT_EQ(memory.DType(), DataType::bytes);
+}
+*/
+
+/*
 TYPED_TEST(TestMemory, move_to_shared_ptr)
 {
     Allocator<TypeParam> memory(one_mb);
     auto ptr = std::make_shared<Allocator<TypeParam>>(std::move(memory));
     EXPECT_TRUE(ptr);
     EXPECT_TRUE(ptr->Data());
+}
+*/
+
+TYPED_TEST(TestMemory, smart_move)
+{
+    auto shared = std::make_shared<Allocator<TypeParam>>(one_mb);
+    std::weak_ptr<TypeParam> weak = shared;
+
+    {
+        std::vector<std::shared_ptr<CoreMemory>> core_segs;
+        std::vector<std::shared_ptr<HostMemory>> host_segs;
+
+        core_segs.push_back(shared);
+        host_segs.push_back(std::move(shared));
+
+        EXPECT_FALSE(weak.expired());
+    }
+
+    EXPECT_TRUE(weak.expired());
+}
+
+
+TYPED_TEST(TestMemory, shape)
+{
+    Allocator<TypeParam> memory(one_mb);
+    std::vector<int64_t> shape = { one_mb };
+
+    EXPECT_EQ(memory.Shape(), shape);
+
+    // Exact Size
+    memory.Reshape({512, 512}, DataType::fp32);
+    EXPECT_EQ(memory.Shape()[0], 512);
+    EXPECT_EQ(memory.Shape()[1], 512);
+    EXPECT_EQ(memory.DType(), DataType::fp32);
+    EXPECT_EQ(memory.Size(), memory.Capacity());
+
+    // Exact Size
+    memory.Reshape({1024, 512}, DataType::fp16);
+    EXPECT_EQ(memory.Shape()[0], 1024);
+    EXPECT_EQ(memory.Shape()[1], 512);
+    EXPECT_EQ(memory.DType(), DataType::fp16);
+
+    // Exact Size
+    memory.Reshape({1024, 1024}, DataType::int8);
+    EXPECT_EQ(memory.Shape()[0], 1024);
+    EXPECT_EQ(memory.Shape()[1], 1024);
+    EXPECT_EQ(memory.DType(), DataType::int8);
+
+    // Reshape to smaller than allocated
+    memory.Reshape({256, 128}, DataType::int8);
+    EXPECT_EQ(memory.Shape()[0], 256);
+    EXPECT_EQ(memory.Shape()[1], 128);
+    EXPECT_LT(memory.Size(), memory.Capacity());
+
+    // Reshape to larger than allocated
+    try {
+        memory.Reshape({512, 513}, DataType::fp32);
+        FAIL() << "Expected std::length_error";
+    }
+    catch(std::length_error const & err) {
+        EXPECT_EQ(err.what(), std::string("Reshape exceeds capacity"));
+    }
+    catch(...){
+        FAIL() << "Expected std::length_error";
+    }
+
 }
 
 TYPED_TEST(TestMemory, alignment)
@@ -201,6 +302,80 @@ TEST_F(TestCopy, MallocToMalloc)
     EXPECT_EQ(m1_array[0], v0);
     EXPECT_EQ(m1_array[1024], v1);
 }
+
+class TestGeneric : public ::testing::Test
+{
+};
+
+TEST_F(TestGeneric, AllocatedPolymorphism)
+{
+    auto malloc = std::make_shared<Allocator<Malloc>>(1024);
+    auto sysv = std::make_shared<Allocator<SystemV>>(1024);
+
+    std::vector<std::shared_ptr<CoreMemory>> memory;
+
+    memory.push_back(std::move(malloc));
+    memory.push_back(std::move(sysv));
+}
+
+TEST_F(TestGeneric, HostDescriptorDLTensorLifecycle)
+{
+    void *ptr = (void*)0xDEADBEEF;
+    mem_size_t size = 13370;
+    DLTensor dltensor;
+    std::shared_ptr<nextgen::SharedDescriptor<HostMemory>> shared_hdesc;
+
+    {
+        nextgen::HostDescriptor hdesc(ptr, size, [&ptr, &size]{
+            ptr = nullptr;
+            size = 0;
+        });
+        EXPECT_EQ(hdesc.Data(), (void*)0xDEADBEEF);
+        EXPECT_EQ(hdesc.Size(), 13370);
+        hdesc.Reshape({13370/2, 1}, DataType::fp16);
+
+        // regular descriptors can not expose a dltensor
+        // dltensor = (DLTensor)hdesc;
+
+        shared_hdesc = std::make_shared<nextgen::SharedDescriptor<HostMemory>>(std::move(hdesc));
+        dltensor = (DLTensor)(*shared_hdesc);
+
+        EXPECT_EQ(shared_hdesc->Data(), dltensor.data);
+        EXPECT_EQ(shared_hdesc->Capacity(), 13370);
+        EXPECT_EQ(dltensor.ctx.device_type, kDLCPU);
+        EXPECT_EQ(dltensor.dtype.code, kDLFloat);
+        EXPECT_EQ(dltensor.dtype.bits, 16U);
+        EXPECT_EQ(dltensor.dtype.lanes, 1U);
+        EXPECT_EQ(dltensor.ndim, 2);
+    }
+
+    // dltensor is still valid as shared_hdesc is still valid
+    EXPECT_EQ(ptr, (void*)0xDEADBEEF);
+    EXPECT_EQ(size, 13370);
+    EXPECT_EQ(dltensor.ndim, 2);
+    EXPECT_EQ(dltensor.shape[0], 13370/2);
+    EXPECT_EQ(dltensor.shape[1], 1);
+/*
+    {
+        HostDescriptor hdesc(std::move(*shared_hdesc), ) 
+            // expect that this test will reshape hdesc and 
+            // reset dltensor before leaving scope
+            ptr = dltensor.data;
+            size = dltensor.shape[0];
+        });
+        // hdesc and dltensor are not linked
+        // changes to hdesc are not seen th dltensor
+        EXPECT_EQ(hdesc.Data(), dltensor.data);
+        EXPECT_EQ(hdesc.Capacity(), 13370);
+        EXPECT_EQ(dltensor.ndim, 2);
+        EXPECT_EQ(hdesc.Shape().size(), dltensor.ndim);
+        hdesc.ReshapeToBytes();
+        EXPECT_EQ(hdesc.Shape()[0], 13370);
+        EXPECT_EQ(dltensor.shape[0], 13370/2);
+    }
+*/
+}
+
 
 class TestBytesToString : public ::testing::Test
 {

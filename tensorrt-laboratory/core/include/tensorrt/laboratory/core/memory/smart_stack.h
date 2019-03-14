@@ -46,9 +46,8 @@ class SmartStack : public MemoryStack<MemoryType>,
     class StackDescriptorImpl : public Descriptor<MemoryType>
     {
       public:
-        StackDescriptorImpl(std::shared_ptr<const SmartStack<MemoryType>> stack, void* ptr,
-                            size_t size)
-            : Descriptor<MemoryType>(ptr, size, "SmartStack"), m_Stack(stack),
+        StackDescriptorImpl(std::shared_ptr<const SmartStack<MemoryType>> stack, void* ptr, size_t size)
+            : Descriptor<MemoryType>(ptr, size, stack->Memory(), "SmartStack"), m_Stack(stack),
               m_Offset(Stack().Offset(this->Data()))
         {
         }
@@ -79,7 +78,7 @@ class SmartStack : public MemoryStack<MemoryType>,
     static StackType Create(size_t size) { return StackType(new SmartStack(size)); }
     static StackType Create(std::unique_ptr<MemoryType> memory)
     {
-        return StackType(new SmartStack(memory));
+        return StackType(new SmartStack(std::move(memory)));
     }
 
     StackDescriptor Allocate(size_t size)
@@ -91,6 +90,7 @@ class SmartStack : public MemoryStack<MemoryType>,
 
         // Special Descriptor derived from MemoryType that hold a reference to the MemoryStack,
         // and who's destructor does not try to free the MemoryType memory.
+        // auto ret = std::make_unique<StackDescriptorImpl>(stack, ptr, size);
         auto ret = std::make_unique<StackDescriptorImpl>(stack, ptr, size);
 
         DLOG(INFO) << "Allocated " << ret->Size() << " starting at " << ret->Data()

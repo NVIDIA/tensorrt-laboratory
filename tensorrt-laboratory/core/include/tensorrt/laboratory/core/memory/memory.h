@@ -27,6 +27,8 @@
 #pragma once
 #include <string>
 
+#include "tensorrt/laboratory/core/memory/dlpack.h"
+
 namespace trtlab {
 
 /**
@@ -61,25 +63,21 @@ namespace trtlab {
  * (shared_ptr) to the stack ensuring the stack cannot deallocated be until all
  * StackDescriptors are released.
  */
-class CoreMemory
+class CoreMemory : public DLTContainer
 {
   protected:
     CoreMemory(void* ptr, size_t size, bool allocated);
+    CoreMemory(void* ptr, size_t size, bool allocated, const DLTContainer&);
+    CoreMemory(const DLTensor&);
 
     CoreMemory(CoreMemory&& other) noexcept;
-    CoreMemory& operator=(CoreMemory&&) noexcept;
+    CoreMemory& operator=(CoreMemory&&) noexcept = delete;
 
     CoreMemory(const CoreMemory&) = delete;
     CoreMemory& operator=(const CoreMemory&) = delete;
 
   public:
     virtual ~CoreMemory();
-
-    inline void* Data() { return m_MemoryAddress; }
-
-    inline const void* Data() const { return m_MemoryAddress; }
-
-    inline size_t Size() const { return m_BytesAllocated; }
 
     inline bool Allocated() const { return m_Allocated; }
 
@@ -101,12 +99,9 @@ class CoreMemory
     // Implemented by every unique derived class
     virtual const std::string& Type() const = 0;
 
-    // Implemented by BaseMemory classes, e.g. HostMemory or DeviceMemory
     virtual void Fill(char) = 0;
 
   private:
-    void* m_MemoryAddress;
-    size_t m_BytesAllocated;
     bool m_Allocated;
 };
 

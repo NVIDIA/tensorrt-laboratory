@@ -27,24 +27,29 @@
 #pragma once
 #include <memory>
 
+#include "tensorrt/laboratory/core/memory/dlpack.h"
+
 namespace trtlab {
+
+class DescriptorFactory;
 
 template<typename MemoryType>
 class Descriptor : public MemoryType
 {
-  protected:
-    Descriptor(MemoryType&&, const std::string&);
-    Descriptor(void*, size_t, const std::string&);
-
-    Descriptor(Descriptor&&) noexcept;
-    Descriptor& operator=(Descriptor&&) noexcept;
-
-    Descriptor(const Descriptor&) = delete;
-    Descriptor& operator=(const Descriptor&) = delete;
-
   public:
     virtual ~Descriptor() override;
     const std::string& Type() const final override;
+
+  protected:
+    Descriptor(MemoryType&&, const std::string&);
+    Descriptor(void*, size_t, const DLTContainer&, const std::string&);
+
+  protected:
+    Descriptor(Descriptor&&) noexcept;
+    Descriptor& operator=(Descriptor&&) noexcept = delete;
+
+    Descriptor(const Descriptor&) = delete;
+    Descriptor& operator=(const Descriptor&) = delete;
 
   private:
     std::string m_Desc;
@@ -52,6 +57,7 @@ class Descriptor : public MemoryType
 
 template<typename MemoryType>
 using DescriptorHandle = std::unique_ptr<MemoryType>;
+
 
 } // namespace trtlab
 

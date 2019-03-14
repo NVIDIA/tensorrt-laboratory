@@ -30,25 +30,28 @@
 
 #include <glog/logging.h>
 
+#pragma GCC diagnostic ignored "-Wnarrowing"
+
 namespace trtlab {
 
 CoreMemory::CoreMemory(void* ptr, size_t size, bool allocated)
-    : m_MemoryAddress(ptr), m_BytesAllocated(size), m_Allocated(allocated)
+    : DLTContainer(ptr, size), m_Allocated(allocated)
+{
+}
+
+CoreMemory::CoreMemory(void* ptr, size_t size, bool allocated, const DLTContainer& parent)
+    : DLTContainer(ptr, size, parent), m_Allocated(allocated)
+{
+}
+
+CoreMemory::CoreMemory(const DLTensor& dltensor)
+    : DLTContainer(dltensor), m_Allocated(false)
 {
 }
 
 CoreMemory::CoreMemory(CoreMemory&& other) noexcept
-    : m_MemoryAddress{std::exchange(other.m_MemoryAddress, nullptr)},
-      m_BytesAllocated{std::exchange(other.m_BytesAllocated, 0)}, m_Allocated{std::exchange(
-                                                                      other.m_Allocated, false)}
+    : DLTContainer(std::move(other)), m_Allocated{std::exchange(other.m_Allocated, false)}
 {
-}
-
-CoreMemory& CoreMemory::operator=(CoreMemory&& other) noexcept
-{
-    m_MemoryAddress = std::exchange(other.m_MemoryAddress, nullptr);
-    m_BytesAllocated = std::exchange(other.m_BytesAllocated, 0);
-    m_Allocated = std::exchange(other.m_Allocated, false);
 }
 
 CoreMemory::~CoreMemory() {}

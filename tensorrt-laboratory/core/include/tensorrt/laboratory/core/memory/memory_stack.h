@@ -61,6 +61,7 @@ class MemoryStack
           m_Alignment(m_Memory->DefaultAlignment())
     {
         CHECK(m_Memory);
+        m_Memory->ReshapeToBytes();
     }
 
     MemoryStack(size_t size) : MemoryStack(std::move(std::make_unique<Allocator<MemoryType>>(size)))
@@ -104,7 +105,7 @@ class MemoryStack
      *
      * This operation resets the stack pointer to the base pointer of the memory allocation.
      */
-    void Reset(bool writeZeros = false);
+    void Reset();
 
     /**
      * @brief Get Size of the Memory Stack
@@ -158,14 +159,10 @@ void* MemoryStack<MemoryType>::Allocate(size_t size)
 }
 
 template<class MemoryType>
-void MemoryStack<MemoryType>::Reset(bool writeZeros)
+void MemoryStack<MemoryType>::Reset()
 {
     m_CurrentPointer = m_Memory->Data();
     m_CurrentSize = 0;
-    if(writeZeros)
-    {
-        m_Memory->Fill(0);
-    }
 }
 
 } // namespace trtlab
