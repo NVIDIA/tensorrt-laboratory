@@ -7,21 +7,22 @@
 - `build.py` generates TensorRT engines from the `model.onnx` file
   - cli options:
     - `--batch` will select the batch size, multiple can be given, a separate
-      engine for each batch size will be generated .e.g.
-      ```
-      ./buid.py --batch=1 --batch=8 resnet50/model.onnx
-      ```
+      engine for each batch size will be generated.
     - `--precision` can be `fp32`, `fp16`.  if multiple precision are given, an
       engine for each will be created.  the following commmand will build 4
       engines
+    - run the following:
       ```
-      ./build.py --batch=1 --batch=8 --precision=fp16 --precision=fp32 resnet50/model.onnx
+      ./build.py --batch=1 --batch=8 --precision=fp16 resnet50/model.onnx
       ```
+- `python3 run_onnx_tests.py model-b1-fp16.engine` will run the onnx tests 
 
-- `bench.py`
+- benchmark engines at different batch sizes and concurrent executions:
+  - `/work/build/examples/00_TensorRT/infer.x --engine=model-b1-fp16.engine --contexts=1`
+  - `/work/build/examples/00_TensorRT/infer.x --engine=model-b1-fp16.engine --contexts=8`
+  - `/work/build/examples/00_TensorRT/infer.x --engine=model-b8-fp16.engine --contexts=1`
+  - `/work/build/examples/00_TensorRT/infer.x --engine=model-b8-fp16.engine --contexts=6`
 
-
-install: scikit-image-0.14.2 scipy-1.2.1
 
 ## Credits
 
