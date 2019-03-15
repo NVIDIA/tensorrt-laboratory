@@ -416,7 +416,7 @@ struct PyInferRunner : public InferRunner
         int batch_size = -1;
         DLOG(INFO) << "Processing Python kwargs - holding the GIL";
         {
-            py::gil_scoped_acquire acquire;
+            // py::gil_scoped_acquire acquire;
             for(auto item : kwargs)
             {
                 auto key = py::cast<std::string>(item.first);
@@ -473,15 +473,18 @@ struct PyInferRunner : public InferRunner
                     auto id = model.BindingId(key);
                     auto host = bindings->HostAddress(id);
                     // TODO: enhance the Copy method for py::buffer_info objects
+                    DLOG(INFO) << "Copying data from " << ptr << " to " << host << " " << size << "bytes";
                     std::memcpy(host, ptr, size);
                 }
             }
         }
-        py::gil_scoped_release release;
+        // py::gil_scoped_release release;
         bindings->SetBatchSize(batch_size);
         return InferRunner::Infer(
             bindings, [](std::shared_ptr<Bindings>& bindings) -> InferResults {
+                DLOG(INFO) << "post processing thread - trying to acquire gil";
                 py::gil_scoped_acquire acquire;
+                DLOG(INFO) << "post processing thread - gil acquired";
                 auto results = InferResults();
                 DLOG(INFO) << "Copying Output Bindings to Numpy arrays";
                 for(const auto& id : bindings->OutputBindings())
@@ -713,10 +716,8 @@ PYBIND11_MODULE(trtlab, m)
         .def("output_bindings", &PyInferRemoteRunner::OutputBindings);
 
     py::class_<PyInferFuture, std::shared_ptr<PyInferFuture>>(m, "InferFuture")
-        .def("wait", &std::shared_future<typename PyInferRunner::InferResults>::wait,
-             py::call_guard<py::gil_scoped_release>())
-        .def("get", &std::shared_future<typename PyInferRunner::InferResults>::get,
-             py::call_guard<py::gil_scoped_release>());
+        .def("wait", &std::shared_future<typename PyInferRunner::InferResults>::wait, py::call_guard<py::gil_scoped_release>())
+        .def("get", &std::shared_future<typename PyInferRunner::InferResults>::get, py::call_guard<py::gil_scoped_release>());
 
     /*
         py::class_<InferBench, std::shared_ptr<InferBench>>(m, "InferBench")
