@@ -15,7 +15,7 @@
       ```
       ./build.py --batch=1 --batch=8 --precision=fp16 resnet50/model.onnx
       ```
-- `python3 run_onnx_tests.py model-b1-fp16.engine` will run the onnx tests 
+- `./run_onnx_tests.py model-b1-fp16.engine` will run the onnx tests 
 
 - benchmark engines at different batch sizes and concurrent executions:
   - `/work/build/examples/00_TensorRT/infer.x --engine=model-b1-fp16.engine --contexts=1`
@@ -23,8 +23,18 @@
   - `/work/build/examples/00_TensorRT/infer.x --engine=model-b8-fp16.engine --contexts=1`
   - `/work/build/examples/00_TensorRT/infer.x --engine=model-b8-fp16.engine --contexts=6`
 
+- `./run_jpeg_test.py --image=images/broccoli-3784.jpg model-b1-fp16.engine`
+  - On a V100 using FP16, your results should be
+  ```
+  *** Results ***
+  broccoli 0.9511453
+  ```
 
 ## Credits
 
  - [broccoli image](https://www.openfotos.com/view/broccoli-3784) - OpenFotosa
    - https://www.openfotos.com/pages/open-fotos-license
+
+## TODOs
+
+ - [ ] Add Int8 calibration example
