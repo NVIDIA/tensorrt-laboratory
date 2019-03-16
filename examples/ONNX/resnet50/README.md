@@ -4,20 +4,24 @@
   - after running this script the `resnet50` directory should be present in your
     local path
 
-- `build.py` generates TensorRT engines from the `model.onnx` file
+- Build (`build.py`) TensorRT engines from the `model.onnx` file
   - cli options:
     - `--batch` will select the batch size, multiple can be given, a separate
       engine for each batch size will be generated.
     - `--precision` can be `fp32`, `fp16`.  if multiple precision are given, an
-      engine for each will be created.  the following commmand will build 4
-      engines
-    - run the following:
-      ```
-      ./build.py --batch=1 --batch=8 --precision=fp16 resnet50/model.onnx
-      ```
-- `./run_onnx_tests.py model-b1-fp16.engine` will run the onnx tests 
+      engine for each will be created.  
+  - If you have a Turing or Volta GPU, then run the following commmand which will generates 4 engines:
+    ```
+    ./build.py --batch=1 --batch=8 --precision=fp16 --precision=fp32 resnet50/model.onnx
+    ```
+  - If you have a Pascal GPU, run the following which generates 2 engines:
+    ```
+    ./build.py --batch=1 --batch=8 --precision=fp32 resnet50/model.onnx
+    ```
+- Functional Test
+  - `./run_onnx_tests.py model-b1-fp16.engine` will run the onnx tests 
 
-- benchmark engines at different batch sizes and concurrent executions:
+- Benchmark TensorRT engines at different batch sizes and concurrent executions:
   - `/work/build/examples/00_TensorRT/infer.x --engine=model-b1-fp16.engine --contexts=1`
   - `/work/build/examples/00_TensorRT/infer.x --engine=model-b1-fp16.engine --contexts=8`
   - `/work/build/examples/00_TensorRT/infer.x --engine=model-b8-fp16.engine --contexts=1`
