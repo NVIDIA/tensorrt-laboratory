@@ -41,7 +41,7 @@ File = click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True
 
 @click.command()
 @click.option("--batch", type=click.IntRange(min=1, max=128), multiple=True)
-@click.option("--precision", type=click.Choice(["fp32", "fp16"]), multiple=True, default="fp16")
+@click.option("--precision", type=click.Choice(["fp32", "fp16"]), multiple=True)
 @click.argument("models", type=File, nargs=-1)
 def main(models, batch, precision):
     for model in models:

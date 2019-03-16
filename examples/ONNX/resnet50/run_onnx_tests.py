@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 
 import trtlab
@@ -51,8 +53,6 @@ def validate_results(computed, expected):
     keys = list(computed.keys())
     output_name = keys[0]
     output_value = computed[output_name]
-    print(output_value.shape)
-    print(expected[0].shape)
     np.testing.assert_almost_equal(output_value, expected[0], decimal=3)
     print("-- Test Passed: All outputs {} match within 3 decimals".format(output_value.shape))
 
