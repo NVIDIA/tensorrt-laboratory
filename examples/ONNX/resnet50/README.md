@@ -38,3 +38,4 @@
 ## TODOs
 
  - [ ] Add Int8 calibration example
+ - [ ] Update `run_jpeg_test.py` to highlight the async interface.
