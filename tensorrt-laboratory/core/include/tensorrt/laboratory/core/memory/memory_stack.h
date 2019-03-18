@@ -143,7 +143,8 @@ class MemoryStack
 template<class MemoryType>
 void* MemoryStack<MemoryType>::Allocate(size_t size)
 {
-    DLOG(INFO) << "Allocate pushes MemoryStack<" + m_Memory->Type() + "> Pointer by : " << size;
+    DLOG(INFO) << "Allocate pushes MemoryStack<" + std::string(m_Memory->TypeName()) +
+                      "> Pointer by : " << size;
 
     CHECK_LE(m_CurrentSize + size, m_Memory->Size())
         << "Allocation too large.  Memory Total: " << m_Memory->Size() / (1024 * 1024) << "MB. "

@@ -25,49 +25,20 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
-#include <string>
 
-#include "tensorrt/laboratory/core/memory/dlpack.h"
+#include <dlpack/dlpack.h>
+
+#include "tensorrt/laboratory/core/memory/allocator.h"
+#include "tensorrt/laboratory/core/types.h"
 
 namespace trtlab {
 
-/**
- * @brief Abstract base Memory class
- *
- * Abstract base class that tracks the base pointer and size of a memory allocation.
- *
- * Methods exposed by IMemory shall be implemented and available to all memory types.
- * Methods that do not depend on the specific type of memory should be implemented in
- * CoreMemory, while those that depend on the specialization, e.g. CUDA, should be
- * implemented in a class derived from BaseMemory.
- *
- * Two BaseMemory types are defined:
- * - HostMemory
- * - DeviceMemory (available in the cuda extension)
- *
- * Specific memory types are derived from these base classes and must implement the
- * IAllocatable interface and are expected to implement protected constructor, move
- * construstors and the move assignment operator.
- *
- * In order to allocate specific memory one should use the templated Allocator class.
- *
- * ```
- * auto allocated = std::make_unique<Allocator<Malloc>>(one_mb);
- * ```
- *
- * To expose memory own by another object, the object should create a descriptor object
- * derived from the templated Descriptor class. It is the responsibility of the object
- * providing the memory descriptor to ensure the lifecycle of the descriptor and
- * the object owning the memory is enforced.  See SmartStack for details on how
- * the SmartStack::Allocate methods returns a StackDescriptor which own a reference
- * (shared_ptr) to the stack ensuring the stack cannot deallocated be until all
- * StackDescriptors are released.
- */
-class CoreMemory : public DLTContainer
+class CoreMemory
 {
   protected:
-    CoreMemory(void* ptr, size_t size, bool allocated);
-    CoreMemory(void* ptr, size_t size, bool allocated, const DLTContainer&);
+    CoreMemory();
+    CoreMemory(void*, mem_size_t);
+    CoreMemory(void*, mem_size_t, const CoreMemory&);
     CoreMemory(const DLTensor&);
 
     CoreMemory(CoreMemory&& other) noexcept;
@@ -79,30 +50,50 @@ class CoreMemory : public DLTContainer
   public:
     virtual ~CoreMemory();
 
-    inline bool Allocated() const { return m_Allocated; }
+    // pointer to the internal buffer
+    inline void* Data() { return m_Handle.data; }
+    inline const void* Data() const { return m_Handle.data; }
+
+    // bytes used by the current shape
+    mem_size_t Size() const { return m_Size; }
+
+    // total bytes allocated
+    mem_size_t Capacity() const { return m_Capacity; }
+
+    types::dtype DataType() const;
+    std::vector<int64_t> Shape() const;
+
+    void Reshape(const std::vector<int64_t>& shape);
+    void Reshape(const std::vector<int64_t>& shape, const types::dtype&);
+    void ReshapeToBytes();
 
     void* operator[](size_t offset);
     const void* operator[](size_t offset) const;
 
-    template<typename T>
-    T* CastToArray()
-    {
-        return static_cast<T*>(Data());
-    }
+    const DLContext& DeviceInfo() const { return m_Handle.ctx; }
 
-    template<typename T>
-    const T* CastToArray() const
-    {
-        return static_cast<const T*>(Data());
-    }
-
-    // Implemented by every unique derived class
-    virtual const std::string& Type() const = 0;
-
-    virtual void Fill(char) = 0;
+  protected:
+    // human readable typename
+    virtual const char* TypeName() const = 0;
 
   private:
-    bool m_Allocated;
+    void SetDataAndSize(void*, mem_size_t);
+    void SetHandle(const DLTensor&);
+    bool ContiguousBytes() const;
+    mem_size_t SizeOfDataType() const;
+    static mem_size_t SizeFromShape(const std::vector<mem_size_t>& shape, mem_size_t sizeof_dtype);
+
+    DLTensor m_Handle;
+    mem_size_t m_Size;
+    mem_size_t m_Capacity;
+    std::vector<mem_size_t> m_Shape;
+    std::vector<mem_size_t> m_Strides;
+    std::function<void()> m_Deleter;
+
+    template<typename MemoryType>
+    friend class Allocator;
+
+    friend std::ostream& operator<<(std::ostream&, const CoreMemory&);
 };
 
 template<class MemoryType>
@@ -112,21 +103,11 @@ class BaseMemory : public CoreMemory
     using CoreMemory::CoreMemory;
     using BaseType = MemoryType;
 
-    static size_t AllocationSizeWithAlignment(size_t);
-
-    /*
-        // This does not work :-/
-        template<typename T>
-        static size_t AllocationSizeWithAlignment(size_t count_of_type)
-        {
-            size_t size = count_of_type * sizeof(T);
-            return MemoryType::AllocationSizeWithAlignment(size);
-        }
-    */
+    static size_t AlignedSize(size_t);
 };
 
 template<class MemoryType>
-size_t BaseMemory<MemoryType>::AllocationSizeWithAlignment(size_t size_in_bytes)
+size_t BaseMemory<MemoryType>::AlignedSize(size_t size_in_bytes)
 {
     size_t alignment = MemoryType::DefaultAlignment();
     size_t remainder = size_in_bytes % alignment;

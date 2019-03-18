@@ -26,35 +26,104 @@
  */
 #include "tensorrt/laboratory/core/memory/memory.h"
 
-#include <algorithm>
-
+#include <cstring>
 #include <glog/logging.h>
-
-#pragma GCC diagnostic ignored "-Wnarrowing"
 
 namespace trtlab {
 
-CoreMemory::CoreMemory(void* ptr, size_t size, bool allocated)
-    : DLTContainer(ptr, size), m_Allocated(allocated)
+CoreMemory::CoreMemory() : m_Size(0), m_Capacity(0)
 {
+    m_Handle.data = nullptr;
+    m_Handle.ndim = 0;
+    m_Handle.shape = &m_Size;
+    m_Handle.strides = nullptr;
+    m_Handle.dtype.code = kDLUInt;
+    m_Handle.dtype.bits = 8U;
+    m_Handle.dtype.lanes = 1U;
+    m_Handle.ctx.device_type = kDLCPU;
+    m_Handle.ctx.device_id = 0;
+    m_Handle.byte_offset = 0;
 }
 
-CoreMemory::CoreMemory(void* ptr, size_t size, bool allocated, const DLTContainer& parent)
-    : DLTContainer(ptr, size, parent), m_Allocated(allocated)
+CoreMemory::CoreMemory(void* ptr, mem_size_t size) : CoreMemory()
 {
+    SetDataAndSize(ptr, size);
 }
 
-CoreMemory::CoreMemory(const DLTensor& dltensor)
-    : DLTContainer(dltensor), m_Allocated(false)
+void CoreMemory::SetDataAndSize(void *ptr, mem_size_t size)
 {
+    m_Handle.data = ptr;
+    m_Handle.ndim = 1U;
+    m_Size = size;
+    m_Capacity = size;
 }
+
+CoreMemory::CoreMemory(void* ptr, mem_size_t size, const CoreMemory& mem) : CoreMemory(ptr, size)
+{
+    if(!mem.ContiguousBytes())
+    {
+        throw std::runtime_error(
+            "CoreMemory ctor required the reference to be a contiguous bytearray");
+    }
+    m_Handle.ctx = mem.m_Handle.ctx;
+}
+
+CoreMemory::CoreMemory(const DLTensor& handle) { SetHandle(handle); }
 
 CoreMemory::CoreMemory(CoreMemory&& other) noexcept
-    : DLTContainer(std::move(other)), m_Allocated{std::exchange(other.m_Allocated, false)}
+    : m_Deleter(std::exchange(other.m_Deleter, nullptr))
 {
+    SetHandle(other.m_Handle);
+    other.m_Handle = DLTensor();
+    other.m_Size = 0;
+    other.m_Capacity = 0;
 }
 
-CoreMemory::~CoreMemory() {}
+CoreMemory::~CoreMemory()
+{
+    if(m_Deleter)
+    {
+        m_Deleter();
+    }
+}
+
+types::dtype CoreMemory::DataType() const { return types::dtype(m_Handle.dtype); }
+
+std::vector<int64_t> CoreMemory::Shape() const
+{
+    if(m_Handle.ndim == 1)
+    {
+        std::vector<int64_t> shape = {m_Size};
+        return shape;
+    }
+    return m_Shape;
+}
+
+void CoreMemory::Reshape(const std::vector<int64_t>& shape) { Reshape(shape, DataType()); }
+
+void CoreMemory::Reshape(const std::vector<int64_t>& shape, const types::dtype& dt)
+{
+    auto size = SizeFromShape(shape, dt.bytes());
+    if(size > m_Capacity)
+    {
+        throw std::length_error("Reshape exceeds capacity");
+    }
+    m_Size = size;
+    m_Shape = shape;
+
+    if(shape.size() == 1)
+    {
+        m_Handle.shape = &m_Size;
+    }
+    else
+    {
+        m_Handle.shape = &m_Shape[0];
+    }
+    m_Handle.ndim = shape.size();
+    m_Handle.dtype = dt.to_dlpack();
+}
+
+void CoreMemory::ReshapeToBytes() { Reshape({Capacity()}, types::bytes); }
 
 void* CoreMemory::operator[](size_t offset)
 {
@@ -66,6 +135,60 @@ const void* CoreMemory::operator[](size_t offset) const
 {
     CHECK_LE(offset, Size());
     return static_cast<const void*>(static_cast<const char*>(Data()) + offset);
+}
+
+void CoreMemory::SetHandle(const DLTensor& handle)
+{
+    m_Handle = handle;
+    if(handle.ndim == 1)
+    {
+        m_Capacity = m_Size = handle.shape[0];
+        m_Handle.shape = &m_Size;
+    }
+    else
+    {
+        m_Shape.resize(handle.ndim);
+        m_Handle.shape = &m_Shape[0];
+        std::memcpy(m_Handle.shape, handle.shape, handle.ndim * sizeof(int64_t));
+        m_Size = SizeFromShape(m_Shape, SizeOfDataType());
+        m_Capacity = m_Size;
+    }
+    if(handle.strides)
+    {
+        m_Strides.resize(handle.ndim);
+        m_Handle.strides = &m_Strides[0];
+        std::memcpy(m_Handle.strides, handle.strides, handle.ndim * sizeof(int64_t));
+        m_Capacity = (m_Handle.strides ? SizeFromShape(m_Strides, SizeOfDataType()) : m_Size);
+    }
+}
+
+mem_size_t CoreMemory::SizeOfDataType() const
+{
+    return ((mem_size_t)m_Handle.dtype.bits * (mem_size_t)m_Handle.dtype.lanes) / 8;
+}
+
+bool CoreMemory::ContiguousBytes() const
+{
+    return ((m_Handle.ndim == 1) && (m_Size == m_Capacity) && (DataType() == types::bytes));
+}
+
+mem_size_t CoreMemory::SizeFromShape(const std::vector<mem_size_t>& shape, mem_size_t sizeof_dtype)
+{
+    mem_size_t size = std::accumulate(std::begin(shape), std::end(shape), mem_size_t(1),
+                                      std::multiplies<mem_size_t>());
+    size *= sizeof_dtype;
+    return size;
+}
+
+std::ostream& operator<<(std::ostream& os, const CoreMemory& core)
+{
+    // clang-format off
+    os << "[" << core.TypeName() << ": " << core.m_Handle.data << "; " << core.m_Size << " bytes]";
+       // << "(" << shape << "); " << m_Size " bytes; "
+       // <<
+       // << "deleter: " << (m_Deleter ? "Y]" : "N]");
+    // clang-format on
+    return os;
 }
 
 } // namespace trtlab

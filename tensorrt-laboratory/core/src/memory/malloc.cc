@@ -30,8 +30,6 @@
 
 namespace trtlab {
 
-// Malloc
-
 void* Malloc::Allocate(size_t size)
 {
     void* ptr = malloc(size);
@@ -39,12 +37,19 @@ void* Malloc::Allocate(size_t size)
     return ptr;
 }
 
-void Malloc::Free() { free(Data()); }
-
-const std::string& Malloc::Type() const
+std::function<void()> Malloc::Free()
 {
-    static std::string type = "Malloc";
-    return type;
+    CHECK(Data());
+    CHECK(Size());
+    return [ptr = Data(), size = Size()] {
+        DLOG(INFO) << "Malloc: free " << ptr << "; size: " << size;
+        free(ptr);
+    };
+}
+
+const char* Malloc::TypeName() const
+{
+    return "Malloc";
 }
 
 } // namespace trtlab

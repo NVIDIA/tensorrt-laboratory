@@ -24,44 +24,69 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#pragma once
+#include "tensorrt/laboratory/core/types.h"
 
 #include <glog/logging.h>
 
 namespace trtlab {
+namespace types {
 
-// Allocator
-
-template<typename MemoryType>
-Allocator<MemoryType>::Allocator(mem_size_t size) : MemoryType()
+dtype::dtype(const DLDataType& dlpack) : m_DLPackType(dlpack)
 {
-    this->SetDataAndSize(this->Allocate(size), size);
-    this->m_Deleter = this->Free();
-
-    DLOG(INFO) << "Allocator<" << this->TypeName() << "> size_ctor [" << this
-               << "]: ptr=" << this->Data() << "; size=" << this->Capacity();
-
+    m_Bytes = ((uint64_t)m_DLPackType.bits * (uint64_t)m_DLPackType.lanes) / 8;
 }
 
-template<typename MemoryType>
-Allocator<MemoryType>::Allocator(Allocator<MemoryType>&& other) noexcept : MemoryType(std::move(other))
+dtype::dtype(uint8_t code, uint8_t bits, uint16_t lanes) : dtype(DLDataType{code, bits, lanes}) {}
+
+dtype::dtype(): dtype(0, 0, 0) {}
+
+dtype::dtype(dtype&& other) noexcept { *this = std::move(other); }
+
+dtype& dtype::operator=(dtype&& other) noexcept
 {
-    DLOG(INFO) << "Allocator<" << this->TypeName() << "> mv_ctor [" << this << "]: ptr=" << this->Data()
-               << "; size=" << this->Capacity();
+    m_DLPackType = std::exchange(other.m_DLPackType, dtype().to_dlpack());
+    m_Bytes = std::exchange(other.m_Bytes, 0);
 }
 
-/*
-template<typename MemoryType>
-Allocator<MemoryType>& Allocator<MemoryType>::operator=(Allocator<MemoryType>&& other) noexcept
-{
-    MemoryType::operator=(std::move(other));
-    return *this;
-}
-*/
+dtype::dtype(const dtype& other) { *this = other; }
 
-template<typename MemoryType>
-Allocator<MemoryType>::~Allocator()
+dtype& dtype::operator=(const dtype& other)
 {
+    if(&other == this)
+    {
+        return *this;
+    }
+    m_DLPackType = other.m_DLPackType;
+    m_Bytes = other.m_Bytes;
 }
 
+bool dtype::operator==(const dtype& other) const
+{
+    if(m_DLPackType.code == other.m_DLPackType.code &&
+       m_DLPackType.bits == other.m_DLPackType.bits &&
+       m_DLPackType.lanes == other.m_DLPackType.lanes)
+    {
+        return true;
+    }
+    return false;
+}
+
+int64_t dtype::bytes() const { return m_Bytes; }
+
+const DLDataType& dtype::to_dlpack() const { return m_DLPackType; }
+
+std::ostream& operator<<(std::ostream& os, const dtype& dt)
+{
+    // clang-format off
+    std::string t = "unknown";
+    if(dt.m_DLPackType.code == kDLInt) { t = "int"; }
+    else if(dt.m_DLPackType.code == kDLUInt) { t = "uint"; }
+    else if(dt.m_DLPackType.code == kDLFloat) { t = "fp"; }
+    os << "[dtype: " << t << (uint32_t)dt.m_DLPackType.bits
+       << " x" << (uint32_t)dt.m_DLPackType.lanes << "]";
+    // clang-format on
+    return os;
+}
+
+} // namespace types
 } // namespace trtlab

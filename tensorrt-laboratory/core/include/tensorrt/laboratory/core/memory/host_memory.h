@@ -41,38 +41,37 @@ class HostMemory : public BaseMemory<HostMemory>
 {
   public:
     using BaseMemory<HostMemory>::BaseMemory;
-    const std::string& Type() const override;
-
-    void Fill(char) override;
     static size_t DefaultAlignment();
 
   protected:
     static DLContext DeviceContext();
-
-    friend class nextgen::HostDescriptor;
 };
 
 namespace nextgen {
+
+
 
 template<typename MemoryType>
 class Descriptor : public MemoryType
 {
   public:
-    Descriptor(void* ptr, mem_size_t size, std::function<void()> deleter);
-    Descriptor(const DLTensor& dltensor, std::function<void()> deleter);
     ~Descriptor() override { if(m_Deleter) { m_Deleter(); } }
 
+    Descriptor(Descriptor<MemoryType>&& other) noexcept
+      : m_Deleter(std::exchange(other.m_Deleter, nullptr)), MemoryType(std::move(other)) {}
+
   protected:
+    Descriptor(void* ptr, mem_size_t size, std::function<void()> deleter);
+    Descriptor(const DLTensor& dltensor, std::function<void()> deleter);
     // Moving should be allowed - with caveates
     // Moving should be allowed from a Descriptor<T> to a smart pointer of a Descriptor<T>.
     // Moving should not be allowed to downcast or change descriptor types
-    Descriptor(Descriptor<MemoryType>&&) noexcept;
     Descriptor& operator=(Descriptor&&) noexcept = delete;
 
     Descriptor(const Descriptor<MemoryType>&&) = delete;
     Descriptor& operator=(const Descriptor&) = delete;
 
-  private: 
+  private:
     std::function<void()> m_Deleter;
 };
 
@@ -113,12 +112,6 @@ Descriptor<MemoryType>::Descriptor(const DLTensor& dltensor, std::function<void(
     }
 }
 
-template<typename MemoryType>
-Descriptor<MemoryType>::Descriptor(Descriptor<MemoryType>&& other) noexcept
-    : m_Deleter(std::exchange(other.m_Deleter, nullptr)), MemoryType(std::move(other))
-{
-  CHECK(m_Deleter);
-}
 
 } // namespace nextgen
 } // namespace trtlab

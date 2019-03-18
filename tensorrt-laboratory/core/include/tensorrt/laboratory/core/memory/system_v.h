@@ -36,9 +36,10 @@ namespace trtlab {
 class SystemV : public HostMemory, public IAllocatable
 {
   protected:
+    SystemV();
     SystemV(int shm_id);
-    SystemV(void* ptr, size_t size, bool allocated);
-    SystemV(void* ptr, size_t size, bool allocated, const DLTContainer&);
+    SystemV(void* ptr, mem_size_t size);
+    SystemV(void* ptr, mem_size_t size, const SystemV&);
 
     SystemV(SystemV&& other) noexcept;
     SystemV& operator=(SystemV&& other) noexcept = delete;
@@ -48,7 +49,7 @@ class SystemV : public HostMemory, public IAllocatable
 
   public:
     virtual ~SystemV() override;
-    const std::string& Type() const override;
+    const char* TypeName() const override;
 
     static DescriptorHandle<SystemV> Attach(int shm_id);
 
@@ -57,10 +58,11 @@ class SystemV : public HostMemory, public IAllocatable
 
   protected:
     void* Allocate(size_t) final override;
-    void Free() final override;
+    std::function<void()> Free() final override;
+    void RegisterAttachment(int);
 
   private:
-    int m_ShmID;
+    std::shared_ptr<int> m_ShmID;
 };
 
 } // namespace trtlab

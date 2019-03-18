@@ -3,6 +3,7 @@ find_package(dlpack REQUIRED)
 find_library(TCMALLOC_LIB NAMES libtcmalloc_minimal.a tcmalloc_minimal)
 
 add_library(core
+  src/types.cc
   src/affinity.cc
   src/memory/copy.cc
   src/memory/dlpack.cc

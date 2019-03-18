@@ -25,43 +25,60 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
-#include <memory>
 
-#include "tensorrt/laboratory/core/memory/memory.h"
+#include <dlpack/dlpack.h>
+
+#include <cstdint> // for int64_t etc
+#include <functional> // for std::multiplies
+#include <memory>
+#include <numeric>
+#include <vector>
+#include <ostream>
 
 namespace trtlab {
+namespace types {
 
-template<typename MemoryType>
-class Descriptor : public MemoryType
+struct dtype
 {
-  public:
-    virtual ~Descriptor() override;
-    const char* TypeName() const final override;
+    dtype(const DLDataType&);
+    dtype(uint8_t code, uint8_t bits, uint16_t lanes);
 
-    Descriptor(Descriptor<MemoryType>&&) noexcept;
+    dtype(dtype&&) noexcept;
+    dtype& operator=(dtype&&) noexcept;
 
-  protected:
-    Descriptor(void*, mem_size_t, std::function<void()>, const char*);
-    Descriptor(void*, mem_size_t, const MemoryType&, std::function<void()>, const char*);
-    Descriptor(const DLTensor&, std::function<void()> deleter, const char*);
+    dtype(const dtype&);
+    dtype& operator=(const dtype&);
 
-    Descriptor(MemoryType&&, std::function<void()>, const char*);
+    virtual ~dtype() {}
 
-    // Descriptor(Descriptor&&) noexcept;
-    //Descriptor& operator=(Descriptor&&) noexcept = delete;
+    bool operator==(const dtype&) const;
+    bool operator!=(const dtype& other) const { return !(*this == other); }
 
-    // Descriptor(const Descriptor&) = delete;
-    ////  Descriptor& operator=(const Descriptor&) = delete;
+    int64_t bytes() const;
+    const DLDataType& to_dlpack() const;
 
   private:
-    std::function<void()> m_Deleter;
-    std::string m_Desc;
+    dtype();
+    DLDataType m_DLPackType;
+    int64_t m_Bytes;
+
+    friend std::ostream& operator<<(std::ostream& os, const dtype& dt);
 };
 
-template<typename MemoryType>
-using DescriptorHandle = std::unique_ptr<MemoryType>;
+static const auto nil = dtype(kDLInt, 0U, 0U);
+static const auto bytes = dtype(kDLUInt, 8U, 1U);
 
+static const auto int8 = dtype(kDLInt, 8U, 1U);
+static const auto int16 = dtype(kDLInt, 16U, 1U);
+static const auto int32 = dtype(kDLInt, 32U, 1U);
+static const auto uint8 = dtype(kDLUInt, 8U, 1U);
+static const auto uint16 = dtype(kDLUInt, 16U, 1U);
+static const auto uint32 = dtype(kDLUInt, 32U, 1U);
+static const auto fp16 = dtype(kDLFloat, 16U, 1U);
+static const auto fp32 = dtype(kDLFloat, 32U, 1U);
+static const auto fp64 = dtype(kDLFloat, 64U, 1U);
 
+static const dtype All[] = {int8, int16, int32, uint8, uint16, uint32, fp16, fp32, fp64};
+
+} // namespace types
 } // namespace trtlab
-
-#include "tensorrt/laboratory/core/impl/memory/descriptor.h"

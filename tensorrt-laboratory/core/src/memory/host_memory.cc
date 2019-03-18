@@ -36,15 +36,6 @@ namespace trtlab {
 
 size_t HostMemory::DefaultAlignment() { return 64; }
 
-const std::string& HostMemory::Type() const
-{
-    static std::string type = "HostMemory";
-    return type;
-}
-
-
-void HostMemory::Fill(char fill_value) { std::memset(Data(), fill_value, Size()); }
-
 DLContext HostMemory::DeviceContext()
 {
     DLContext ctx;
@@ -52,6 +43,5 @@ DLContext HostMemory::DeviceContext()
     ctx.device_id = 0;
     return ctx;
 }
-
 
 } // namespace trtlab

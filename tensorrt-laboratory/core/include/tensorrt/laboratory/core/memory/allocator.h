@@ -26,19 +26,21 @@
  */
 #pragma once
 #include <cstddef>
+#include <cstdint>
 
 namespace trtlab {
+
+typedef int64_t mem_size_t;
 
 template<class MemoryType>
 class Allocator final : public MemoryType
 {
   public:
-    Allocator(size_t size);
+    Allocator(mem_size_t size);
     virtual ~Allocator() override;
 
-  protected:
-    Allocator(Allocator&& other) noexcept;
-    Allocator& operator=(Allocator&& other) noexcept = delete;
+    Allocator(Allocator<MemoryType>&& other) noexcept;
+    Allocator<MemoryType>& operator=(Allocator<MemoryType>&& other) noexcept = delete;
 
     Allocator(const Allocator&) = delete;
     Allocator& operator=(const Allocator&) = delete;
@@ -51,7 +53,7 @@ template<class MemoryType>
 class Allocator final : public Descriptor<MemoryType>
 {
   public:
-    Allocator(size_t size)
+    Allocator(mem_size_t size)
         : Descriptor<MemoryType>(MemoryType::Allocate(size), size,
                                  [](void* ptr) { MemoryType::Free(ptr); })
     {

@@ -36,11 +36,20 @@ class Malloc : public HostMemory, public IAllocatable
 {
   public:
     using HostMemory::HostMemory;
-    const std::string& Type() const override;
+    const char* TypeName() const override;
 
   protected:
     void* Allocate(size_t) final override;
-    void Free() final override;
+    std::function<void()> Free() final override;
 };
 
+/*
+namespace nextgen {
+struct Malloc : public HostMemory {
+    using HostMemory::HostMemory;
+    // Malloc(Malloc&& other) noexcept : HostMemory(std::move(other)) {}
+    static ::trtlab::nextgen::Descriptor<Malloc> Allocate(mem_size_t size);
+};
+} // namespace nextgen
+*/
 } // namespace trtlab

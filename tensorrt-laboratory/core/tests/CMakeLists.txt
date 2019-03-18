@@ -27,6 +27,7 @@
 #include_directories(${GTEST_INCLUDE_DIRS})
 
 add_executable(test_core
+  test_types.cc
   test_memory.cc
   test_memory_stack.cc
   test_pool.cc

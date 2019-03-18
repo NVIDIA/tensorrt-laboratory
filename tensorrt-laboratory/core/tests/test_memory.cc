@@ -62,7 +62,7 @@ TYPED_TEST(TestMemory, make_shared)
     EXPECT_TRUE(shared->Data());
     EXPECT_EQ(one_mb, shared->Size());
 
-    EXPECT_EQ(shared->DType(), DataType::bytes);
+    EXPECT_EQ(shared->DataType(), types::bytes);
     EXPECT_EQ(shared->DeviceInfo().device_type, kDLCPU);
     EXPECT_EQ(shared->DeviceInfo().device_id, 0);
 
@@ -75,7 +75,7 @@ TYPED_TEST(TestMemory, make_unique)
     auto unique = std::make_unique<Allocator<TypeParam>>(one_mb);
     EXPECT_TRUE(unique->Data());
     EXPECT_EQ(one_mb, unique->Size());
-    EXPECT_EQ(unique->DType(), DataType::bytes);
+    EXPECT_EQ(unique->DataType(), types::bytes);
     unique.reset();
     EXPECT_FALSE(unique);
 }
@@ -84,11 +84,10 @@ TYPED_TEST(TestMemory, ctor)
 {
     Allocator<TypeParam> memory(one_mb);
     EXPECT_TRUE(memory.Data());
-    EXPECT_EQ(memory.DType(), DataType::bytes);
+    EXPECT_EQ(memory.DataType(), types::bytes);
     EXPECT_EQ(one_mb, memory.Size());
 }
 
-/*
 TYPED_TEST(TestMemory, move_ctor)
 {
     Allocator<TypeParam> memory(one_mb);
@@ -99,33 +98,36 @@ TYPED_TEST(TestMemory, move_ctor)
     EXPECT_EQ(host.Shape()[0], one_mb);
 
     EXPECT_FALSE(memory.Data());
-    EXPECT_EQ(0, memory.Size());
+    EXPECT_EQ(memory.Size(), 0);
+    EXPECT_EQ(memory.Capacity(), 0);
+    EXPECT_EQ(memory.Shape().size(), 0);
 }
-*/
 
-/*
 TYPED_TEST(TestMemory, move_ctor_with_reshape)
 {
-    Allocator<TypeParam> shared(one_mb);
-    TypeParam& memory = shared;
+    Allocator<TypeParam> memory(one_mb);
 
-    memory.Reshape({512, 512}, DataType::fp32);
+    memory.Reshape({512, 512}, types::fp32);
+    EXPECT_EQ(memory.Size(), one_mb);
+    EXPECT_EQ(memory.Capacity(), one_mb);
+    EXPECT_EQ(memory.Shape()[0], 512);
+    EXPECT_EQ(memory.Shape()[1], 512);
+    EXPECT_EQ(memory.DataType(), types::fp32);
 
     Allocator<TypeParam> host(std::move(memory));
 
     EXPECT_TRUE(host.Data());
-    EXPECT_EQ(one_mb, host.Size());
-    EXPECT_EQ(one_mb, host.Capacity());
-    EXPECT_EQ(host.DType(), DataType::fp32);
+    EXPECT_EQ(host.Size(), one_mb);
+    EXPECT_EQ(host.Capacity(), one_mb);
     EXPECT_EQ(host.Shape()[0], 512);
     EXPECT_EQ(host.Shape()[1], 512);
+    EXPECT_EQ(host.DataType(), types::fp32);
 
     EXPECT_FALSE(memory.Data());
     EXPECT_EQ(memory.Size(), 0);
     EXPECT_EQ(memory.Capacity(), 0);
-    EXPECT_EQ(memory.DType(), DataType::bytes);
+    EXPECT_EQ(memory.DataType(), types::nil);
 }
-*/
 
 /*
 TYPED_TEST(TestMemory, move_to_shared_ptr)
@@ -155,68 +157,69 @@ TYPED_TEST(TestMemory, smart_move)
     EXPECT_TRUE(weak.expired());
 }
 
-
 TYPED_TEST(TestMemory, shape)
 {
     Allocator<TypeParam> memory(one_mb);
-    std::vector<int64_t> shape = { one_mb };
+    std::vector<int64_t> shape = {one_mb};
 
     EXPECT_EQ(memory.Shape(), shape);
 
     // Exact Size
-    memory.Reshape({512, 512}, DataType::fp32);
+    memory.Reshape({512, 512}, types::fp32);
     EXPECT_EQ(memory.Shape()[0], 512);
     EXPECT_EQ(memory.Shape()[1], 512);
-    EXPECT_EQ(memory.DType(), DataType::fp32);
+    EXPECT_EQ(memory.DataType(), types::fp32);
     EXPECT_EQ(memory.Size(), memory.Capacity());
 
     // Exact Size
-    memory.Reshape({1024, 512}, DataType::fp16);
+    memory.Reshape({1024, 512}, types::fp16);
     EXPECT_EQ(memory.Shape()[0], 1024);
     EXPECT_EQ(memory.Shape()[1], 512);
-    EXPECT_EQ(memory.DType(), DataType::fp16);
+    EXPECT_EQ(memory.DataType(), types::fp16);
 
     // Exact Size
-    memory.Reshape({1024, 1024}, DataType::int8);
+    memory.Reshape({1024, 1024}, types::int8);
     EXPECT_EQ(memory.Shape()[0], 1024);
     EXPECT_EQ(memory.Shape()[1], 1024);
-    EXPECT_EQ(memory.DType(), DataType::int8);
+    EXPECT_EQ(memory.DataType(), types::int8);
 
     // Reshape to smaller than allocated
-    memory.Reshape({256, 128}, DataType::int8);
+    memory.Reshape({256, 128}, types::int8);
     EXPECT_EQ(memory.Shape()[0], 256);
     EXPECT_EQ(memory.Shape()[1], 128);
     EXPECT_LT(memory.Size(), memory.Capacity());
 
     // Reshape to larger than allocated
-    try {
-        memory.Reshape({512, 513}, DataType::fp32);
+    try
+    {
+        memory.Reshape({512, 513}, types::fp32);
         FAIL() << "Expected std::length_error";
     }
-    catch(std::length_error const & err) {
+    catch(std::length_error const& err)
+    {
         EXPECT_EQ(err.what(), std::string("Reshape exceeds capacity"));
     }
-    catch(...){
+    catch(...)
+    {
         FAIL() << "Expected std::length_error";
     }
-
 }
 
 TYPED_TEST(TestMemory, alignment)
 {
     EXPECT_EQ(TypeParam::DefaultAlignment(), 64);
-    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment(1), 64);
-    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment(64), 64);
-    EXPECT_EQ(TypeParam::AllocationSizeWithAlignment(65), 128);
+    EXPECT_EQ(TypeParam::AlignedSize(1), 64);
+    EXPECT_EQ(TypeParam::AlignedSize(64), 64);
+    EXPECT_EQ(TypeParam::AlignedSize(65), 128);
 
     /*
-        EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<float>(15), 64);
-        EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<float>(16), 64);
-        EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<float>(17), 128);
+        EXPECT_EQ(TypeParam::AlignedSize<float>(15), 64);
+        EXPECT_EQ(TypeParam::AlignedSize<float>(16), 64);
+        EXPECT_EQ(TypeParam::AlignedSize<float>(17), 128);
 
-        EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<double>(7), 64);
-        EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<double>(8), 64);
-        EXPECT_EQ(TypeParam::AllocationSizeWithAlignment<double>(9), 128);
+        EXPECT_EQ(TypeParam::AlignedSize<double>(7), 64);
+        EXPECT_EQ(TypeParam::AlignedSize<double>(8), 64);
+        EXPECT_EQ(TypeParam::AlignedSize<double>(9), 128);
     */
 }
 
@@ -226,18 +229,32 @@ class TestSystemVMemory : public ::testing::Test
 
 TEST_F(TestSystemVMemory, same_process)
 {
-    Allocator<SystemV> master(one_mb);
-    EXPECT_TRUE(master.ShmID());
-    auto attached = SystemV::Attach(master.ShmID());
-    EXPECT_EQ(master.ShmID(), attached->ShmID());
-    EXPECT_EQ(master.Size(), attached->Size());
-    // different virtual address pointing at the same memory
-    EXPECT_NE(master.Data(), attached->Data());
-    auto master_ptr = static_cast<long*>(master.Data());
-    auto attach_ptr = static_cast<long*>(attached->Data());
-    *master_ptr = 0xDEADBEEF;
-    EXPECT_EQ(*master_ptr, *attach_ptr);
-    EXPECT_EQ(*attach_ptr, 0xDEADBEEF);
+    Allocator<SystemV> first(one_mb);
+    ASSERT_GE(first.ShmID(), 0);
+    ASSERT_EQ(first.Size(), one_mb);
+    ASSERT_EQ(first.Capacity(), one_mb);
+
+    // test move
+    auto master = std::move(first);
+    ASSERT_GE(master.ShmID(), 0);
+    ASSERT_EQ(master.Size(), one_mb);
+    ASSERT_EQ(master.Capacity(), one_mb);
+    ASSERT_EQ(first.ShmID(), -1);
+
+    {
+        auto attached = SystemV::Attach(master.ShmID());
+        EXPECT_EQ(master.ShmID(), attached->ShmID());
+        EXPECT_EQ(master.Size(), attached->Size());
+        // different virtual address pointing at the same memory
+        EXPECT_NE(master.Data(), attached->Data());
+        auto master_ptr = static_cast<long*>(master.Data());
+        auto attach_ptr = static_cast<long*>(attached->Data());
+        *master_ptr = 0xDEADBEEF;
+        EXPECT_EQ(*master_ptr, *attach_ptr);
+        EXPECT_EQ(*attach_ptr, 0xDEADBEEF);
+        DLOG(INFO) << "finished with attached";
+    }
+    DLOG(INFO) << "finished with test";
 }
 
 TEST_F(TestSystemVMemory, smart_ptrs)
@@ -276,6 +293,7 @@ class TestCopy : public ::testing::Test
 {
 };
 
+/*
 TEST_F(TestCopy, MallocToMalloc)
 {
     char v0 = 111;
@@ -302,6 +320,7 @@ TEST_F(TestCopy, MallocToMalloc)
     EXPECT_EQ(m1_array[0], v0);
     EXPECT_EQ(m1_array[1024], v1);
 }
+*/
 
 class TestGeneric : public ::testing::Test
 {
@@ -318,6 +337,7 @@ TEST_F(TestGeneric, AllocatedPolymorphism)
     memory.push_back(std::move(sysv));
 }
 
+/*
 TEST_F(TestGeneric, HostDescriptorDLTensorLifecycle)
 {
     void *ptr = (void*)0xDEADBEEF;
@@ -332,7 +352,7 @@ TEST_F(TestGeneric, HostDescriptorDLTensorLifecycle)
         });
         EXPECT_EQ(hdesc.Data(), (void*)0xDEADBEEF);
         EXPECT_EQ(hdesc.Size(), 13370);
-        hdesc.Reshape({13370/2, 1}, DataType::fp16);
+        hdesc.Reshape({13370/2, 1}, types::fp16);
 
         // regular descriptors can not expose a dltensor
         // dltensor = (DLTensor)hdesc;
@@ -357,14 +377,11 @@ TEST_F(TestGeneric, HostDescriptorDLTensorLifecycle)
     EXPECT_EQ(dltensor.shape[1], 1);
 /*
     {
-        HostDescriptor hdesc(std::move(*shared_hdesc), ) 
-            // expect that this test will reshape hdesc and 
-            // reset dltensor before leaving scope
-            ptr = dltensor.data;
-            size = dltensor.shape[0];
-        });
-        // hdesc and dltensor are not linked
-        // changes to hdesc are not seen th dltensor
+        HostDescriptor hdesc(dltensor, [shared_hdesc]{});
+        // shared_hdesc and hdesc do share the same memory;
+        // however, they have difference DLPack descriptors that were equivalent
+        // on instantiate, but can change with their respective objects
+        // changes to hdesc are not seen by shared_hdesc
         EXPECT_EQ(hdesc.Data(), dltensor.data);
         EXPECT_EQ(hdesc.Capacity(), 13370);
         EXPECT_EQ(dltensor.ndim, 2);
@@ -373,9 +390,20 @@ TEST_F(TestGeneric, HostDescriptorDLTensorLifecycle)
         EXPECT_EQ(hdesc.Shape()[0], 13370);
         EXPECT_EQ(dltensor.shape[0], 13370/2);
     }
-*/
 }
+*/
 
+TEST_F(TestGeneric, MallocAndHostDescriptors)
+{
+    // auto mdesc = nextgen::Malloc::Allocate(one_mb);
+
+    // Unable to move from from Malloc -> HostMemory
+    // Descriptor<HostMemory> hdesc(std::move(mdesc));
+
+    // auto shared = std::make_shared<Descriptor<Malloc>>(std::move(mdesc));
+
+    // auto shared_from = std::make_shared<Descriptor<Malloc>>(mdesc);
+}
 
 class TestBytesToString : public ::testing::Test
 {
