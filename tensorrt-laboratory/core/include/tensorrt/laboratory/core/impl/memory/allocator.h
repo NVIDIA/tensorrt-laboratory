@@ -64,6 +64,7 @@ Allocator<MemoryType>& Allocator<MemoryType>::operator=(Allocator<MemoryType>&& 
 template<typename MemoryType>
 Allocator<MemoryType>::~Allocator()
 {
+    DLOG(INFO) << "Allocator dtor: " << *this;
 }
 
 } // namespace trtlab

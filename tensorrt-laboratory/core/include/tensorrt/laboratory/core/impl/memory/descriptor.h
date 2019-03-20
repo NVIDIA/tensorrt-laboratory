@@ -37,8 +37,7 @@ Descriptor<MemoryType>::Descriptor(void* ptr, mem_size_t size, std::function<voi
                                    const char* desc)
     : MemoryType(ptr, size), m_Deleter(deleter), m_Desc(desc)
 {
-    DLOG(INFO) << "Descriptor<" << this->TypeName() << "> ptr_size_ctor [" << this
-               << "]: ptr=" << this->Data() << "; size=" << this->Size();
+    DLOG(INFO) << "Descriptor ptr_size_ctor: " << *this;
 }
 
 template<typename MemoryType>
@@ -46,8 +45,7 @@ Descriptor<MemoryType>::Descriptor(const DLTensor& dltensor, std::function<void(
                                    const char* desc)
     : MemoryType(dltensor), m_Deleter(deleter), m_Desc(desc)
 {
-    DLOG(INFO) << "Descriptor<" << this->TypeName() << "> dltensor_ctor [" << this
-               << "]: ptr=" << this->Data() << "; size=" << this->Size();
+    DLOG(INFO) << "Descriptor dltensor_ctor: " << *this;
 }
 
 template<typename MemoryType>
@@ -55,8 +53,7 @@ Descriptor<MemoryType>::Descriptor(void* ptr, mem_size_t size, const MemoryType&
                                    std::function<void()> deleter, const char* desc)
     : MemoryType(ptr, size, properties), m_Deleter(deleter), m_Desc(desc)
 {
-    DLOG(INFO) << "Descriptor<" << this->TypeName() << "> dltensor_ctor [" << this
-               << "]: ptr=" << this->Data() << "; size=" << this->Size();
+    DLOG(INFO) << "Descriptor ptr_size_props_ctor: " << *this;
 }
 
 template<typename MemoryType>
@@ -64,8 +61,7 @@ Descriptor<MemoryType>::Descriptor(MemoryType&& other, std::function<void()> del
                                    const char* desc)
     : MemoryType(std::move(other)), m_Deleter(deleter), m_Desc(desc)
 {
-    DLOG(INFO) << "Descriptor<" << this->TypeName() << "> mem_ctor [" << this
-               << "]: ptr=" << this->Data() << "; size=" << this->Size();
+    DLOG(INFO) << "Descriptor mem_mv_ctor: " << *this;
 }
 
 template<class MemoryType>
@@ -74,26 +70,14 @@ Descriptor<MemoryType>::Descriptor(std::shared_ptr<MemoryType> shared, const cha
       m_Deleter([shared]() mutable { shared.reset(); }),
       m_Desc(desc)
 {
-    DLOG(INFO) << "Descriptor<" << this->TypeName() << "> shared_ptr_ctor [" << this
-               << "]: ptr=" << this->Data() << "; size=" << this->Size();
+    DLOG(INFO) << "Descriptor shared_ptr_ctor: " << *this;
 }
-
-/*
-template<class MemoryType>
-Descriptor<MemoryType>::Descriptor(void* ptr, size_t size, const DLTContainer& parent, const char*
-desc) : MemoryType(ptr, size, false, parent), m_Desc(MemoryType::TypeName() + "(" + desc + ")")
-{
-    DLOG(INFO) << "Descriptor<" << this->TypeName() << "> ptr_size_ctor [" << this
-               << "]: ptr=" << this->Data() << "; size=" << this->Size();
-}
-*/
 
 template<class MemoryType>
 Descriptor<MemoryType>::Descriptor(Descriptor<MemoryType>&& other) noexcept
     : MemoryType(std::move(other))
 {
-    DLOG(INFO) << "Descriptor<" << this->TypeName() << "> mv_ctor [" << this
-               << "]: ptr=" << this->Data() << "; size=" << this->Size();
+    DLOG(INFO) << "Descriptor mv_ctor: " << *this;
 }
 
 /*
@@ -108,11 +92,9 @@ Descriptor<MemoryType>& Descriptor<MemoryType>::operator=(Descriptor<MemoryType>
 template<class MemoryType>
 Descriptor<MemoryType>::~Descriptor()
 {
-    DLOG(INFO) << "~Descriptor<" << this->TypeName() << "> [" << this << "]: ptr=" << this->Data()
-               << "; size=" << this->Size();
-
     if(m_Deleter)
     {
+        DLOG(INFO) << "Descriptor dtor: " << *this;
         m_Deleter();
     }
 }

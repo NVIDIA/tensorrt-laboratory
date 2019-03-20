@@ -84,7 +84,7 @@ CoreMemory::~CoreMemory()
 {
     if(m_Deleter)
     {
-        DLOG(INFO) << "Deallocating: " << *this;
+        DLOG(INFO) << "Deallocating ptr: " << m_Handle.data;
         m_Deleter();
     }
 }

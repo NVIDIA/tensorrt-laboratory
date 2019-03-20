@@ -139,8 +139,6 @@ TEST_F(TestSmartStack, Unaligned)
     EXPECT_EQ(p0->Offset(), 0);
     EXPECT_EQ(p1->Offset(), stack->Alignment());
 
-    EXPECT_EQ(std::string(stack->Memory().TypeName()), "SystemV");
-
     EXPECT_GE(p0->Stack().Memory().ShmID(), 0);
     // EXPECT_EQ(p0->ShmID(), -1);
 

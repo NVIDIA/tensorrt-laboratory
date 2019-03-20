@@ -36,7 +36,6 @@
 #include <gtest/gtest.h>
 
 using namespace trtlab;
-using namespace trtlab;
 
 namespace {
 
