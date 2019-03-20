@@ -39,12 +39,11 @@ void* CudaManagedMemory::Allocate(size_t size)
     return ptr;
 }
 
-void CudaManagedMemory::Free() { CHECK_EQ(cudaFree(Data()), CUDA_SUCCESS); }
-
-const std::string& CudaManagedMemory::Type() const
+std::function<void()> CudaManagedMemory::Free()
 {
-    static std::string type = "CudaMallocManaged";
-    return type;
+    return [ptr = Data()] { CHECK_EQ(cudaFree(ptr), CUDA_SUCCESS); };
 }
+
+const char* CudaManagedMemory::TypeName() const { return "cudaMallocManaged"; }
 
 } // namespace trtlab

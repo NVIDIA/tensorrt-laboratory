@@ -39,12 +39,22 @@ void* CudaPinnedHostMemory::Allocate(size_t size)
     return ptr;
 }
 
-void CudaPinnedHostMemory::Free() { CHECK_EQ(cudaFreeHost(Data()), CUDA_SUCCESS); }
-
-const std::string& CudaPinnedHostMemory::Type() const
+std::function<void()> CudaPinnedHostMemory::Free()
 {
-    static std::string type = "CudaMallocHost";
-    return type;
+    return [ptr = Data()] { CHECK_EQ(cudaFreeHost(ptr), CUDA_SUCCESS); };
+}
+
+const char* CudaPinnedHostMemory::TypeName() const
+{
+    return "cudaMallocHost";
+}
+
+DLContext CudaPinnedHostMemory::DeviceContext()
+{
+    DLContext ctx;
+    ctx.device_type = kDLCPUPinned;
+    ctx.device_id = 0;
+    return ctx;
 }
 
 } // namespace trtlab

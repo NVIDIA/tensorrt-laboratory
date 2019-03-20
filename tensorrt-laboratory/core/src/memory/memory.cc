@@ -25,6 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "tensorrt/laboratory/core/memory/memory.h"
+#include "tensorrt/laboratory/core/utils.h"
 
 #include <cstring>
 #include <glog/logging.h>
@@ -83,6 +84,7 @@ CoreMemory::~CoreMemory()
 {
     if(m_Deleter)
     {
+        DLOG(INFO) << "Deallocating: " << *this;
         m_Deleter();
     }
 }
@@ -142,7 +144,7 @@ void CoreMemory::SetHandle(const DLTensor& handle)
     m_Handle = handle;
     if(handle.ndim == 1)
     {
-        m_Capacity = m_Size = handle.shape[0];
+        m_Capacity = m_Size = handle.shape[0] * SizeOfDataType();
         m_Handle.shape = &m_Size;
     }
     else
@@ -164,7 +166,7 @@ void CoreMemory::SetHandle(const DLTensor& handle)
 
 mem_size_t CoreMemory::SizeOfDataType() const
 {
-    return ((mem_size_t)m_Handle.dtype.bits * (mem_size_t)m_Handle.dtype.lanes) / 8;
+    return ((mem_size_t)m_Handle.dtype.bits * (mem_size_t)m_Handle.dtype.lanes + 7) / 8;
 }
 
 bool CoreMemory::ContiguousBytes() const
@@ -183,10 +185,11 @@ mem_size_t CoreMemory::SizeFromShape(const std::vector<mem_size_t>& shape, mem_s
 std::ostream& operator<<(std::ostream& os, const CoreMemory& core)
 {
     // clang-format off
-    os << "[" << core.TypeName() << ": " << core.m_Handle.data << "; " << core.m_Size << " bytes]";
-       // << "(" << shape << "); " << m_Size " bytes; "
-       // <<
-       // << "deleter: " << (m_Deleter ? "Y]" : "N]");
+    os << "[" << core.TypeName() << ": " << core.m_Handle.data << "; shape: (";
+    for(int i=0; i< core.m_Handle.ndim; i++) { os << (i ? "," : "") << core.m_Handle.shape[i]; }
+    os << "); dtype: " << core.DataType() << "; size: " << BytesToString(core.Size());
+    if(core.Size() != core.Capacity()) { os << "; capacity: " << BytesToString(core.Capacity()); }
+    os << "]";
     // clang-format on
     return os;
 }

@@ -43,6 +43,8 @@ class HostMemory : public BaseMemory<HostMemory>
     using BaseMemory<HostMemory>::BaseMemory;
     static size_t DefaultAlignment();
 
+    const char* TypeName() const override { return "HostMemory"; }
+
   protected:
     static DLContext DeviceContext();
 };

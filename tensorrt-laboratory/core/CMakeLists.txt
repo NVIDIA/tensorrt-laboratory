@@ -6,7 +6,6 @@ add_library(core
   src/types.cc
   src/affinity.cc
   src/memory/copy.cc
-  src/memory/dlpack.cc
   src/memory/memory.cc
   src/memory/host_memory.cc
   src/memory/malloc.cc

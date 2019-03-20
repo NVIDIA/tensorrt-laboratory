@@ -41,11 +41,11 @@ class CudaManagedMemory : public DeviceMemory, public IAllocatable
 {
   public:
     using DeviceMemory::DeviceMemory;
-    const std::string& Type() const override;
+    const char* TypeName() const override;
 
   protected:
     void* Allocate(size_t) final override;
-    void Free() final override;
+    std::function<void()> Free() final override;
 };
 
 } // namespace trtlab

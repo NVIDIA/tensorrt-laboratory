@@ -36,12 +36,16 @@ namespace trtlab {
 
 size_t DeviceMemory::DefaultAlignment() { return DeviceInfo::Alignment(); }
 
-void DeviceMemory::Fill(char val) { CHECK_EQ(cudaMemset(Data(), val, Size()), CUDA_SUCCESS); }
-
-const std::string& DeviceMemory::Type() const
+DLContext DeviceMemory::DeviceContext()
 {
-    static std::string type = "DeviceMemory";
-    return type;
+    int device;
+    cudaGetDevice(&device);
+
+    DLContext ctx;
+    ctx.device_type = kDLGPU;
+    ctx.device_id = device;
+
+    return ctx;
 }
 
 } // namespace trtlab

@@ -35,19 +35,21 @@ namespace trtlab {
 template<typename MemoryType>
 Allocator<MemoryType>::Allocator(mem_size_t size) : MemoryType()
 {
+    // Notes: Allocate can not set member values of a dervived class if called
+    // in MemoryType's constructor, i.e. for SystemV, Allocate sets the m_ShmID
+    // member variable.  This segfaults if done in MemoryType's constructor
     this->SetDataAndSize(this->Allocate(size), size);
     this->m_Deleter = this->Free();
+    this->m_Handle.ctx = this->DeviceContext();
 
-    DLOG(INFO) << "Allocator<" << this->TypeName() << "> size_ctor [" << this
-               << "]: ptr=" << this->Data() << "; size=" << this->Capacity();
+    DLOG(INFO) << "Allocator size_ctor: " << *this;
 
 }
 
 template<typename MemoryType>
 Allocator<MemoryType>::Allocator(Allocator<MemoryType>&& other) noexcept : MemoryType(std::move(other))
 {
-    DLOG(INFO) << "Allocator<" << this->TypeName() << "> mv_ctor [" << this << "]: ptr=" << this->Data()
-               << "; size=" << this->Capacity();
+    DLOG(INFO) << "Allocator mv_ctor: " << *this;
 }
 
 /*

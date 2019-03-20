@@ -42,11 +42,13 @@ class CudaPinnedHostMemory : public HostMemory, public IAllocatable
 {
   public:
     using HostMemory::HostMemory;
-    const std::string& Type() const override;
+    const char* TypeName() const override;
 
   protected:
     void* Allocate(size_t) final override;
-    void Free() final override;
+    std::function<void()> Free() final override;
+
+    static DLContext DeviceContext();
 };
 
 } // namespace trtlab

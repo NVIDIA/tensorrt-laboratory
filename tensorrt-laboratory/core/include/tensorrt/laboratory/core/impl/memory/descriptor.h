@@ -33,7 +33,8 @@ namespace trtlab {
 // Descriptor
 
 template<typename MemoryType>
-Descriptor<MemoryType>::Descriptor(void* ptr, mem_size_t size, std::function<void()> deleter, const char* desc)
+Descriptor<MemoryType>::Descriptor(void* ptr, mem_size_t size, std::function<void()> deleter,
+                                   const char* desc)
     : MemoryType(ptr, size), m_Deleter(deleter), m_Desc(desc)
 {
     DLOG(INFO) << "Descriptor<" << this->TypeName() << "> ptr_size_ctor [" << this
@@ -41,7 +42,8 @@ Descriptor<MemoryType>::Descriptor(void* ptr, mem_size_t size, std::function<voi
 }
 
 template<typename MemoryType>
-Descriptor<MemoryType>::Descriptor(const DLTensor& dltensor, std::function<void()> deleter, const char* desc)
+Descriptor<MemoryType>::Descriptor(const DLTensor& dltensor, std::function<void()> deleter,
+                                   const char* desc)
     : MemoryType(dltensor), m_Deleter(deleter), m_Desc(desc)
 {
     DLOG(INFO) << "Descriptor<" << this->TypeName() << "> dltensor_ctor [" << this
@@ -49,26 +51,37 @@ Descriptor<MemoryType>::Descriptor(const DLTensor& dltensor, std::function<void(
 }
 
 template<typename MemoryType>
-Descriptor<MemoryType>::Descriptor(void* ptr, mem_size_t size, const MemoryType& properties, std::function<void()> deleter, const char* desc)
+Descriptor<MemoryType>::Descriptor(void* ptr, mem_size_t size, const MemoryType& properties,
+                                   std::function<void()> deleter, const char* desc)
     : MemoryType(ptr, size, properties), m_Deleter(deleter), m_Desc(desc)
 {
     DLOG(INFO) << "Descriptor<" << this->TypeName() << "> dltensor_ctor [" << this
                << "]: ptr=" << this->Data() << "; size=" << this->Size();
 }
 
-
 template<typename MemoryType>
-Descriptor<MemoryType>::Descriptor(MemoryType&& other, std::function<void()> deleter, const char* desc)
+Descriptor<MemoryType>::Descriptor(MemoryType&& other, std::function<void()> deleter,
+                                   const char* desc)
     : MemoryType(std::move(other)), m_Deleter(deleter), m_Desc(desc)
 {
     DLOG(INFO) << "Descriptor<" << this->TypeName() << "> mem_ctor [" << this
                << "]: ptr=" << this->Data() << "; size=" << this->Size();
 }
 
+template<class MemoryType>
+Descriptor<MemoryType>::Descriptor(std::shared_ptr<MemoryType> shared, const char* desc)
+    : MemoryType(shared->Data(), shared->Size(), *shared),
+      m_Deleter([shared]() mutable { shared.reset(); }),
+      m_Desc(desc)
+{
+    DLOG(INFO) << "Descriptor<" << this->TypeName() << "> shared_ptr_ctor [" << this
+               << "]: ptr=" << this->Data() << "; size=" << this->Size();
+}
+
 /*
 template<class MemoryType>
-Descriptor<MemoryType>::Descriptor(void* ptr, size_t size, const DLTContainer& parent, const char* desc)
-    : MemoryType(ptr, size, false, parent), m_Desc(MemoryType::TypeName() + "(" + desc + ")")
+Descriptor<MemoryType>::Descriptor(void* ptr, size_t size, const DLTContainer& parent, const char*
+desc) : MemoryType(ptr, size, false, parent), m_Desc(MemoryType::TypeName() + "(" + desc + ")")
 {
     DLOG(INFO) << "Descriptor<" << this->TypeName() << "> ptr_size_ctor [" << this
                << "]: ptr=" << this->Data() << "; size=" << this->Size();
@@ -76,7 +89,8 @@ Descriptor<MemoryType>::Descriptor(void* ptr, size_t size, const DLTContainer& p
 */
 
 template<class MemoryType>
-Descriptor<MemoryType>::Descriptor(Descriptor<MemoryType>&& other) noexcept : MemoryType(std::move(other))
+Descriptor<MemoryType>::Descriptor(Descriptor<MemoryType>&& other) noexcept
+    : MemoryType(std::move(other))
 {
     DLOG(INFO) << "Descriptor<" << this->TypeName() << "> mv_ctor [" << this
                << "]: ptr=" << this->Data() << "; size=" << this->Size();
@@ -97,7 +111,10 @@ Descriptor<MemoryType>::~Descriptor()
     DLOG(INFO) << "~Descriptor<" << this->TypeName() << "> [" << this << "]: ptr=" << this->Data()
                << "; size=" << this->Size();
 
-    if(m_Deleter) { m_Deleter(); }
+    if(m_Deleter)
+    {
+        m_Deleter();
+    }
 }
 
 template<class MemoryType>

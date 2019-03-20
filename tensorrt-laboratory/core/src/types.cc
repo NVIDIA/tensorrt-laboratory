@@ -38,7 +38,7 @@ dtype::dtype(const DLDataType& dlpack) : m_DLPackType(dlpack)
 
 dtype::dtype(uint8_t code, uint8_t bits, uint16_t lanes) : dtype(DLDataType{code, bits, lanes}) {}
 
-dtype::dtype(): dtype(0, 0, 0) {}
+dtype::dtype() : dtype(0, 0, 0) {}
 
 dtype::dtype(dtype&& other) noexcept { *this = std::move(other); }
 
@@ -77,14 +77,23 @@ const DLDataType& dtype::to_dlpack() const { return m_DLPackType; }
 
 std::ostream& operator<<(std::ostream& os, const dtype& dt)
 {
-    // clang-format off
     std::string t = "unknown";
-    if(dt.m_DLPackType.code == kDLInt) { t = "int"; }
-    else if(dt.m_DLPackType.code == kDLUInt) { t = "uint"; }
-    else if(dt.m_DLPackType.code == kDLFloat) { t = "fp"; }
-    os << "[dtype: " << t << (uint32_t)dt.m_DLPackType.bits
-       << " x" << (uint32_t)dt.m_DLPackType.lanes << "]";
-    // clang-format on
+    uint32_t bits = dt.m_DLPackType.bits;
+    uint32_t lanes = dt.m_DLPackType.lanes;
+    if(bits == 0 || lanes == 0)
+    {
+        os << "nil";
+    }
+    else
+    {
+        // clang-format off
+        if(dt.m_DLPackType.code == kDLInt) { t = "int"; }
+        else if(dt.m_DLPackType.code == kDLUInt) { t = "uint"; }
+        else if(dt.m_DLPackType.code == kDLFloat) { t = "fp"; }
+        os << t << (uint32_t)dt.m_DLPackType.bits;
+        if(lanes > 1U) { os << "x" << lanes; }
+        // clang-format on
+    }
     return os;
 }
 

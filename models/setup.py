@@ -30,8 +30,8 @@ import os
 import subprocess
 
 models = [
-    ("ResNet-50-deploy.prototxt", "prob"),
-#   ("ResNet-152-deploy.prototxt", "prob"),
+#   ("ResNet-50-deploy.prototxt", "prob"),
+    ("ResNet-152-deploy.prototxt", "prob"),
 ]
 
 precisions = [
@@ -43,7 +43,7 @@ precisions = [
 def main():
     for model, o in models:
         for name, p in precisions:
-            for b in [1, 8]: #, 2, 4, 8]:
+            for b in [8]: #, 2, 4, 8]:
                 n = "b{}-{}".format(b, name)
                 e = model.replace("prototxt", "engine")
                 e = e.replace("deploy", n)

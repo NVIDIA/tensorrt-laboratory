@@ -131,7 +131,15 @@ RUN git clone -b v1.10.0 https://github.com/google/flatbuffers.git \
  && mkdir build2 && cd build2 \
  && cmake -DCMAKE_BUILD_TYPE=Release .. \
  && make -j$(nproc) install \
- && cd .. && rm -rf flatbuffers
+ && cd ../.. && rm -rf flatbuffers
+
+RUN git clone https://github.com/dmlc/dlpack.git \
+ && cd dlpack \
+ && git checkout -b trtlab 5c792cef3aee54ad8b7000111c9dc1797f327b59 \
+ && mkdir build && cd build \
+ && cmake .. \
+ && make install \
+ && cd ../.. && rm -rf dlpack
 
 WORKDIR /tmp
 RUN wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh \

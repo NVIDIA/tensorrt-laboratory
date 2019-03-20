@@ -59,7 +59,7 @@ class Buffers : public std::enable_shared_from_this<Buffers>
     void Synchronize();
 
   protected:
-    virtual void Reset(bool writeZeros = false){};
+    virtual void Reset() = 0;
     void ConfigureBindings(const std::shared_ptr<Model>& model, std::shared_ptr<Bindings>);
 
     virtual std::unique_ptr<HostMemory> AllocateHost(size_t size) = 0;
@@ -88,7 +88,8 @@ class FixedBuffers : public Buffers
     {
       public:
         BufferStackDescriptor(void* ptr, size_t size)
-            : Descriptor<MemoryType>(ptr, size, MemoryType::Type() + "Desc")
+            : Descriptor<MemoryType>(ptr, size, []{},
+                std::string("BufferStack<" + std::string(MemoryType::TypeName()) + ">").c_str())
         {
         }
         ~BufferStackDescriptor() final override {}
@@ -106,10 +107,10 @@ class FixedBuffers : public Buffers
             m_DeviceStack->Allocate(size), size));
     }
 
-    void Reset(bool writeZeros = false) final override
+    void Reset() final override
     {
-        m_HostStack->Reset(writeZeros);
-        m_DeviceStack->Reset(writeZeros);
+        m_HostStack->Reset();
+        m_DeviceStack->Reset();
     }
 
   private:
@@ -143,7 +144,7 @@ class CyclicBuffers : public Buffers
         return m_DeviceAllocator->Allocate(size);
     }
 
-    void Reset(bool writeZeros = false) final override {}
+    void Reset() final override {}
 
   private:
     HostAllocatorType m_HostAllocator;

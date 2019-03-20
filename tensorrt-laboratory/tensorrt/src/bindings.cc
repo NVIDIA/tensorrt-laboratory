@@ -35,6 +35,7 @@ using trtlab::DescriptorHandle;
 using trtlab::DeviceMemory;
 using trtlab::HostMemory;
 
+/*
 namespace {
 class RawHostMemoryDescriptor final : public Descriptor<HostMemory>
 {
@@ -46,6 +47,7 @@ class RawHostMemoryDescriptor final : public Descriptor<HostMemory>
     ~RawHostMemoryDescriptor() final override {}
 };
 } // namespace
+*/
 
 namespace trtlab {
 namespace TensorRT {
@@ -70,20 +72,23 @@ typename Bindings::HostDescriptor& Bindings::HostMemoryDescriptor(int binding_id
     return m_HostDescriptors[binding_id];
 }
 
+/*
 void Bindings::SetHostAddress(int binding_id, void* addr)
 {
     CHECK_LT(binding_id, m_HostAddresses.size());
     auto mdesc = std::make_unique<RawHostMemoryDescriptor>(addr, BindingSize(binding_id));
-    m_HostDescriptors[binding_id] = std::move(mdesc);
     m_HostAddresses[binding_id] = addr;
+    m_HostDescriptors[binding_id] = std::move(mdesc);
 }
+
 
 void Bindings::SetDeviceAddress(int binding_id, void* addr)
 {
     CHECK_LT(binding_id, m_DeviceAddresses.size());
-    m_DeviceDescriptors.erase(binding_id);
     m_DeviceAddresses[binding_id] = addr;
+    m_DeviceDescriptors.erase(binding_id);
 }
+*/
 
 void Bindings::SetHostAddress(int binding_id, DescriptorHandle<HostMemory> mdesc)
 {

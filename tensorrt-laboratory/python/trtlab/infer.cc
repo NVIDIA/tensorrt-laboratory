@@ -48,6 +48,10 @@ namespace py = pybind11;
 #include "tensorrt/laboratory/runtime.h"
 #include "tensorrt/laboratory/utils.h"
 
+#include "tensorrt/laboratory/core/memory/allocator.h"
+#include "tensorrt/laboratory/core/memory/descriptor.h"
+#include "tensorrt/laboratory/core/memory/malloc.h"
+
 #include "utils.h"
 
 using namespace trtlab;
@@ -673,6 +677,94 @@ void BasicInferService(std::shared_ptr<InferenceManager> resources, int port,
     server.Run(std::chrono::milliseconds(1000), [] {});
 }
 
+class DLPack final
+{
+  public:
+    static py::capsule Share(std::shared_ptr<CoreMemory> share)
+    {
+        auto self = new DLPack(share);
+        CHECK_EQ(self, self->m_ManagedTensor.manager_ctx);
+        return self->dlpack();
+    }
+
+  private:
+    DLPack(std::shared_ptr<CoreMemory> shared) : m_ManagedMemory(shared)
+    {
+        m_ManagedTensor.dl_tensor = shared->TensorInfo();
+        m_ManagedTensor.manager_ctx = static_cast<void*>(this);
+        m_ManagedTensor.deleter = [](DLManagedTensor* ptr) mutable {
+            if(ptr)
+            {
+                DLOG(INFO) << "Checking Managed Tensor";
+                DLPack* self = (DLPack*)ptr->manager_ctx;
+                if(self)
+                {
+                    DLOG(INFO) << "Deleting self";
+                    delete self;
+                }
+            }
+        };
+    }
+
+    ~DLPack() { DLOG(INFO) << "DLPack dtor"; }
+
+    py::capsule dlpack()
+    {
+        using namespace pybind11::literals;
+        return py::capsule((void*)&m_ManagedTensor, "dltensor", [](PyObject* ptr) {
+            auto name = PyCapsule_GetName(ptr);
+            auto obj = PyCapsule_GetPointer(ptr, name);
+            DLOG(INFO) << "destructing: " << name << " @ " << ptr;
+            py::print("destructing capsule ({}, '{}')"_s.format(
+                (size_t)PyCapsule_GetPointer(ptr, name), name));
+            DLManagedTensor* managed_tensor = (DLManagedTensor*)obj;
+            managed_tensor->deleter(managed_tensor);
+        });
+    }
+
+    std::shared_ptr<CoreMemory> m_ManagedMemory;
+    DLManagedTensor m_ManagedTensor;
+};
+
+class ExternalDLPack
+{
+  public:
+    template<typename MemoryType>
+    class D : public Descriptor<MemoryType>
+    {
+      public:
+        D(const DLTensor& dltensor) : Descriptor<MemoryType>(dltensor, [] {}, "FromDLPack") {}
+
+        ~D() override {}
+    };
+
+    static std::shared_ptr<CoreMemory> Import(py::capsule obj)
+    {
+        DLManagedTensor* dlm_tensor = (DLManagedTensor*)PyCapsule_GetPointer(obj.ptr(), "dltensor");
+        const auto& dltensor = dlm_tensor->dl_tensor;
+        // TODO: increase object ref count; decrease it in the deleter
+        auto deleter = [] {};
+        std::shared_ptr<CoreMemory> core;
+        if(dltensor.ctx.device_type == kDLCPU)
+        {
+            return std::make_shared<D<Malloc>>(dltensor);
+        }
+        else if(dltensor.ctx.device_type == kDLCPUPinned)
+        {
+            return std::make_shared<D<CudaPinnedHostMemory>>(dltensor);
+        }
+        else if(dltensor.ctx.device_type == kDLGPU)
+        {
+            return std::make_shared<D<CudaDeviceMemory>>(dltensor);
+        }
+        else
+        {
+            throw std::runtime_error("invaide device tyep");
+        }
+        return core;
+    }
+};
+
 using PyInferFuture = std::shared_future<typename PyInferRunner::InferResults>;
 PYBIND11_MAKE_OPAQUE(PyInferFuture);
 
@@ -716,6 +808,22 @@ PYBIND11_MODULE(trtlab, m)
              py::call_guard<py::gil_scoped_release>())
         .def("get", &std::shared_future<typename PyInferRunner::InferResults>::get,
              py::call_guard<py::gil_scoped_release>());
+    /*
+        py::class_<PyHostMemory>(m, "dltensor_trtlab_host")
+            .def("to_dlpack", &PyHostMemory::to_dlpack);
+
+        py::class_<PyDeviceMemory>(m, "dltensor_trtlab_device")
+            .def("to_dlpack", &PyDeviceMemory::to_dlpack);
+    */
+    m.def("test_dlpack", []() {
+        auto shared = std::make_shared<Allocator<CudaDeviceMemory>>(256 * 1024 * 1024);
+        return DLPack::Share(shared);
+    });
+
+    m.def("from_dlpack", [](py::capsule obj) {
+        auto core = ExternalDLPack::Import(obj);
+        DLOG(INFO) << *core;
+    });
 
     /*
         py::class_<InferBench, std::shared_ptr<InferBench>>(m, "InferBench")

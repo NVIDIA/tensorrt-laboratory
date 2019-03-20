@@ -39,12 +39,11 @@ void* CudaDeviceMemory::Allocate(size_t size)
     return ptr;
 }
 
-void CudaDeviceMemory::Free() { CHECK_EQ(cudaFree(Data()), CUDA_SUCCESS); }
-
-const std::string& CudaDeviceMemory::Type() const
+std::function<void()> CudaDeviceMemory::Free()
 {
-    static std::string type = "CudaMalloc";
-    return type;
+    return [ptr = Data()] { CHECK_EQ(cudaFree(ptr), CUDA_SUCCESS); };
 }
+
+const char* CudaDeviceMemory::TypeName() const { return "cudaMalloc"; }
 
 } // namespace trtlab

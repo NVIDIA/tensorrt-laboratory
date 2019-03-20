@@ -121,6 +121,38 @@ class Bindings
 class Workspace
 {
   public:
+    void RegisterModel(std::shared_ptr<Model>);
+
+    template<typename T>
+    void RegisterObject(const std::string& model_name, T obj);
+
+    template<typename T>
+    void RegisterObject(const std::string& model_name, std::shared_ptr<T> shared_obj);
+
+    template<typename T>
+    void RegisterObject(const std::string& model_name, std::unique_ptr<T> unique_obj);
+
+    void RegisterBindings(const std::string& model_name, ISmartAllocator& allocator);
+
+    template<typename T>
+    void RegisterBindings(const std::string& model_name, std::shared_ptr<MemoryStack<T>>& stack);
+
+    void RegisterBinding(const std::string& model_name, const std::string& binding_name, CoreMemory& memory);
+    void RegisterHostBinding(const std::string& model_name, const std::string& binding_name, void*);
+    void RegisterDeviceBinding(const std::string& model_name, const std::string& binding_name, void*);
+
+  protected:
+    class ModelWorkspace
+    {
+      private:
+        std::vector<void*> Bindings() const;
+
+        std::map<std::string, void*> m_HostPointers;
+        std::map<std::string, void*> m_DevicePointers;
+
+        std::vector<std::function<void()> m_CapturedObjects;
+    }
+
     HostMemory& HostDescriptor(const std::string&);
     const HostMemory& HostDescriptor(const std::string&) const;
     void HostDescriptor(const std::string&, DescriptorHandle<HostMemory>);

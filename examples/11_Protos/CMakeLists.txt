@@ -33,4 +33,3 @@ set(_PROTOBUF_PROTOC $<TARGET_FILE:protobuf::protoc>)
 
 add_subdirectory(echo)
 add_subdirectory(demo)
-add_subdirectory(inference)

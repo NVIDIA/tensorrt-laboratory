@@ -55,6 +55,16 @@ TYPED_TEST(TestMemory, make_shared)
     auto shared = std::make_shared<Allocator<TypeParam>>(one_mb);
     EXPECT_TRUE(shared->Data());
     EXPECT_EQ(one_mb, shared->Size());
+
+    if(std::dynamic_pointer_cast<DeviceMemory>(shared))
+    {
+        EXPECT_EQ(shared->DeviceInfo().device_type, kDLGPU);
+    }
+    else
+    {
+        EXPECT_EQ(shared->DeviceInfo().device_type, kDLCPUPinned);
+    }
+
     shared.reset();
     EXPECT_FALSE(shared);
 }
@@ -75,6 +85,7 @@ TYPED_TEST(TestMemory, ctor)
     EXPECT_EQ(one_mb, memory.Size());
 }
 
+/*
 TYPED_TEST(TestMemory, move_ctor)
 {
     Allocator<TypeParam> memory(one_mb);
@@ -94,5 +105,6 @@ TYPED_TEST(TestMemory, move_to_shared_ptr)
     EXPECT_TRUE(ptr);
     EXPECT_TRUE(ptr->Data());
 }
+*/
 
 } // namespace

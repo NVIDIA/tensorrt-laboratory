@@ -43,4 +43,4 @@ else
     echo "No GPU container runtime found"
     exit 911
 fi
-NV_GPU=0 $crt -v $PWD:/work $models_cli --workdir /work --name trtlab --net host trtlab
+NV_GPU=0 $crt -v $PWD:/work $models_cli --workdir /work --name trtlab trtlab

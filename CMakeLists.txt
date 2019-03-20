@@ -41,5 +41,6 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 add_subdirectory(third_party/pybind11)
+
 add_subdirectory(tensorrt-laboratory)
 add_subdirectory(examples)

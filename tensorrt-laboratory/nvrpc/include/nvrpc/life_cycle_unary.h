@@ -53,6 +53,8 @@ class LifeCycleUnary : public IContextLifeCycle
     void FinishResponse() final override;
     void CancelResponse() final override;
 
+    bool CheckDeadlineAndShouldContinue();
+
     const std::multimap<grpc::string_ref, grpc::string_ref>& ClientMetadata();
 
   private:
@@ -136,6 +138,17 @@ const std::multimap<grpc::string_ref, grpc::string_ref>&
 }
 
 template<class Request, class Response>
+bool LifeCycleUnary<Request, Response>::CheckDeadlineAndShouldContinue()
+{
+    if(m_Context->IsCancelled())
+    {
+        CancelResponse();
+        return false;
+    }
+    return true;
+}
+
+template<class Request, class Response>
 bool LifeCycleUnary<Request, Response>::StateRequestDone(bool ok)
 {
     if(!ok)
@@ -143,7 +156,10 @@ bool LifeCycleUnary<Request, Response>::StateRequestDone(bool ok)
         return false;
     }
     OnLifeCycleStart();
-    ExecuteRPC(*m_Request, *m_Response);
+    if(CheckDeadlineAndShouldContinue())
+    {
+        ExecuteRPC(*m_Request, *m_Response);
+    }
     return true;
 }
 

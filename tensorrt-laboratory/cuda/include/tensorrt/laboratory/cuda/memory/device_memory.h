@@ -35,10 +35,10 @@ class DeviceMemory : public BaseMemory<DeviceMemory>
 {
   public:
     using BaseMemory<DeviceMemory>::BaseMemory;
-    const std::string& Type() const override;
-
-    void Fill(char) override;
     static size_t DefaultAlignment();
+
+  protected:
+    DLContext DeviceContext();
 };
 
 } // namespace trtlab

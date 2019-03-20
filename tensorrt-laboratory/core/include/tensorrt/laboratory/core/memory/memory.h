@@ -71,10 +71,14 @@ class CoreMemory
     const void* operator[](size_t offset) const;
 
     const DLContext& DeviceInfo() const { return m_Handle.ctx; }
+    const DLTensor& TensorInfo() const { return m_Handle; }
 
   protected:
     // human readable typename
     virtual const char* TypeName() const = 0;
+
+    // DLPack Tensor Descriptor (Value)
+    DLTensor* DLPackDescriptorPointer() { return &m_Handle; }
 
   private:
     void SetDataAndSize(void*, mem_size_t);

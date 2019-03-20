@@ -30,6 +30,7 @@
 #include "tensorrt/laboratory/core/memory/system_v.h"
 #include "tensorrt/laboratory/core/utils.h"
 
+#include <cstring>
 #include <list>
 
 #include <gtest/gtest.h>
@@ -38,7 +39,10 @@ using namespace trtlab;
 using namespace trtlab;
 
 namespace {
-static int64_t one_mb = 1024 * 1024;
+
+static mem_size_t one_kb = 1024;
+static mem_size_t one_mb = one_kb * one_kb;
+typedef std::vector<mem_size_t> shape_t;
 
 template<typename T>
 class TestMemory : public ::testing::Test
@@ -59,9 +63,12 @@ TYPED_TEST(TestMemory, should_not_compile)
 TYPED_TEST(TestMemory, make_shared)
 {
     auto shared = std::make_shared<Allocator<TypeParam>>(one_mb);
-    EXPECT_TRUE(shared->Data());
-    EXPECT_EQ(one_mb, shared->Size());
 
+    EXPECT_TRUE(shared->Data());
+    EXPECT_EQ(shared->Size(), one_mb);
+    EXPECT_EQ(shared->Capacity(), one_mb);
+    EXPECT_EQ(shared->Shape().size(), 1);
+    EXPECT_EQ(shared->Shape()[0], one_mb);
     EXPECT_EQ(shared->DataType(), types::bytes);
     EXPECT_EQ(shared->DeviceInfo().device_type, kDLCPU);
     EXPECT_EQ(shared->DeviceInfo().device_id, 0);
@@ -73,9 +80,16 @@ TYPED_TEST(TestMemory, make_shared)
 TYPED_TEST(TestMemory, make_unique)
 {
     auto unique = std::make_unique<Allocator<TypeParam>>(one_mb);
+
     EXPECT_TRUE(unique->Data());
-    EXPECT_EQ(one_mb, unique->Size());
+    EXPECT_EQ(unique->Size(), one_mb);
+    EXPECT_EQ(unique->Capacity(), one_mb);
+    EXPECT_EQ(unique->Shape().size(), 1);
+    EXPECT_EQ(unique->Shape()[0], one_mb);
     EXPECT_EQ(unique->DataType(), types::bytes);
+    EXPECT_EQ(unique->DeviceInfo().device_type, kDLCPU);
+    EXPECT_EQ(unique->DeviceInfo().device_id, 0);
+
     unique.reset();
     EXPECT_FALSE(unique);
 }
@@ -83,9 +97,15 @@ TYPED_TEST(TestMemory, make_unique)
 TYPED_TEST(TestMemory, ctor)
 {
     Allocator<TypeParam> memory(one_mb);
+
     EXPECT_TRUE(memory.Data());
+    EXPECT_EQ(memory.Size(), one_mb);
+    EXPECT_EQ(memory.Capacity(), one_mb);
+    EXPECT_EQ(memory.Shape().size(), 1);
+    EXPECT_EQ(memory.Shape()[0], one_mb);
     EXPECT_EQ(memory.DataType(), types::bytes);
-    EXPECT_EQ(one_mb, memory.Size());
+    EXPECT_EQ(memory.DeviceInfo().device_type, kDLCPU);
+    EXPECT_EQ(memory.DeviceInfo().device_id, 0);
 }
 
 TYPED_TEST(TestMemory, move_ctor)
@@ -116,6 +136,7 @@ TYPED_TEST(TestMemory, move_ctor_with_reshape)
 
     Allocator<TypeParam> host(std::move(memory));
 
+    // moved location
     EXPECT_TRUE(host.Data());
     EXPECT_EQ(host.Size(), one_mb);
     EXPECT_EQ(host.Capacity(), one_mb);
@@ -123,21 +144,21 @@ TYPED_TEST(TestMemory, move_ctor_with_reshape)
     EXPECT_EQ(host.Shape()[1], 512);
     EXPECT_EQ(host.DataType(), types::fp32);
 
+    // original location
     EXPECT_FALSE(memory.Data());
     EXPECT_EQ(memory.Size(), 0);
     EXPECT_EQ(memory.Capacity(), 0);
     EXPECT_EQ(memory.DataType(), types::nil);
 }
 
-/*
 TYPED_TEST(TestMemory, move_to_shared_ptr)
 {
     Allocator<TypeParam> memory(one_mb);
     auto ptr = std::make_shared<Allocator<TypeParam>>(std::move(memory));
     EXPECT_TRUE(ptr);
     EXPECT_TRUE(ptr->Data());
+    EXPECT_FALSE(memory.Data());
 }
-*/
 
 TYPED_TEST(TestMemory, smart_move)
 {
@@ -160,7 +181,7 @@ TYPED_TEST(TestMemory, smart_move)
 TYPED_TEST(TestMemory, shape)
 {
     Allocator<TypeParam> memory(one_mb);
-    std::vector<int64_t> shape = {one_mb};
+    shape_t shape = {one_mb};
 
     EXPECT_EQ(memory.Shape(), shape);
 
@@ -187,6 +208,8 @@ TYPED_TEST(TestMemory, shape)
     memory.Reshape({256, 128}, types::int8);
     EXPECT_EQ(memory.Shape()[0], 256);
     EXPECT_EQ(memory.Shape()[1], 128);
+    EXPECT_EQ(memory.Capacity(), one_mb);
+    EXPECT_EQ(memory.Size(), 256 * 128 * types::int8.bytes());
     EXPECT_LT(memory.Size(), memory.Capacity());
 
     // Reshape to larger than allocated
@@ -221,6 +244,67 @@ TYPED_TEST(TestMemory, alignment)
         EXPECT_EQ(TypeParam::AlignedSize<double>(8), 64);
         EXPECT_EQ(TypeParam::AlignedSize<double>(9), 128);
     */
+}
+
+
+// This tests an object very similar to the pybind11
+// DLPack Descriptor
+template<typename MemoryType>
+class DescFromSharedPointer : public Descriptor<MemoryType>
+{
+  public:
+    DescFromSharedPointer(std::shared_ptr<MemoryType> shared)
+        : Descriptor<MemoryType>(shared, std::string(
+            "SharedPointer<" + std::string(shared->TypeName()) + ">").c_str()),
+          m_ManagedMemory(shared)
+    {
+    }
+
+    ~DescFromSharedPointer() override {}
+
+    std::function<void()> CaptureSharedObject()
+    {
+        return [mem = m_ManagedMemory] { DLOG(INFO) << *mem; };
+    }
+
+  private:
+    std::shared_ptr<MemoryType> m_ManagedMemory;
+};
+
+TYPED_TEST(TestMemory, DescriptorFromSharedPointer)
+{
+    auto shared = std::make_shared<Allocator<TypeParam>>(one_mb);
+
+    std::weak_ptr<TypeParam> weak = shared;
+    ASSERT_EQ(weak.use_count(), 1);
+
+    std::function<void()> captured_obj;
+
+    {
+        // the descriptor captures the shared ptr twice
+        // once in the descriptors deleter and the other
+        // as the m_ManagedMemory shared_ptr
+        DescFromSharedPointer<TypeParam> desc(shared);
+        ASSERT_EQ(weak.use_count(), 3);
+
+        captured_obj = desc.CaptureSharedObject();
+        ASSERT_EQ(weak.use_count(), 4);
+    }
+
+    // descriptor out of scope
+    ASSERT_EQ(weak.use_count(), 2);
+
+    shared.reset();
+    ASSERT_EQ(weak.use_count(), 1);
+
+    // calling does not release
+    captured_obj();
+
+    // release
+    DLOG(INFO) << "ref count to zero";
+    captured_obj = nullptr;
+
+    ASSERT_TRUE(weak.expired());
 }
 
 class TestSystemVMemory : public ::testing::Test
@@ -293,22 +377,22 @@ class TestCopy : public ::testing::Test
 {
 };
 
-/*
 TEST_F(TestCopy, MallocToMalloc)
 {
     char v0 = 111;
     char v1 = 222;
 
-    Allocator<Malloc> m0(1024);
-    auto m1 = std::make_unique<Allocator<Malloc>>(1024 * 1024);
+    Allocator<Malloc> m0(one_kb);
+    std::memset(m0.Data(), v0, one_kb);
 
-    m0.Fill(v0);
-    auto m0_array = m0.CastToArray<char>();
+    auto m0_array = static_cast<char*>(m0.Data());
     EXPECT_EQ(m0_array[0], v0);
     EXPECT_EQ(m0_array[0], m0_array[1023]);
 
-    m1->Fill(v1);
-    auto m1_array = m1->CastToArray<char>();
+    auto m1 = std::make_unique<Allocator<Malloc>>(one_mb);
+    std::memset(m1->Data(), v1, one_mb);
+
+    auto m1_array = static_cast<char*>(m1->Data());
     EXPECT_EQ(m1_array[0], v1);
     EXPECT_EQ(m1_array[0], m1_array[1024]);
 
@@ -320,7 +404,6 @@ TEST_F(TestCopy, MallocToMalloc)
     EXPECT_EQ(m1_array[0], v0);
     EXPECT_EQ(m1_array[1024], v1);
 }
-*/
 
 class TestGeneric : public ::testing::Test
 {
@@ -357,8 +440,9 @@ TEST_F(TestGeneric, HostDescriptorDLTensorLifecycle)
         // regular descriptors can not expose a dltensor
         // dltensor = (DLTensor)hdesc;
 
-        shared_hdesc = std::make_shared<nextgen::SharedDescriptor<HostMemory>>(std::move(hdesc));
-        dltensor = (DLTensor)(*shared_hdesc);
+        shared_hdesc =
+std::make_shared<nextgen::SharedDescriptor<HostMemory>>(std::move(hdesc)); dltensor =
+(DLTensor)(*shared_hdesc);
 
         EXPECT_EQ(shared_hdesc->Data(), dltensor.data);
         EXPECT_EQ(shared_hdesc->Capacity(), 13370);
@@ -433,8 +517,8 @@ TEST_F(TestBytesToString, StringToBytes)
     EXPECT_EQ(1000, StringToBytes("1000b"));
     EXPECT_EQ(1000, StringToBytes("1kb"));
     EXPECT_EQ(1023, StringToBytes("1023b"));
-    //  EXPECT_EQ(       1023, StringToBytes("1.023kb")); // no effort to control rounding - this
-    //  fails with 1022
+    //  EXPECT_EQ(       1023, StringToBytes("1.023kb")); // no effort to control rounding -
+    //  this fails with 1022
     EXPECT_EQ(1024, StringToBytes("1kib"));
     EXPECT_EQ(1024, StringToBytes("1.0KiB"));
     EXPECT_EQ(8000000, StringToBytes("8.0MB"));
