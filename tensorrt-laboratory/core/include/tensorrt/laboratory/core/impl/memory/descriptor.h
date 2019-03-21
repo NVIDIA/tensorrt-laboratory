@@ -35,41 +35,45 @@ namespace trtlab {
 template<typename MemoryType>
 Descriptor<MemoryType>::Descriptor(void* ptr, mem_size_t size, std::function<void()> deleter,
                                    const char* desc)
-    : MemoryType(ptr, size), m_Deleter(deleter), m_Desc(desc)
+    : MemoryType(ptr, size), m_Deleter(deleter)
 {
+    SetDescription(desc);
     DLOG(INFO) << "Descriptor ptr_size_ctor: " << *this;
 }
 
 template<typename MemoryType>
 Descriptor<MemoryType>::Descriptor(const DLTensor& dltensor, std::function<void()> deleter,
                                    const char* desc)
-    : MemoryType(dltensor), m_Deleter(deleter), m_Desc(desc)
+    : MemoryType(dltensor), m_Deleter(deleter)
 {
+    SetDescription(desc);
     DLOG(INFO) << "Descriptor dltensor_ctor: " << *this;
 }
 
 template<typename MemoryType>
 Descriptor<MemoryType>::Descriptor(void* ptr, mem_size_t size, const MemoryType& properties,
                                    std::function<void()> deleter, const char* desc)
-    : MemoryType(ptr, size, properties), m_Deleter(deleter), m_Desc(desc)
+    : MemoryType(ptr, size, properties), m_Deleter(deleter)
 {
+    SetDescription(desc);
     DLOG(INFO) << "Descriptor ptr_size_props_ctor: " << *this;
 }
 
 template<typename MemoryType>
 Descriptor<MemoryType>::Descriptor(MemoryType&& other, std::function<void()> deleter,
                                    const char* desc)
-    : MemoryType(std::move(other)), m_Deleter(deleter), m_Desc(desc)
+    : MemoryType(std::move(other)), m_Deleter(deleter)
 {
+    SetDescription(desc);
     DLOG(INFO) << "Descriptor mem_mv_ctor: " << *this;
 }
 
 template<class MemoryType>
 Descriptor<MemoryType>::Descriptor(std::shared_ptr<MemoryType> shared, const char* desc)
     : MemoryType(shared->Data(), shared->Size(), *shared),
-      m_Deleter([shared]() mutable { shared.reset(); }),
-      m_Desc(desc)
+      m_Deleter([shared]() mutable { shared.reset(); })
 {
+    SetDescription(desc);
     DLOG(INFO) << "Descriptor shared_ptr_ctor: " << *this;
 }
 
@@ -104,5 +108,12 @@ const char* Descriptor<MemoryType>::TypeName() const
 {
     return m_Desc.c_str();
 }
+
+template<class MemoryType>
+void Descriptor<MemoryType>::SetDescription(const std::string& desc)
+{
+    m_Desc = desc + "<" + MemoryType::TypeName() + ">";
+}
+
 
 } // namespace trtlab

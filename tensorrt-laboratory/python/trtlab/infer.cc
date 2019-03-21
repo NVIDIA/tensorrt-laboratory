@@ -77,6 +77,12 @@ using nvrpc::Server;
 
 namespace trtis = ::nvidia::inferenceserver;
 
+ThreadPool& GetThreadPool()
+{
+    static ThreadPool threads(Affinity::GetCpusFromString("0"));
+    return threads;
+}
+
 void BasicInferService(std::shared_ptr<InferenceManager> resources, int port = 50052,
                        const std::string& max_recv_msg_size = "100MiB");
 
@@ -679,12 +685,59 @@ void BasicInferService(std::shared_ptr<InferenceManager> resources, int port,
 
 class DLPack final
 {
+    template<typename MemoryType>
+    class DLPackDescriptor;
+
   public:
     static py::capsule Share(std::shared_ptr<CoreMemory> share)
     {
         auto self = new DLPack(share);
-        CHECK_EQ(self, self->m_ManagedTensor.manager_ctx);
-        return self->dlpack();
+        return self->to_dlpack();
+    }
+
+    static std::shared_ptr<CoreMemory> Import(py::capsule obj)
+    {
+        DLManagedTensor* dlm_tensor = (DLManagedTensor*)PyCapsule_GetPointer(obj.ptr(), "dltensor");
+        if(dlm_tensor == nullptr)
+        {
+            throw std::runtime_error("dltensor not found in capsule");
+        }
+        const auto& dltensor = dlm_tensor->dl_tensor;
+        // take ownership of the capsule by incrementing the reference count on the handle
+        // note: we use a py::handle object instead of a py::object becasue we need to manually
+        // control the reference counting in the deleter after re-acquiring the GIL
+        auto count = obj.ref_count();
+        auto handle = py::cast<py::handle>(obj);
+        handle.inc_ref();
+        auto deleter = [handle] {
+            // releasing ownership of the capsule
+            // if the capsule still exists after we decrement the reference count,
+            // then, reset the name so ownership can be optionally reacquired.
+            DLOG(INFO) << "DLPack Descriptor Releasing Ownership of Capsule " << handle.ptr();
+            py::gil_scoped_acquire acquire;
+            PyCapsule_SetName(handle.ptr(), "dltensor");
+            handle.dec_ref();
+        };
+        DCHECK_EQ(obj.ref_count(), count + 1);
+        PyCapsule_SetName(obj.ptr(), "used_dltensor");
+
+        if(dltensor.ctx.device_type == kDLCPU)
+        {
+            return std::make_shared<DLPackDescriptor<Malloc>>(dltensor, deleter);
+        }
+        else if(dltensor.ctx.device_type == kDLCPUPinned)
+        {
+            return std::make_shared<DLPackDescriptor<CudaPinnedHostMemory>>(dltensor, deleter);
+        }
+        else if(dltensor.ctx.device_type == kDLGPU)
+        {
+            return std::make_shared<DLPackDescriptor<CudaDeviceMemory>>(dltensor, deleter);
+        }
+        else
+        {
+            throw std::runtime_error("Invalid DLPack device_type");
+        }
+        return nullptr;
     }
 
   private:
@@ -695,32 +748,44 @@ class DLPack final
         m_ManagedTensor.deleter = [](DLManagedTensor* ptr) mutable {
             if(ptr)
             {
-                DLOG(INFO) << "Checking Managed Tensor";
                 DLPack* self = (DLPack*)ptr->manager_ctx;
                 if(self)
                 {
-                    DLOG(INFO) << "Deleting self";
+                    DLOG(INFO) << "Deleting DLPack wrapper via DLManagedTensor::deleter";
                     delete self;
                 }
             }
         };
     }
 
-    ~DLPack() { DLOG(INFO) << "DLPack dtor"; }
+    ~DLPack() {}
 
-    py::capsule dlpack()
+    py::capsule to_dlpack()
     {
-        using namespace pybind11::literals;
         return py::capsule((void*)&m_ManagedTensor, "dltensor", [](PyObject* ptr) {
-            auto name = PyCapsule_GetName(ptr);
-            auto obj = PyCapsule_GetPointer(ptr, name);
-            DLOG(INFO) << "destructing: " << name << " @ " << ptr;
-            py::print("destructing capsule ({}, '{}')"_s.format(
-                (size_t)PyCapsule_GetPointer(ptr, name), name));
+            auto obj = PyCapsule_GetPointer(ptr, "dltensor");
+            if(obj == nullptr)
+            {
+                throw std::logic_error(
+                    "dltensor not found in capsule; there must be a race condition on ownership");
+            }
+            DLOG(INFO) << "Deallocating Capsule " << ptr;
             DLManagedTensor* managed_tensor = (DLManagedTensor*)obj;
             managed_tensor->deleter(managed_tensor);
         });
     }
+
+    template<typename MemoryType>
+    class DLPackDescriptor : public Descriptor<MemoryType>
+    {
+      public:
+        DLPackDescriptor(const DLTensor& dltensor, std::function<void()> deleter)
+            : Descriptor<MemoryType>(dltensor, deleter, "DLPack")
+        {
+        }
+
+        ~DLPackDescriptor() override {}
+    };
 
     std::shared_ptr<CoreMemory> m_ManagedMemory;
     DLManagedTensor m_ManagedTensor;
@@ -729,40 +794,6 @@ class DLPack final
 class ExternalDLPack
 {
   public:
-    template<typename MemoryType>
-    class D : public Descriptor<MemoryType>
-    {
-      public:
-        D(const DLTensor& dltensor) : Descriptor<MemoryType>(dltensor, [] {}, "FromDLPack") {}
-
-        ~D() override {}
-    };
-
-    static std::shared_ptr<CoreMemory> Import(py::capsule obj)
-    {
-        DLManagedTensor* dlm_tensor = (DLManagedTensor*)PyCapsule_GetPointer(obj.ptr(), "dltensor");
-        const auto& dltensor = dlm_tensor->dl_tensor;
-        // TODO: increase object ref count; decrease it in the deleter
-        auto deleter = [] {};
-        std::shared_ptr<CoreMemory> core;
-        if(dltensor.ctx.device_type == kDLCPU)
-        {
-            return std::make_shared<D<Malloc>>(dltensor);
-        }
-        else if(dltensor.ctx.device_type == kDLCPUPinned)
-        {
-            return std::make_shared<D<CudaPinnedHostMemory>>(dltensor);
-        }
-        else if(dltensor.ctx.device_type == kDLGPU)
-        {
-            return std::make_shared<D<CudaDeviceMemory>>(dltensor);
-        }
-        else
-        {
-            throw std::runtime_error("invaide device tyep");
-        }
-        return core;
-    }
 };
 
 using PyInferFuture = std::shared_future<typename PyInferRunner::InferResults>;
@@ -821,8 +852,14 @@ PYBIND11_MODULE(trtlab, m)
     });
 
     m.def("from_dlpack", [](py::capsule obj) {
-        auto core = ExternalDLPack::Import(obj);
-        DLOG(INFO) << *core;
+        auto core = DLPack::Import(obj);
+        // release gil for testing
+        py::gil_scoped_release release;
+
+        GetThreadPool().enqueue([core] {
+            std::this_thread::sleep_for(std::chrono::seconds(10));
+            DLOG(INFO) << *core;
+        });
     });
 
     /*

@@ -54,6 +54,8 @@ class Descriptor : public MemoryType
     ////  Descriptor& operator=(const Descriptor&) = delete;
 
   private:
+    void SetDescription(const std::string&);
+
     std::function<void()> m_Deleter;
     std::string m_Desc;
 };
