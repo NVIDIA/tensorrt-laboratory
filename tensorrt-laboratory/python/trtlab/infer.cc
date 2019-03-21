@@ -689,9 +689,9 @@ class DLPack final
     class DLPackDescriptor;
 
   public:
-    static py::capsule Share(std::shared_ptr<CoreMemory> share)
+    static py::capsule Export(std::shared_ptr<CoreMemory> memory)
     {
-        auto self = new DLPack(share);
+        auto self = new DLPack(memory);
         return self->to_dlpack();
     }
 
@@ -848,7 +848,7 @@ PYBIND11_MODULE(trtlab, m)
     */
     m.def("test_dlpack", []() {
         auto shared = std::make_shared<Allocator<CudaDeviceMemory>>(256 * 1024 * 1024);
-        return DLPack::Share(shared);
+        return DLPack::Export(shared);
     });
 
     m.def("from_dlpack", [](py::capsule obj) {
