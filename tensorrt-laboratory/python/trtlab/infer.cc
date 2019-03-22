@@ -78,6 +78,7 @@ using nvrpc::Server;
 namespace trtis = ::nvidia::inferenceserver;
 
 #include "dlpack.h"
+#include "numpy.h"
 using namespace trtlab::python;
 
 ThreadPool& GetThreadPool()
@@ -840,6 +841,20 @@ PYBIND11_MODULE(trtlab, m)
              py::call_guard<py::gil_scoped_release>())
         .def("get", &std::shared_future<typename PyInferRunner::InferResults>::get,
              py::call_guard<py::gil_scoped_release>());
+
+    py::class_<CoreMemory, std::shared_ptr<CoreMemory>>(m, "CoreMemory")
+        .def("to_dlpack", [](py::object self) {
+            auto mem = py::cast<std::shared_ptr<CoreMemory>>(self);
+            return DLPack::Export(mem);
+        })
+        .def("__repr__", [](const CoreMemory& mem) { return "<trtlab.Memory: " + mem.Description() + ">"; });
+
+    py::class_<HostMemory, std::shared_ptr<HostMemory>, CoreMemory>(m, "HostMemory")
+        .def("to_numpy", [](py::object self) {
+            return NumPy::Export(self);
+        })
+        .def("__repr__", [](const HostMemory& mem) { return "<trtlab.HostMemory: " + mem.Description() + ">"; });
+
     /*
         py::class_<PyHostMemory>(m, "dltensor_trtlab_host")
             .def("to_dlpack", &PyHostMemory::to_dlpack);
@@ -861,6 +876,15 @@ PYBIND11_MODULE(trtlab, m)
             std::this_thread::sleep_for(std::chrono::seconds(10));
             DLOG(INFO) << *core;
         });
+    });
+
+    m.def("to_dlpack", [](std::shared_ptr<CoreMemory> mem) {
+        return DLPack::Export(mem);
+    });
+
+    m.def("malloc", [](int64_t size) {
+        std::shared_ptr<HostMemory> mem = std::make_shared<Allocator<Malloc>>(size);
+        return mem;
     });
 
     /*

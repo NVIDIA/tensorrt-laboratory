@@ -62,6 +62,7 @@ class CoreMemory
 
     types::dtype DataType() const;
     std::vector<int64_t> Shape() const;
+    // std::vector<int64_t> Strides() const;
 
     void Reshape(const std::vector<int64_t>& shape);
     void Reshape(const std::vector<int64_t>& shape, const types::dtype&);
@@ -76,12 +77,11 @@ class CoreMemory
     virtual bool IsHostMemory() const = 0;
     virtual bool IsPinnedMemory() const = 0;
 
+    std::string Description() const;
+
   protected:
     // human readable typename
     virtual const char* TypeName() const = 0;
-
-    // DLPack Tensor Descriptor (Value)
-    DLTensor* DLPackDescriptorPointer() { return &m_Handle; }
 
   private:
     void SetDataAndSize(void*, mem_size_t);
@@ -96,8 +96,6 @@ class CoreMemory
     std::vector<mem_size_t> m_Shape;
     std::vector<mem_size_t> m_Strides;
     std::function<void()> m_Deleter;
-
-    std::string Description() const;
 
     template<typename MemoryType>
     friend class Allocator;

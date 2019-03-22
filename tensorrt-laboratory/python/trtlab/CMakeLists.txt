@@ -26,6 +26,7 @@
 
 pybind11_add_module(trtlab
   dlpack.cc
+  numpy.cc
   infer.cc
   utils.cc
 )
