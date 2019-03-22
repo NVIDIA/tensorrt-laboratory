@@ -77,6 +77,9 @@ using nvrpc::Server;
 
 namespace trtis = ::nvidia::inferenceserver;
 
+#include "dlpack.h"
+using namespace trtlab::python;
+
 ThreadPool& GetThreadPool()
 {
     static ThreadPool threads(Affinity::GetCpusFromString("0"));
@@ -683,6 +686,8 @@ void BasicInferService(std::shared_ptr<InferenceManager> resources, int port,
     server.Run(std::chrono::milliseconds(1000), [] {});
 }
 
+/*
+// moved to: dlpack.h and dlpack.cc in current path
 class DLPack final
 {
     template<typename MemoryType>
@@ -713,7 +718,7 @@ class DLPack final
             // releasing ownership of the capsule
             // if the capsule still exists after we decrement the reference count,
             // then, reset the name so ownership can be optionally reacquired.
-            DLOG(INFO) << "DLPack Descriptor Releasing Ownership of Capsule " << handle.ptr();
+            DLOG(INFO) << "DLPack Wrapper Releasing Ownership of Capsule " << handle.ptr();
             py::gil_scoped_acquire acquire;
             PyCapsule_SetName(handle.ptr(), "dltensor");
             handle.dec_ref();
@@ -751,7 +756,7 @@ class DLPack final
                 DLPack* self = (DLPack*)ptr->manager_ctx;
                 if(self)
                 {
-                    DLOG(INFO) << "Deleting DLPack wrapper via DLManagedTensor::deleter";
+                    DLOG(INFO) << "Deleting DLPack Wrapper via DLManagedTensor::deleter";
                     delete self;
                 }
             }
@@ -790,11 +795,7 @@ class DLPack final
     std::shared_ptr<CoreMemory> m_ManagedMemory;
     DLManagedTensor m_ManagedTensor;
 };
-
-class ExternalDLPack
-{
-  public:
-};
+*/
 
 using PyInferFuture = std::shared_future<typename PyInferRunner::InferResults>;
 PYBIND11_MAKE_OPAQUE(PyInferFuture);
