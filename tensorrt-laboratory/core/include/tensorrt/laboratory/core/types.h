@@ -71,14 +71,16 @@ static const auto bytes = dtype(kDLUInt, 8U, 1U);
 static const auto int8 = dtype(kDLInt, 8U, 1U);
 static const auto int16 = dtype(kDLInt, 16U, 1U);
 static const auto int32 = dtype(kDLInt, 32U, 1U);
+static const auto int64 = dtype(kDLInt, 64U, 1U);
 static const auto uint8 = dtype(kDLUInt, 8U, 1U);
 static const auto uint16 = dtype(kDLUInt, 16U, 1U);
 static const auto uint32 = dtype(kDLUInt, 32U, 1U);
+static const auto uint64 = dtype(kDLUInt, 64U, 1U);
 static const auto fp16 = dtype(kDLFloat, 16U, 1U);
 static const auto fp32 = dtype(kDLFloat, 32U, 1U);
 static const auto fp64 = dtype(kDLFloat, 64U, 1U);
 
-static const dtype All[] = {int8, int16, int32, uint8, uint16, uint32, fp16, fp32, fp64};
+static const dtype All[] = {int8, int16, int32, int64, uint8, uint16, uint32, uint64, fp16, fp32, fp64};
 
 } // namespace types
 } // namespace trtlab

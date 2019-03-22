@@ -40,16 +40,16 @@ py::dtype NumPyDataType(const types::dtype& dt)
         return py::dtype::of<int16_t>();
     else if(dt == types::int32)
         return py::dtype::of<int32_t>();
-//  else if(dt == types::int64)
-//      return py::dtype::of<int64_t>();
+    else if(dt == types::int64)
+        return py::dtype::of<int64_t>();
     else if(dt == types::uint8)
         return py::dtype::of<uint8_t>();
     else if(dt == types::uint16)
         return py::dtype::of<uint16_t>();
     else if(dt == types::uint32)
         return py::dtype::of<uint32_t>();
-//  else if(dt == types::uint64)
-//      return py::dtype::of<uint64_t>();
+    else if(dt == types::uint64)
+        return py::dtype::of<uint64_t>();
     else if(dt == types::fp16)
         return py::dtype("float16");
     else if(dt == types::fp32)
