@@ -42,7 +42,10 @@ class CudaPinnedHostMemory : public HostMemory, public IAllocatable
 {
   public:
     using HostMemory::HostMemory;
-    const char* TypeName() const override;
+
+    bool IsPinnedMemory() const final override { return true; }
+
+    const char* TypeName() const override { return "cudaMallocHost"; };
 
   protected:
     void* Allocate(size_t) final override;

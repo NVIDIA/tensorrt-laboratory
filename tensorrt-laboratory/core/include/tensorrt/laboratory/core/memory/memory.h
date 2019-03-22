@@ -73,6 +73,9 @@ class CoreMemory
     const DLContext& DeviceInfo() const { return m_Handle.ctx; }
     const DLTensor& TensorInfo() const { return m_Handle; }
 
+    virtual bool IsHostMemory() const = 0;
+    virtual bool IsPinnedMemory() const = 0;
+
   protected:
     // human readable typename
     virtual const char* TypeName() const = 0;

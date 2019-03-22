@@ -44,11 +44,6 @@ std::function<void()> CudaPinnedHostMemory::Free()
     return [ptr = Data()] { CHECK_EQ(cudaFreeHost(ptr), CUDA_SUCCESS); };
 }
 
-const char* CudaPinnedHostMemory::TypeName() const
-{
-    return "cudaMallocHost";
-}
-
 DLContext CudaPinnedHostMemory::DeviceContext()
 {
     DLContext ctx;

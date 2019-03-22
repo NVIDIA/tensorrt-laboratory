@@ -37,6 +37,9 @@ class DeviceMemory : public BaseMemory<DeviceMemory>
     using BaseMemory<DeviceMemory>::BaseMemory;
     static size_t DefaultAlignment();
 
+    bool IsHostMemory() const final override { return false; }
+    bool IsPinnedMemory() const final override { return false; }
+
   protected:
     DLContext DeviceContext();
 };
