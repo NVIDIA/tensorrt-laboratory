@@ -97,6 +97,8 @@ class CoreMemory
     std::vector<mem_size_t> m_Strides;
     std::function<void()> m_Deleter;
 
+    std::string Description() const;
+
     template<typename MemoryType>
     friend class Allocator;
 

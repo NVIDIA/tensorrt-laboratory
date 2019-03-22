@@ -182,15 +182,23 @@ mem_size_t CoreMemory::SizeFromShape(const std::vector<mem_size_t>& shape, mem_s
     return size;
 }
 
+std::string CoreMemory::Description() const
+{
+    std::ostringstream os;
+    // clang-format off
+    os << "[" << TypeName() << ": " << m_Handle.data << "; shape: (";
+    for(int i=0; i< m_Handle.ndim; i++) { os << (i ? "," : "") << m_Handle.shape[i]; }
+    os << "); dtype: " << DataType() << "; size: " << BytesToString(Size());
+    if(Size() != Capacity()) { os << "; capacity: " << BytesToString(Capacity()); }
+    os << "]";
+    // clang-format on
+    return os.str();
+}
+
 std::ostream& operator<<(std::ostream& os, const CoreMemory& core)
 {
     // clang-format off
-    os << "[" << core.TypeName() << ": " << core.m_Handle.data << "; shape: (";
-    for(int i=0; i< core.m_Handle.ndim; i++) { os << (i ? "," : "") << core.m_Handle.shape[i]; }
-    os << "); dtype: " << core.DataType() << "; size: " << BytesToString(core.Size());
-    if(core.Size() != core.Capacity()) { os << "; capacity: " << BytesToString(core.Capacity()); }
-    os << "]";
-    // clang-format on
+    os << core.Description();
     return os;
 }
 
