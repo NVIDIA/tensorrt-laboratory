@@ -9,6 +9,7 @@ add_library(tensorrt
   src/buffers.cc
   src/execution_context.cc
   src/inference_manager.cc
+  src/graph_workspace.cc
   src/infer_bench.cc
   src/model.cc
   src/runtime.cc

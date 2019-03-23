@@ -47,6 +47,8 @@
 #include "tensorrt/laboratory/infer_runner.h"
 #include "tensorrt/laboratory/infer_bench.h"
 
+#include "tensorrt/laboratory/graph_workspace.h"
+
 using trtlab::Affinity;
 using trtlab::ThreadPool;
 using trtlab::TensorRT::Runtime;
@@ -55,6 +57,7 @@ using trtlab::TensorRT::InferenceManager;
 using trtlab::TensorRT::Bindings;
 using trtlab::TensorRT::InferRunner;
 using trtlab::TensorRT::InferBench;
+using trtlab::TensorRT::GraphWorkspace;
 
 #include "tensorrt/laboratory/core/hybrid_mutex.h"
 #include "tensorrt/laboratory/core/hybrid_condition.h"
@@ -144,6 +147,17 @@ int main(int argc, char*argv[])
 
     resources->AllocateResources();
 
+    auto workspace = std::make_shared<GraphWorkspace>();
+    for (auto& item : runners_by_batch_size)
+    {
+        auto runner = item.second;
+        auto model = runner->GetModelSmartPtr();
+        workspace->RegisterModel(model->Name(), model);
+    }
+    workspace->BuildGraphs();
+
+    LOG(FATAL) << "done";
+
     for (auto& item : runners_by_batch_size)
     {
         InferBench benchmark(resources);
@@ -196,7 +210,7 @@ int main(int argc, char*argv[])
         std::vector<WorkPacket> work_packets(max_batch_size);
         thread_local ConsumerToken token(work_queue);
         double elapsed;
-        double quanta_in_secs = quanta / 1000000.0; // convert microsecs to 
+        double quanta_in_secs = quanta / 1000000.0; // convert microsecs to
         const double latency_budget = std::chrono::duration<double>(latency_bound).count();
 
         std::deque<std::pair<size_t, double>> load_tracker;
@@ -243,7 +257,7 @@ int main(int argc, char*argv[])
                 auto shared_wps = std::make_shared<std::vector<WorkPacket>>(std::move(work_packets));
                 futures.push_back(
                     runner->InferWithDeadline(
-                        bindings, 
+                        bindings,
                         [wps = shared_wps](std::shared_ptr<Bindings>& bindings) -> size_t {
                             for(const auto& wp : *wps) { wp.completion_callback(); }
                             bindings.reset();
