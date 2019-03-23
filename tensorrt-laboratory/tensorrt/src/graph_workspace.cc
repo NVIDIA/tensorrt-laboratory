@@ -111,6 +111,8 @@ void GraphWorkspace::BuildGraphs()
         const auto& name = item.first;
         const auto& model = *(item.second);
 
+        LOG(INFO) << "Building graph for: " << name;
+
         // Set the IExecutionContext to use the Workspace's activation memory
         auto& ctx = m_ExecutionContexts.at(name);
         ctx->setDeviceMemory(m_ActivationSpace->Data());
