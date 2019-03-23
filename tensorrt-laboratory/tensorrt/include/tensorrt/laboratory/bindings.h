@@ -30,6 +30,7 @@
 #include "tensorrt/laboratory/common.h"
 #include "tensorrt/laboratory/model.h"
 #include "tensorrt/laboratory/buffers.h"
+#include "tensorrt/laboratory/graph_workspace.h"
 
 #include "tensorrt/laboratory/core/memory/descriptor.h"
 #include "tensorrt/laboratory/core/memory/host_memory.h"
@@ -46,12 +47,12 @@ class Buffers;
 
 /**
  * @brief Manages memory addresses and transfers for input/output tensors.
- * 
+ *
  * Bindings manages the addresses for the input/output tensors.  Bindings are created
  * from a Buffers object and maintain a reference.  All device bindings must be configured
  * before calling ExecutionContext::Infer.  Similarly, the respective host binding must
  * be set before calling an of the implicit CopyTo/CopyFromDevice methods.
- * 
+ *
  * A Bindings object holds the state of the input/output tensors over the course of an
  * inference calculation.
  */
@@ -94,11 +95,14 @@ class Bindings
     auto BatchSize() const { return m_BatchSize; }
     void SetBatchSize(uint32_t);
 
-    inline cudaStream_t Stream() const { return m_Buffers->Stream(); }
+    inline cudaStream_t Stream() const { return m_Buffers->Stream(); };
     void Synchronize() const { m_Buffers->Synchronize(); }
 
     size_t BindingSize(uint32_t binding_id) const;
-    
+
+    void RegisterGraphWorkspace(std::shared_ptr<GraphWorkspace>);
+    std::shared_ptr<GraphWorkspace> GetGraphWorkspace() { return m_GraphWorkspace; }
+
   private:
     Bindings(const std::shared_ptr<Model>, const std::shared_ptr<Buffers>);
 
@@ -113,6 +117,8 @@ class Bindings
     std::map<int, DeviceDescriptor> m_DeviceDescriptors;
 
     void *m_ActivationsAddress;
+
+    std::shared_ptr<GraphWorkspace> m_GraphWorkspace;
 
     friend class Buffers;
 };

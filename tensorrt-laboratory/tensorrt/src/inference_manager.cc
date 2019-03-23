@@ -172,7 +172,7 @@ void InferenceManager::RegisterRuntime(const std::string& name, std::shared_ptr<
 {
     auto search = m_Runtimes.find(name);
     CHECK(search == m_Runtimes.end());
-    m_Runtimes[name] = std::move(runtime);    
+    m_Runtimes[name] = std::move(runtime);
 }
 
 void InferenceManager::SetActiveRuntime(const std::string& name)
@@ -204,8 +204,18 @@ void InferenceManager::AllocateResources()
     for(int i = 0; i < m_MaxBuffers; i++)
     {
         DLOG(INFO) << "Allocating Host/Device Buffers #" << i;
-        m_Buffers->Push(std::make_shared<FixedBuffers<CudaPinnedHostMemory, CudaDeviceMemory>>(
-            m_HostStackSize, m_DeviceStackSize));
+        auto buffers = std::make_shared<FixedBuffers<CudaPinnedHostMemory, CudaDeviceMemory>>(
+            m_HostStackSize, m_DeviceStackSize);
+
+        DLOG(INFO) << "Building Graphs for Buffer #" << i;
+        for(const auto& item : m_RegisteredGraphsByModelName)
+        {
+            const auto& name = item.first;
+            buffers->m_GraphWorkspace->RegisterModel(name, GetModel(name));
+        }
+        buffers->m_GraphWorkspace->BuildGraphs();
+
+        m_Buffers->Push(buffers);
     }
 
     m_ExecutionContexts = Pool<ExecutionContext>::Create();
@@ -337,6 +347,10 @@ void InferenceManager::ForEachModel(std::function<void(const Model&)> callback)
     }
 }
 
+void InferenceManager::BuildGraphForModel(const std::string& name)
+{
+    m_RegisteredGraphsByModelName[name] = true;
+}
 
 } // namespace TensorRT
 } // namespace trtlab

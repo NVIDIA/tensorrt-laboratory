@@ -57,6 +57,7 @@ namespace TensorRT
         DELETE_MOVEABILITY(ExecutionContext);
 
         void SetContext(std::shared_ptr<::nvinfer1::IExecutionContext> context);
+        void SetGraphWorkspace(std::shared_ptr<GraphWorkspace>);
         void Infer(const std::shared_ptr<Bindings>&);
         auto Synchronize() -> double;
 
@@ -66,6 +67,8 @@ namespace TensorRT
 
         std::function<double()> m_ElapsedTimer;
         cudaEvent_t m_ExecutionContextFinished;
+
+        std::shared_ptr<GraphWorkspace> m_GraphWorkspace;
         std::shared_ptr<::nvinfer1::IExecutionContext> m_Context;
 
         std::unique_ptr<Memory::CudaDeviceMemory> m_Workspace;

@@ -173,5 +173,25 @@ size_t Bindings::BindingSize(uint32_t binding_id) const
     return m_Model->GetBinding(binding_id).bytesPerBatchItem * (m_BatchSize ? m_BatchSize : m_Model->GetMaxBatchSize());
 }
 
+void Bindings::RegisterGraphWorkspace(std::shared_ptr<GraphWorkspace> workspace)
+{
+    DCHECK(workspace);
+    const auto& name = m_Model->Name();
+    if(workspace->IsModelRegistered(name))
+    {
+        const auto& device_bindings = workspace->DeviceBindingsByName(name);
+        DCHECK(device_bindings.size());
+        DCHECK_EQ(device_bindings.size(), m_Model->GetBindingsCount());
+        for(int i=0; i<device_bindings.size(); i++)
+        {
+            SetDeviceAddress(i, device_bindings[i]);
+        }
+        // TODO: SetDeviceAddress should fail if m_GraphWorkspace has a value
+        m_GraphWorkspace = workspace;
+    }
+
+}
+
+
 } // namespace TensorRT
 } // namespace trtlab

@@ -50,8 +50,11 @@ class GraphWorkspace : public std::enable_shared_from_this<GraphWorkspace>
     void RegisterModel(const std::string&, std::shared_ptr<Model>);
     void BuildGraphs();
 
-    cudaGraph_t GraphByName(const std::string& name);
-    cudaStream_t Stream() { return m_Stream; }
+    bool IsModelRegistered(const std::string&) const;
+    cudaGraphExec_t GraphByName(const std::string& name);
+    std::vector<void*> DeviceBindingsByName(const std::string& name);
+
+    inline cudaStream_t Stream() { return m_Stream; }
     void Synchronize();
 
   private:
@@ -65,6 +68,7 @@ class GraphWorkspace : public std::enable_shared_from_this<GraphWorkspace>
     std::map<std::string, std::vector<void*>> m_DeviceBindings;
     std::map<std::string, std::shared_ptr<::nvinfer1::IExecutionContext>> m_ExecutionContexts;
     std::map<std::string, cudaGraph_t> m_Graphs;
+    std::map<std::string, cudaGraphExec_t> m_GraphExecutors;
     cudaStream_t m_Stream;
 };
 

@@ -32,6 +32,7 @@
 #include <cuda_runtime.h>
 
 #include "tensorrt/laboratory/common.h"
+#include "tensorrt/laboratory/graph_workspace.h"
 #include "tensorrt/laboratory/core/memory/cyclic_allocator.h"
 #include "tensorrt/laboratory/core/memory/memory_stack.h"
 #include "tensorrt/laboratory/cuda/memory/cuda_device.h"
@@ -57,7 +58,7 @@ class Buffers : public std::enable_shared_from_this<Buffers>
 
     inline cudaStream_t Stream()
     {
-        return m_Stream;
+        return m_GraphWorkspace->Stream();
     }
     void Synchronize();
 
@@ -69,7 +70,7 @@ class Buffers : public std::enable_shared_from_this<Buffers>
     virtual std::unique_ptr<Memory::DeviceMemory> AllocateDevice(size_t size) = 0;
 
   private:
-    cudaStream_t m_Stream;
+    std::shared_ptr<GraphWorkspace> m_GraphWorkspace;
     friend class InferenceManager;
 };
 

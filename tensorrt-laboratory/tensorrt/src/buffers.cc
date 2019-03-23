@@ -40,16 +40,17 @@ namespace trtlab {
 namespace TensorRT {
 
 Buffers::Buffers()
+    : m_GraphWorkspace(std::make_shared<GraphWorkspace>())
 {
     // CHECK(cudaStreamCreateWithFlags(&m_Stream, cudaStreamNonBlocking) == cudaSuccess); <-- breaks
-    CHECK_EQ(cudaStreamCreate(&m_Stream), cudaSuccess);
+    // CHECK_EQ(cudaStreamCreate(&m_Stream), cudaSuccess);
 }
 
 Buffers::~Buffers()
 {
     DLOG(INFO) << "Buffers Deconstructor";
-    CHECK_EQ(cudaStreamSynchronize(m_Stream), CUDA_SUCCESS);
-    CHECK_EQ(cudaStreamDestroy(m_Stream), CUDA_SUCCESS);
+    // CHECK_EQ(cudaStreamSynchronize(m_Stream), CUDA_SUCCESS);
+    // CHECK_EQ(cudaStreamDestroy(m_Stream), CUDA_SUCCESS);
 }
 
 auto Buffers::CreateBindings(const std::shared_ptr<Model>& model) -> std::shared_ptr<Bindings>
@@ -70,11 +71,15 @@ void Buffers::ConfigureBindings(const std::shared_ptr<Model>& model,
         bindings->SetHostAddress(i, AllocateHost(binding_size));
         bindings->SetDeviceAddress(i, AllocateDevice(binding_size));
     }
+    if(m_GraphWorkspace->IsModelRegistered(model->Name()))
+    {
+        bindings->RegisterGraphWorkspace(m_GraphWorkspace);
+    }
 }
 
 void Buffers::Synchronize()
 {
-    CHECK_EQ(cudaStreamSynchronize(m_Stream), CUDA_SUCCESS) << "Stream Sync failed";
+    CHECK_EQ(cudaStreamSynchronize(Stream()), CUDA_SUCCESS) << "Stream Sync failed";
 }
 
 

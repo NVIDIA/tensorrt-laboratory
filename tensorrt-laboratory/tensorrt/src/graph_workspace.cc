@@ -58,6 +58,19 @@ GraphWorkspace::~GraphWorkspace()
 {
     DLOG(INFO) << "GraphWorkspace Deconstructor";
     CHECK_EQ(cudaStreamSynchronize(m_Stream), CUDA_SUCCESS);
+
+    DLOG(INFO) << "Destroying GraphExecutors";
+    for(auto& item : m_GraphExecutors)
+    {
+        CHECK_EQ(cudaGraphExecDestroy(item.second), CUDA_SUCCESS);
+    }
+
+    DLOG(INFO) << "Destroying Graphs";
+    for(auto& item : m_Graphs)
+    {
+        CHECK_EQ(cudaGraphDestroy(item.second), CUDA_SUCCESS);
+    }
+
     CHECK_EQ(cudaStreamDestroy(m_Stream), CUDA_SUCCESS);
 }
 
@@ -85,13 +98,13 @@ void GraphWorkspace::RegisterModel(const std::string& name, std::shared_ptr<Mode
     m_DeviceStackSize = std::max(m_DeviceStackSize, device);
     m_ActivationsSize = std::max(m_ActivationsSize, activations);
 
-    LOG(INFO) << "-- Registering Model: " << name << " --";
-    LOG(INFO) << "Input/Output Tensors require " << BytesToString(device);
-    LOG(INFO) << "Execution Activations require " << BytesToString(activations);
+    VLOG(1) << "-- Registering Model: " << name << " --";
+    VLOG(1) << "Input/Output Tensors require " << BytesToString(device);
+    VLOG(1) << "Execution Activations require " << BytesToString(activations);
     auto weights = model->GetWeightsMemorySize();
     if(weights)
     {
-        LOG(INFO) << "Weights require " << BytesToString(weights);
+        VLOG(1) << "Weights require " << BytesToString(weights);
     }
 
     model->SetName(name);
@@ -101,6 +114,15 @@ void GraphWorkspace::RegisterModel(const std::string& name, std::shared_ptr<Mode
 
 void GraphWorkspace::BuildGraphs()
 {
+    if(m_Models.size() == 0)
+    {
+        LOG(INFO) << "No Graphs Registered";
+        return;
+    }
+
+    DCHECK_GT(m_DeviceStackSize, 0);
+    DCHECK_GT(m_ActivationsSize, 0);
+
     // Allocate memory based on registration statistics
     m_BindingsStack = std::make_unique<MemoryStack<CudaDeviceMemory>>(m_DeviceStackSize);
     m_ActivationSpace = std::make_unique<Allocator<CudaDeviceMemory>>(m_ActivationsSize);
@@ -111,7 +133,7 @@ void GraphWorkspace::BuildGraphs()
         const auto& name = item.first;
         const auto& model = *(item.second);
 
-        LOG(INFO) << "Building graph for: " << name;
+        LOG(INFO) << "Building Graph for: " << name;
 
         // Set the IExecutionContext to use the Workspace's activation memory
         auto& ctx = m_ExecutionContexts.at(name);
@@ -131,9 +153,12 @@ void GraphWorkspace::BuildGraphs()
 
         // Build Graph
         cudaGraph_t graph;
-        cudaStreamBeginCapture(m_Stream, cudaStreamCaptureModeGlobal);
+        // these fail
+        // CHECK_EQ(cudaStreamBeginCapture(m_Stream, cudaStreamCaptureModeGlobal), CUDA_SUCCESS);
+        // CHECK_EQ(cudaStreamBeginCapture(m_Stream, cudaStreamCaptureModeThreadLocal), CUDA_SUCCESS);
+        CHECK_EQ(cudaStreamBeginCapture(m_Stream, cudaStreamCaptureModeRelaxed), CUDA_SUCCESS);
         ctx->enqueue(max_batch_size, (void**)bindings.data(), m_Stream, nullptr);
-        cudaStreamEndCapture(m_Stream, &graph);
+        CHECK_EQ(cudaStreamEndCapture(m_Stream, &graph), CUDA_SUCCESS);
 
         // Store the Graph by Model Name
         m_Graphs[name] = graph;
@@ -141,15 +166,39 @@ void GraphWorkspace::BuildGraphs()
 
         // Reset the Device Memory Stack
         m_BindingsStack->Reset();
+
+        cudaGraphExec_t graphExec;
+        CHECK_EQ(cudaGraphInstantiate(&graphExec, graph, NULL, NULL, 0), CUDA_SUCCESS);
+        m_GraphExecutors[name] = graphExec;
     }
 }
 
-cudaGraph_t GraphWorkspace::GraphByName(const std::string& name)
+bool GraphWorkspace::IsModelRegistered(const std::string& name) const
 {
-    auto search = m_Graphs.find(name);
-    if(search == m_Graphs.end())
+    auto search = m_GraphExecutors.find(name);
+    if(search == m_GraphExecutors.end())
     {
-        throw std::runtime_error("No graph for " + name);
+        return false;
+    }
+    return true;
+}
+
+cudaGraphExec_t GraphWorkspace::GraphByName(const std::string& name)
+{
+    auto search = m_GraphExecutors.find(name);
+    if(search == m_GraphExecutors.end())
+    {
+        throw std::runtime_error("No graph executor for " + name);
+    }
+    return search->second;
+}
+
+std::vector<void*> GraphWorkspace::DeviceBindingsByName(const std::string& name)
+{
+    auto search = m_DeviceBindings.find(name);
+    if(search == m_DeviceBindings.end())
+    {
+        throw std::runtime_error("No DeviceBindings for model: " + name);
     }
     return search->second;
 }

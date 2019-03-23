@@ -37,6 +37,7 @@ class Runtime;
 class Model;
 class Buffers;
 class Bindings;
+class GraphWorkspace;
 class ExecutionContext;
 class InferenceManager;
 

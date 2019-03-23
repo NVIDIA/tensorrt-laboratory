@@ -74,7 +74,7 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
     using Deadline = typename Clock::time_point;
 
     template<typename Post>
-    auto InferWithDeadline(std::shared_ptr<Bindings> bindings, Post post, 
+    auto InferWithDeadline(std::shared_ptr<Bindings> bindings, Post post,
             Deadline deadline, std::function<void(std::function<void()>)> on_timeout)
     {
         auto compute = Wrap(post);
@@ -117,7 +117,7 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
     }
 
     template<typename T>
-    void EnqueueWithDeadline(std::shared_ptr<Bindings> bindings, std::shared_ptr<AsyncCompute<T>> Post, 
+    void EnqueueWithDeadline(std::shared_ptr<Bindings> bindings, std::shared_ptr<AsyncCompute<T>> Post,
             Deadline deadline, std::function<void(std::function<void()>)> on_timeout)
     {
         Workers("cuda").enqueue([this, bindings, Post, deadline, on_timeout]() mutable {
@@ -156,7 +156,9 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
 
     auto Compute(BindingsHandle& bindings) -> std::shared_ptr<ExecutionContext>
     {
-        auto trt_ctx = m_Resources->GetExecutionContext(bindings->GetModel());
+        const auto& model = bindings->GetModel();
+        auto trt_ctx = m_Resources->GetExecutionContext(model);
+        trt_ctx->SetGraphWorkspace(bindings->GetGraphWorkspace());
         trt_ctx->Infer(bindings);
         return trt_ctx;
     }
