@@ -54,7 +54,7 @@ def transform_image(img):
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
     img = transform_fn(mx.nd.array(img)).asnumpy()
-    img = np.expand_dims(np.transpose(img, (2,0,1)), axis=0) # batchify
+    img = np.expand_dims(img, axis=0) # batchify
     return img
 
 
