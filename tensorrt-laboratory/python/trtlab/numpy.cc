@@ -31,7 +31,24 @@
 
 namespace trtlab {
 
+// Anonymous namespace for the DLPack Descriptor
 namespace {
+
+/*
+template<typename MemoryType>
+class NumPykDescriptor : public Descriptor<MemoryType>
+{
+  public:
+    DLPackDescriptor(void* data, std::vector<int64_t> dims, const types::dtype& dt, std::function<void()> deleter)
+        : Descriptor<MemoryType>(dltensor, deleter, "NumPy")
+    {
+    }
+
+    ~DLPackDescriptor() override {}
+};
+
+*/
+
 py::dtype NumPyDataType(const types::dtype& dt)
 {
     if(dt == types::int8)
@@ -59,18 +76,46 @@ py::dtype NumPyDataType(const types::dtype& dt)
     throw std::runtime_error("cannot convert to numpy dtype");
     return py::dtype();
 }
+
+types::dtype DatatTypeFromNumPy(py::dtype dt)
+{
+
+    for(auto& t : types::All)
+    {
+        if (dt.is(NumPyDataType(t)))
+        {
+            return t;
+        }
+    }
+    throw std::runtime_error("Unsupported numpy.dtype");
+}
+
+
+
 } // namespace
 
 namespace python {
 
 py::array NumPy::Export(py::object obj)
 {
-    auto mem = py::cast<std::shared_ptr<HostMemory>>(obj);
+    auto mem = obj.cast<std::shared_ptr<HostMemory>>();
     auto dltensor = mem->TensorInfo();
     auto np_dtype = NumPyDataType(mem->DataType());
-    DLOG(INFO) << np_dtype.itemsize();
     return py::array(np_dtype, mem->Shape(), mem->Data(), obj);
 }
 
-} // namespace python
+/*
+std::shared_ptr<HostMemory> NumPy::Import(py::array array)
+{
+    auto handle = array.cast<py::handle>();
+    handle.inc_ref();
+    auto deleter = [handle] {
+        DLOG(INFO) << "NumPy Wrapper Releasing Ownership of Arrary: " << handle.ptr();
+        py::gil_scoped_acquire acquire;
+        handle.dec_ref();
+    };
 }
+*/
+
+} // namespace python
+} // namespace trtlab

@@ -29,8 +29,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 
-#include "tensorrt/laboratory/core/memory/memory.h"
-#include "tensorrt/laboratory/core/memory/descriptor.h"
+#include "tensorrt/laboratory/core/memory/host_memory.h"
 
 namespace py = pybind11;
 
@@ -42,6 +41,7 @@ class NumPy final
   public:
     // static std::shared_ptr<HostMemory> Import(py::array array);
     static py::array Export(py::object obj);
+    static std::shared_ptr<HostMemory> Import(py::array);
 };
 
 }

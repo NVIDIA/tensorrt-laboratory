@@ -127,6 +127,9 @@ TYPED_TEST(TestMemory, move_ctor_with_reshape)
     Allocator<TypeParam> memory(one_mb);
 
     memory.Reshape({512, 512}, types::fp32);
+    DLOG(INFO) << "reshaped";
+    DLOG(INFO) << memory;
+    DLOG(INFO) << "reshaped";
     EXPECT_EQ(memory.Size(), one_mb);
     EXPECT_EQ(memory.Capacity(), one_mb);
     EXPECT_EQ(memory.Shape()[0], 512);
@@ -134,6 +137,7 @@ TYPED_TEST(TestMemory, move_ctor_with_reshape)
     EXPECT_EQ(memory.DataType(), types::fp32);
 
     Allocator<TypeParam> host(std::move(memory));
+    DLOG(INFO) << "moved";
 
     // moved location
     EXPECT_TRUE(host.Data());
@@ -494,7 +498,7 @@ class TestBytesToString : public ::testing::Test
 
 TEST_F(TestBytesToString, BytesToString)
 {
-    // CREDIT: https://stackoverflow.com/questions/3758606
+    // Edge cases inspired from example output: https://stackoverflow.com/questions/3758606
     using std::string;
     EXPECT_EQ(string("0 B"), BytesToString(0));
     EXPECT_EQ(string("1000 B"), BytesToString(1000));

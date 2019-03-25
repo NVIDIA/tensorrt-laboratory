@@ -68,7 +68,7 @@ std::shared_ptr<CoreMemory> DLPack::Import(py::capsule obj)
     // note: we use a py::handle object instead of a py::object becasue we need to manually
     // control the reference counting in the deleter after re-acquiring the GIL
     auto count = obj.ref_count();
-    auto handle = py::cast<py::handle>(obj);
+    auto handle = obj.cast<py::handle>();
     handle.inc_ref();
     auto deleter = [handle] {
         DLOG(INFO) << "DLPack Wrapper Releasing Ownership of Capsule @ " << handle.ptr();

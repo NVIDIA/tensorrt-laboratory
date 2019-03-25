@@ -40,6 +40,8 @@ class CoreMemory
     CoreMemory(void*, mem_size_t);
     CoreMemory(void*, mem_size_t, const CoreMemory&);
     CoreMemory(const DLTensor&);
+    CoreMemory(void*, std::vector<int64_t>, const types::dtype&);
+    CoreMemory(void*, std::vector<int64_t>, std::vector<int64_t>, const types::dtype&);
 
     CoreMemory(CoreMemory&& other) noexcept;
     CoreMemory& operator=(CoreMemory&&) noexcept = delete;
@@ -62,7 +64,7 @@ class CoreMemory
 
     types::dtype DataType() const;
     std::vector<int64_t> Shape() const;
-    // std::vector<int64_t> Strides() const;
+    std::vector<int64_t> Strides() const;
 
     void Reshape(const std::vector<int64_t>& shape);
     void Reshape(const std::vector<int64_t>& shape, const types::dtype&);
@@ -83,6 +85,8 @@ class CoreMemory
     // human readable typename
     virtual const char* TypeName() const = 0;
 
+    void SetShape(const std::vector<int64_t>& shape, const types::dtype& dt, bool check_size);
+
   private:
     void SetDataAndSize(void*, mem_size_t);
     void SetHandle(const DLTensor&);
@@ -93,6 +97,7 @@ class CoreMemory
     DLTensor m_Handle;
     mem_size_t m_Size;
     mem_size_t m_Capacity;
+    mem_size_t m_Stride1;
     std::vector<mem_size_t> m_Shape;
     std::vector<mem_size_t> m_Strides;
     std::function<void()> m_Deleter;

@@ -855,6 +855,9 @@ PYBIND11_MODULE(trtlab, m)
         })
         .def("__repr__", [](const HostMemory& mem) { return "<trtlab.HostMemory: " + mem.Description() + ">"; });
 
+    py::class_<DeviceMemory, std::shared_ptr<DeviceMemory>, CoreMemory>(m, "DeviceMemory")
+        .def("__repr__", [](const HostMemory& mem) { return "<trtlab.DeviceMemory: " + mem.Description() + ">"; });
+
     /*
         py::class_<PyHostMemory>(m, "dltensor_trtlab_host")
             .def("to_dlpack", &PyHostMemory::to_dlpack);
@@ -867,25 +870,40 @@ PYBIND11_MODULE(trtlab, m)
         return DLPack::Export(shared);
     });
 
-    m.def("from_dlpack", [](py::capsule obj) {
+    m.def("test_from_dlpack", [](py::capsule obj) {
         auto core = DLPack::Import(obj);
         // release gil for testing
+        DLOG(INFO) << "CoreMemory Descriptor: " << *core;
+        DLOG(INFO) << "Dropping the GIL";
         py::gil_scoped_release release;
-
         GetThreadPool().enqueue([core] {
-            std::this_thread::sleep_for(std::chrono::seconds(10));
-            DLOG(INFO) << *core;
+            DLOG(INFO) << "Holding the descriptor on another thread for 5 seconds";
+            DLOG(INFO) << "You can deference the dlpack object you gave me; I own a reference to it";
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+            DLOG(INFO) << "Thread that could have been doing work on the data complete";
         });
     });
 
-    m.def("to_dlpack", [](std::shared_ptr<CoreMemory> mem) {
-        return DLPack::Export(mem);
+    m.def("from_dlpack", [](py::capsule obj) {
+        auto core = DLPack::Import(obj);
+        return core;
     });
 
     m.def("malloc", [](int64_t size) {
         std::shared_ptr<HostMemory> mem = std::make_shared<Allocator<Malloc>>(size);
         return mem;
     });
+
+    m.def("cuda_malloc_host", [](int64_t size) {
+        std::shared_ptr<HostMemory> mem = std::make_shared<Allocator<CudaPinnedHostMemory>>(size);
+        return mem;
+    });
+
+    m.def("cuda_malloc", [](int64_t size) {
+        std::shared_ptr<DeviceMemory> mem = std::make_shared<Allocator<CudaDeviceMemory>>(size);
+        return mem;
+    });
+
 
     /*
         py::class_<InferBench, std::shared_ptr<InferBench>>(m, "InferBench")

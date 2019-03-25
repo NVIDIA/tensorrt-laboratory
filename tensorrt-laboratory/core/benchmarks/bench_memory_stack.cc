@@ -42,8 +42,8 @@ struct StackWithInternalDescriptor
     class InternalDescriptor final : public Descriptor<MemoryType>
     {
       public:
-        InternalDescriptor(void* ptr, size_t size, const DLTContainer& parent)
-            : Descriptor<MemoryType>(ptr, size, parent, "BenchmarkInternalDesc")
+        InternalDescriptor(void* ptr, size_t size, const MemoryType& parent)
+            : Descriptor<MemoryType>(ptr, size, parent, []{}, "BenchmarkInternalDesc")
         {
         }
         ~InternalDescriptor() final override {}

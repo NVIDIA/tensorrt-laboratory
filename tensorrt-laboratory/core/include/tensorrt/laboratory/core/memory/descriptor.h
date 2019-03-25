@@ -44,6 +44,8 @@ class Descriptor : public MemoryType
     Descriptor(void*, mem_size_t, std::function<void()>, const char*);
     Descriptor(void*, mem_size_t, const MemoryType&, std::function<void()>, const char*);
     Descriptor(const DLTensor&, std::function<void()> deleter, const char*);
+    Descriptor(void*, std::vector<int64_t>, const types::dtype&, std::function<void()>, const char*);
+    // Descriptor(void*, std::vector<int64_t>, std::vector<int64_t>, const types::dtype&, std::function<void()>, const char*);
     Descriptor(std::shared_ptr<MemoryType>, const char*);
     Descriptor(MemoryType&&, std::function<void()>, const char*);
 

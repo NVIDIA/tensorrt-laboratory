@@ -40,7 +40,7 @@ namespace trtlab {
  */
 std::string BytesToString(size_t bytes)
 {
-    // Credits: https://stackoverflow.com/questions/3758606
+    // C++ implentation inspired from: https://stackoverflow.com/questions/3758606
     char buffer[50];
     int unit = 1024;
     const char prefixes[] = "KMGTPE";
