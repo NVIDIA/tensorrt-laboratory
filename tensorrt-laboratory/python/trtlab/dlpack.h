@@ -40,20 +40,36 @@ class DLPack final
 {
   public:
     static std::shared_ptr<CoreMemory> Import(py::capsule obj);
-    static py::capsule Export(std::shared_ptr<CoreMemory> memory);
+    static py::capsule Export(py::object);
+    static py::capsule Export(std::shared_ptr<CoreMemory>);
 
   private:
-    // An instance of DLPack is created on Export.  The LifeCycle of the
-    // DLPack object is soley managed by Python.  The DLPack object will
-    // be explicitly deleted in the PyCapsule's destructor method.
-    DLPack(std::shared_ptr<CoreMemory> shared);
-    ~DLPack();
+    // An instance of DLPack::Manager is created on Export.  This object is
+    // wrapped in a PyCapsule, though, the lifcyle of this object
+    // is not necessarily own by the PyCapsule.
+    //
+    // The DLManagedTensor's deleter method is responsible for freeing
+    // this object.
+    //
+    // The deleter is called by the PyCapsule if the PyCapsule is being
+    // destroyed and no other entity has assumed ownership, i.e. the
+    // name of the data object in the capsule is still "dltensor".
+    //
+    // Otherwise, the deleter will be called by the new owner of the
+    // capsule data.
+    class Manager
+    {
+      public:
+        Manager(const DLTensor&, std::function<void()>);
+        virtual ~Manager();
 
-    // Creates a PyCasule from an instance of DLPack
-    py::capsule CreateCapsule();
+        // Creates a PyCasule from an instance of DLPack
+        py::capsule Capsule();
 
-    std::shared_ptr<CoreMemory> m_ManagedMemory;
-    DLManagedTensor m_ManagedTensor;
+      private:
+        DLManagedTensor m_ManagedTensor;
+        std::function<void()> m_Releaser;
+    };
 };
 
 }

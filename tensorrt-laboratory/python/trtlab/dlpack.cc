@@ -49,10 +49,31 @@ class DLPackDescriptor : public Descriptor<MemoryType>
 
 namespace python {
 
+py::capsule DLPack::Export(py::object wrapped_memory)
+{
+    // Grab the wrapped memory object from the python object
+    auto memory = wrapped_memory.cast<std::shared_ptr<CoreMemory>>();
+
+    // Acquire a stack in the ownership of the python object by increasing the ref_count
+    auto handle = wrapped_memory.cast<py::handle>();
+    DLOG(INFO) << "DLPack::Manager increment ref_count to obj " << handle.ptr();
+    handle.inc_ref();
+    auto manager = new DLPack::Manager(memory->TensorInfo(), [handle]() mutable {
+        DLOG(INFO) << "DLPack::Manager acquire gil and decrement ref_count to obj " << handle.ptr();
+        py::gil_scoped_acquire acquire;
+        handle.dec_ref();
+    });
+    return manager->Capsule();
+}
+
 py::capsule DLPack::Export(std::shared_ptr<CoreMemory> memory)
 {
-    auto self = new DLPack(memory);
-    return self->CreateCapsule();
+    auto manager = new DLPack::Manager(memory->TensorInfo(), [memory]() mutable {
+        DLOG(INFO) << "Decrement use count (" << memory.use_count()
+                   << ") of shared_ptr to: " << *memory;
+        memory.reset();
+    });
+    return manager->Capsule();
 }
 
 std::shared_ptr<CoreMemory> DLPack::Import(py::capsule obj)
@@ -63,20 +84,19 @@ std::shared_ptr<CoreMemory> DLPack::Import(py::capsule obj)
     {
         throw std::runtime_error("dltensor not found in capsule");
     }
-    const auto& dltensor = dlm_tensor->dl_tensor;
-    // take ownership of the capsule by incrementing the reference count on the handle
-    // note: we use a py::handle object instead of a py::object becasue we need to manually
-    // control the reference counting in the deleter after re-acquiring the GIL
-    auto count = obj.ref_count();
-    auto handle = obj.cast<py::handle>();
-    handle.inc_ref();
-    auto deleter = [handle] {
-        DLOG(INFO) << "DLPack Wrapper Releasing Ownership of Capsule @ " << handle.ptr();
-        py::gil_scoped_acquire acquire;
-        handle.dec_ref();
-    };
-    DCHECK_EQ(obj.ref_count(), count + 1);
+
+    // by renaming the capsule from "dltensor" to "used_dltensor" we assume responsibility of
+    // calling the dlm_tensor->deleter method to signal we are finished with the tensor memory
     PyCapsule_SetName(obj.ptr(), "used_dltensor");
+
+    const auto& dltensor = dlm_tensor->dl_tensor;
+
+    auto deleter = [dlm_tensor]() mutable {
+        if(dlm_tensor->deleter)
+        {
+            dlm_tensor->deleter(dlm_tensor);
+        }
+    };
 
     if(dltensor.ctx.device_type == kDLCPU)
     {
@@ -97,39 +117,47 @@ std::shared_ptr<CoreMemory> DLPack::Import(py::capsule obj)
     return nullptr;
 }
 
-// Non-static DLPack Implementation
+// DLPack::Manager Implementation
 
-DLPack::DLPack(std::shared_ptr<CoreMemory> shared) : m_ManagedMemory(shared)
+DLPack::Manager::Manager(const DLTensor& dltensor, std::function<void()> releaser)
+    : m_Releaser(releaser)
 {
-    m_ManagedTensor.dl_tensor = shared->TensorInfo();
+    m_ManagedTensor.dl_tensor = dltensor;
     m_ManagedTensor.manager_ctx = static_cast<void*>(this);
     m_ManagedTensor.deleter = [](DLManagedTensor* ptr) mutable {
-        if(ptr)
-        {
-            DLPack* self = (DLPack*)ptr->manager_ctx;
-            if(self)
-            {
-                DLOG(INFO) << "Deleting DLPack Wrapper via DLManagedTensor::deleter";
-                delete self;
-            }
-        }
+        DCHECK(ptr);
+        Manager* self = (Manager*)ptr->manager_ctx;
+        DCHECK(self);
+        DLOG(INFO) << "DLManagedTensor deleter - free DLPack::Manager " << self;
+        delete self;
     };
 }
 
-DLPack::~DLPack() {}
+DLPack::Manager::~Manager()
+{
+    DCHECK(m_Releaser);
+    DLOG(INFO) << "DLPack::Manager releasing managed tensor";
+    m_Releaser();
+}
 
-py::capsule DLPack::CreateCapsule()
+py::capsule DLPack::Manager::Capsule()
 {
     auto capsule = py::capsule((void*)&m_ManagedTensor, "dltensor", [](PyObject* ptr) {
-        auto name = PyCapsule_GetName(ptr);
-        DLOG(INFO) << "Destroying Capsule " << name << " @ " << ptr;
-        auto obj = PyCapsule_GetPointer(ptr, name);
+        std::string name = PyCapsule_GetName(ptr);
+        DLOG(INFO) << "DLPack::Capsule deleter " << name << " @ " << ptr;
+        if(name == "used_dltensor")
+        {
+            DLOG(INFO) << "DLPack::Capsule deferring call to managed_tensor->deleter";
+            return;
+        }
+        DLOG(INFO) << "DLPack::Capsule calling managed_tensor->deleter";
+        auto obj = PyCapsule_GetPointer(ptr, name.c_str());
         DCHECK(obj);
         auto managed_tensor = static_cast<DLManagedTensor*>(obj);
         DCHECK(managed_tensor->deleter);
         managed_tensor->deleter(managed_tensor);
     });
-    DLOG(INFO) << "Creating Capsule dltensor @ " << capsule.ptr();
+    DLOG(INFO) << "DLPack::Capsule created dltensor @ " << capsule.ptr();
     return capsule;
 }
 

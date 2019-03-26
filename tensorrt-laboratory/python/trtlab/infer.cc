@@ -843,10 +843,7 @@ PYBIND11_MODULE(trtlab, m)
              py::call_guard<py::gil_scoped_release>());
 
     py::class_<CoreMemory, std::shared_ptr<CoreMemory>>(m, "CoreMemory")
-        .def("to_dlpack", [](py::object self) {
-            auto mem = py::cast<std::shared_ptr<CoreMemory>>(self);
-            return DLPack::Export(mem);
-        })
+        .def("to_dlpack", [](py::object self) { return DLPack::Export(self); })
         .def("__repr__", [](const CoreMemory& mem) { return "<trtlab.Memory: " + mem.Description() + ">"; });
 
     py::class_<HostMemory, std::shared_ptr<HostMemory>, CoreMemory>(m, "HostMemory")
@@ -856,19 +853,7 @@ PYBIND11_MODULE(trtlab, m)
         .def("__repr__", [](const HostMemory& mem) { return "<trtlab.HostMemory: " + mem.Description() + ">"; });
 
     py::class_<DeviceMemory, std::shared_ptr<DeviceMemory>, CoreMemory>(m, "DeviceMemory")
-        .def("__repr__", [](const HostMemory& mem) { return "<trtlab.DeviceMemory: " + mem.Description() + ">"; });
-
-    /*
-        py::class_<PyHostMemory>(m, "dltensor_trtlab_host")
-            .def("to_dlpack", &PyHostMemory::to_dlpack);
-
-        py::class_<PyDeviceMemory>(m, "dltensor_trtlab_device")
-            .def("to_dlpack", &PyDeviceMemory::to_dlpack);
-    */
-    m.def("test_dlpack", []() {
-        auto shared = std::make_shared<Allocator<CudaDeviceMemory>>(256 * 1024 * 1024);
-        return DLPack::Export(shared);
-    });
+        .def("__repr__", [](const DeviceMemory& mem) { return "<trtlab.DeviceMemory: " + mem.Description() + ">"; });
 
     m.def("test_from_dlpack", [](py::capsule obj) {
         auto core = DLPack::Import(obj);
