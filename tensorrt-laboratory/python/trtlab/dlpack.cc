@@ -54,7 +54,7 @@ py::capsule DLPack::Export(py::object wrapped_memory)
     // Grab the wrapped memory object from the python object
     auto memory = wrapped_memory.cast<std::shared_ptr<CoreMemory>>();
 
-    // Acquire a stack in the ownership of the python object by increasing the ref_count
+    // Acquire a stake in the ownership of the python object by increasing the ref_count
     auto handle = wrapped_memory.cast<py::handle>();
     DLOG(INFO) << "DLPack::Manager increment ref_count to obj " << handle.ptr();
     handle.inc_ref();
@@ -68,9 +68,10 @@ py::capsule DLPack::Export(py::object wrapped_memory)
 
 py::capsule DLPack::Export(std::shared_ptr<CoreMemory> memory)
 {
+    DLOG(INFO) << "DLPack::Manager capturing shared_ptr to " << memory.get();
     auto manager = new DLPack::Manager(memory->TensorInfo(), [memory]() mutable {
         DLOG(INFO) << "Decrement use count (" << memory.use_count()
-                   << ") of shared_ptr to: " << *memory;
+                   << ") of shared_ptr to: " << *memory.get();
         memory.reset();
     });
     return manager->Capsule();

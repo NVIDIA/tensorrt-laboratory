@@ -889,6 +889,9 @@ PYBIND11_MODULE(trtlab, m)
         return mem;
     });
 
+    m.def("dlpack_from_malloc", [](int64_t size) {
+        return DLPack::Export(std::make_shared<Allocator<Malloc>>(size));
+    });
 
     /*
         py::class_<InferBench, std::shared_ptr<InferBench>>(m, "InferBench")
