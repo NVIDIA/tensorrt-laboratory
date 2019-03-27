@@ -422,6 +422,50 @@ struct PyInferRunner : public InferRunner
     using InferResults = py::dict;
     using InferFuture = std::shared_future<InferResults>;
 
+/*
+    auto Infer(py::dict inputs, py::dict output_objs, py::dict output_locs)
+    {
+        int batch_size = -1;
+        const auto& model = GetModel();
+        auto bindings = InitializeBindings();
+
+        py::gil_scoped_acquire acquire;
+        ProcessInputs(inputs, bindings, batch_size);
+    }
+
+    void ProcessInputs(const Model& model, py::dict inputs)
+    {
+        int batch_size = -1;
+        for(auto item : inputs)
+        {
+            auto name = item.first.cast<std::string>();
+            auto type = model.GetBindingType(name);
+            std::unique_ptr<CoreMemory> memory;
+            if(type != Model::BindingType::Input)
+            {
+                throw std::runtime_error("Invalid input binding: " + name);
+            }
+            if(py::isinstance<py::array>(item.second))
+            {
+                memory = std::move(Numpy::ImportUnique(item.second));
+            }
+            else if(py::isinstance<py::capsule>(item.second))
+            {
+                memory = std::move(DLPack::ImportUnique(item.second));
+            }
+            else
+            {
+                throw std::runtime_error("Invalid value for input: " + name +
+                                         "; expected a numpy or dlpack");
+            }
+            auto shape = memory->Shape();
+            // if bindings.shape + 1 == shape, then infer batch size if -1
+            // check that total bytes are consistent between input and expected
+            if(batch_size == -1) { batch_size = bs; }
+            else if(batch_size !=)
+        }
+    }
+*/
     auto Infer(py::kwargs kwargs)
     {
         const auto& model = GetModel();
@@ -801,7 +845,7 @@ class DLPack final
 using PyInferFuture = std::shared_future<typename PyInferRunner::InferResults>;
 PYBIND11_MAKE_OPAQUE(PyInferFuture);
 
-PYBIND11_MODULE(trtlab, m)
+PYBIND11_MODULE(_cpp_trtlab, m)
 {
     py::class_<PyInferenceManager, std::shared_ptr<PyInferenceManager>>(m, "InferenceManager")
         .def(py::init<int, int, int, int, int>(), py::arg("max_exec_concurrency") = 1,
@@ -844,16 +888,19 @@ PYBIND11_MODULE(trtlab, m)
 
     py::class_<CoreMemory, std::shared_ptr<CoreMemory>>(m, "CoreMemory")
         .def("to_dlpack", [](py::object self) { return DLPack::Export(self); })
-        .def("__repr__", [](const CoreMemory& mem) { return "<trtlab.Memory: " + mem.Description() + ">"; });
+        .def("__repr__",
+             [](const CoreMemory& mem) { return "<trtlab.Memory: " + mem.Description() + ">"; });
 
     py::class_<HostMemory, std::shared_ptr<HostMemory>, CoreMemory>(m, "HostMemory")
-        .def("to_numpy", [](py::object self) {
-            return NumPy::Export(self);
-        })
-        .def("__repr__", [](const HostMemory& mem) { return "<trtlab.HostMemory: " + mem.Description() + ">"; });
+        .def("to_numpy", [](py::object self) { return NumPy::Export(self); })
+        .def("__repr__", [](const HostMemory& mem) {
+            return "<trtlab.HostMemory: " + mem.Description() + ">";
+        });
 
     py::class_<DeviceMemory, std::shared_ptr<DeviceMemory>, CoreMemory>(m, "DeviceMemory")
-        .def("__repr__", [](const DeviceMemory& mem) { return "<trtlab.DeviceMemory: " + mem.Description() + ">"; });
+        .def("__repr__", [](const DeviceMemory& mem) {
+            return "<trtlab.DeviceMemory: " + mem.Description() + ">";
+        });
 
     m.def("test_from_dlpack", [](py::capsule obj) {
         auto core = DLPack::Import(obj);
@@ -863,7 +910,8 @@ PYBIND11_MODULE(trtlab, m)
         py::gil_scoped_release release;
         GetThreadPool().enqueue([core] {
             DLOG(INFO) << "Holding the descriptor on another thread for 5 seconds";
-            DLOG(INFO) << "You can deference the dlpack object you gave me; I own a reference to it";
+            DLOG(INFO)
+                << "You can deference the dlpack object you gave me; I own a reference to it";
             std::this_thread::sleep_for(std::chrono::seconds(5));
             DLOG(INFO) << "Thread that could have been doing work on the data complete";
         });
@@ -889,8 +937,15 @@ PYBIND11_MODULE(trtlab, m)
         return mem;
     });
 
-    m.def("dlpack_from_malloc", [](int64_t size) {
-        return DLPack::Export(std::make_shared<Allocator<Malloc>>(size));
+    m.def("dlpack_from_malloc",
+          [](int64_t size) { return DLPack::Export(std::make_shared<Allocator<Malloc>>(size)); });
+
+    m.def("dlpack_from_cuda_malloc", [](int64_t size) {
+        return DLPack::Export(std::move(std::make_unique<Allocator<CudaDeviceMemory>>(size)));
+    });
+
+    m.def("tt", []() {
+        py::print("hi");
     });
 
     /*
