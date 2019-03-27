@@ -140,11 +140,15 @@ const std::multimap<grpc::string_ref, grpc::string_ref>&
 template<class Request, class Response>
 bool LifeCycleUnary<Request, Response>::CheckDeadlineAndShouldContinue()
 {
+    // this segfaults
+    // todo: work on the check deadline feature
+    /*
     if(m_Context->IsCancelled())
     {
         CancelResponse();
         return false;
     }
+    */
     return true;
 }
 
