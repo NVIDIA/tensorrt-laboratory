@@ -30,7 +30,7 @@ package nvidia.inferenceserver;
 
 //@@.. cpp:namespace:: nvidia::inferenceserver
 
-import "model_config.proto";
+import "tensorrt-laboratory/trtis/protos/model_config.proto";
 
 //@@
 //@@.. cpp:var:: message StatDuration

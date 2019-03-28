@@ -24,14 +24,17 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-pybind11_add_module(trtlab
+find_package(gflags REQUIRED)
+find_package(gflags COMPONENTS nothreads_static)
+
+pybind11_add_module(_cpp_trtlab
   dlpack.cc
   numpy.cc
   infer.cc
   utils.cc
 )
 
-target_link_libraries(trtlab
+target_link_libraries(_cpp_trtlab
   PUBLIC
     core
     cuda
@@ -39,28 +42,10 @@ target_link_libraries(trtlab
     nvrpc-client
     tensorrt
     trtis-protos
+    gflags_nothreads_static
 )
 
-target_include_directories(trtlab
+target_include_directories(_cpp_trtlab
   PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
-
-##find_program(PYTHON "python)
-##
-##if (PYTHON)
-##    set(SETUP_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/setup.py")
-##    set(SETUP_PY    "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
-##    set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/trtlab/__init__.py")
-##    set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/build")
-##
-##    configure_file(${SETUP_PY_IN} ${SETUP_PY})
-##
-##    add_custom_command(OUTPUT ${OUTPUT}
-##                       COMMAND ${PYTHON} ${SETUP_PY} build
-##                       DEPENDS ${DEPS} _trtlab_cpp)
-##
-##    add_custom_target(target ALL DEPENDS ${OUTPUT})
-##
-##    install(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} bdist_wheel)")
-##endif()

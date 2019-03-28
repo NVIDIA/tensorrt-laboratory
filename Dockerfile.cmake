@@ -45,7 +45,12 @@ RUN python3 -m pip install --upgrade pip \
 RUN git clone -b v2.2.2 https://github.com/gflags/gflags.git \
  && cd gflags \
  && mkdir build && cd build \
- && cmake -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_gflags_LIB=ON .. \ 
+ && cmake \
+        -DGFLAGS_NAMESPACE=google \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_STATIC_LIBS=ON \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE \
+        -DBUILD_gflags_LIB=ON .. \ 
  && make -j \
  && make install \
  && cd /tmp && rm -rf gflags
@@ -53,7 +58,12 @@ RUN git clone -b v2.2.2 https://github.com/gflags/gflags.git \
 # install glog
 RUN git clone -b v0.3.5 https://github.com/google/glog.git \
  && cd glog \
- && cmake -H. -Bbuild -G "Unix Makefiles" -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=ON \
+ && cmake -H. -Bbuild -G "Unix Makefiles" \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DBUILD_STATIC_LIBS=ON \
+        -DBUILD_STATIC_LIBRARIES=ON \
+        -DBUILD_SHARED_LIBRARIES=ON \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE \
  && cmake --build build \
  && cmake --build build --target install \
  && cd /tmp && rm -rf glog
@@ -64,30 +74,41 @@ RUN git clone -b v0.3.5 https://github.com/google/glog.git \
 WORKDIR /source
 RUN git clone -b v1.16.1 https://github.com/grpc/grpc \
  && cd grpc \
- && git submodule update --init \
+ && git submodule update --init 
+
+RUN cd grpc \
  && cd third_party/cares/cares \ 
  && mkdir -p cmake/build \
  && cd cmake/build \
- && cmake -DCMAKE_BUILD_TYPE=Release ../.. \
- && make -j20 install \
- && cd ../../../../.. \
- && rm -rf third_party/cares/cares \
+ && cmake -DCMAKE_BUILD_TYPE=Release -DCARES_SHARED:BOOL=OFF -DCARES_STATIC:BOOL=ON -DCARES_STATIC_PIC:BOOL=ON ../.. \
+ && make -j install 
+
+RUN cd grpc \
  && cd third_party/zlib && mkdir -p cmake/build && cd cmake/build \
  && cmake -DCMAKE_BUILD_TYPE=Release ../.. \
- && make -j20 install \
- && cd ../../../.. \ 
- && rm -rf third_party/zlib \
+ && make -j install 
+
+RUN cd grpc \
  && cd third_party/protobuf && mkdir -p cmake/build && cd cmake/build \
  && cmake -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX:PATH=/usr -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE -DBUILD_SHARED_LIBRARIES=ON .. \
- && make -j20 install \
- && cd ../../../.. \ 
- && rm -rf third_party/protobuf \
- && cd /source/grpc \
+ && make -j20 install 
+
+RUN cd grpc \
  && mkdir -p cmake/build \
  && cd cmake/build \
- && cmake -DBUILD_SHARED_LIBRARIES=ON -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package -DgRPC_ZLIB_PROVIDER=package \
-          -DgRPC_CARES_PROVIDER=package -DCMAKE_BUILD_TYPE=Release -DgRPC_SSL_PROVIDER=package -DgRPC_GFLAGS_PROVIDER=package ../.. \
- && make -j20 install \
+ && cmake \
+        -DBUILD_SHARED_LIBRARIES=OFF \
+        -DBUILD_STATIC_LIBRARIES=ON \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE \
+        -DgRPC_INSTALL=ON \
+        -DgRPC_BUILD_TESTS=OFF \
+        -DgRPC_CARES_PROVIDER=package \
+        -DgRPC_ZLIB_PROVIDER=package \
+        -DgRPC_PROTOBUF_PROVIDER=package \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DgRPC_SSL_PROVIDER=package \
+        -DgRPC_GFLAGS_PROVIDER=package ../.. \
+ && make -j install \
  && cd /source && rm -rf grpc
 
 RUN git clone -b v1.0.6 https://github.com/dcdillon/cpuaff \
@@ -186,6 +207,5 @@ RUN python3 -m pip install -r /tmp/requirements.txt \
 
 WORKDIR /work
 COPY . .
-# RUN ./build.sh
+RUN ./build.sh
 
-ENV PYTHONPATH=/work/build/tensorrt-laboratory/python/trtlab

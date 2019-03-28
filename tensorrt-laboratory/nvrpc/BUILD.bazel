@@ -1,6 +1,6 @@
 
 cc_library(
-    name = "cuda",
+    name = "nvrpc",
     srcs = glob([
         "src/**/*.cc",
         "src/**/*.h",
@@ -10,11 +10,8 @@ cc_library(
     ]),
     deps = [
         "//tensorrt-laboratory/core",
-        "@local_config_cuda//:cuda_headers",
-        "@local_config_cuda//:cuda_runtime",
-    ],
-    linkopts = [
-        "-L/usr/local/cuda/lib64/stubs",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_github_grpc_grpc//:grpc++_unsecure",
     ],
     strip_include_prefix = "include",
     visibility = ["//visibility:public"],

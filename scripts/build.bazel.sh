@@ -26,11 +26,5 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-mkdir -p build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make -j
-cd /work/notebooks
-ln -f -s /work/build/tensorrt-laboratory/python/trtlab/trtlab.cpython-35m-x86_64-linux-gnu.so
-#make install
+cd /work
+bazel build tensorrt/python:_cpp_trtlab.cpython-35m-x86_64-linux-gnu.so

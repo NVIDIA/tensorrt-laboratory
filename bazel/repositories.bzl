@@ -47,11 +47,55 @@ def repositories():
 
     _maybe(
         http_archive,
+        name = "com_google_protobuf",
+        sha256 = "2244b0308846bb22b4ff0bcc675e99290ff9f1115553ae9671eba1030af31bc0",
+        strip_prefix = "protobuf-3.6.1.2",
+        urls = [
+            "https://mirror.bazel.build/github.com/google/protobuf/archive/v3.6.1.2.tar.gz",
+            "https://github.com/google/protobuf/archive/v3.6.1.2.tar.gz",
+        ],
+    )
+
+    _maybe(
+        http_archive,
         name = "com_github_grpc_grpc",
         strip_prefix = "grpc-1.16.1",
         urls = [
             "https://github.com/grpc/grpc/archive/v1.16.1.tar.gz",
         ],
+    )
+
+    _maybe(
+        http_archive,
+        name = "com_github_pybind_pybind11",
+        strip_prefix = "pybind11-2.2.4",
+        urls = [
+            "https://github.com/pybind/pybind11/archive/v2.2.4.tar.gz"
+        ],
+        build_file = "@com_github_nvidia_trtlab//bazel:pybind11.BUILD",
+    )
+
+    _maybe(
+        http_archive,
+        name = "build_stack_rules_proto",
+        urls = ["https://github.com/stackb/rules_proto/archive/91cbae9bd71a9c51406014b8b3c931652fb6e660.tar.gz"],
+        sha256 = "5474d1b83e24ec1a6db371033a27ff7aff412f2b23abba86fedd902330b61ee6",
+        strip_prefix = "rules_proto-91cbae9bd71a9c51406014b8b3c931652fb6e660",
+    )
+
+    # Needed by Protobuf
+    native.bind(
+        name = "grpc_cpp_plugin",
+        actual = "@com_github_grpc_grpc//:grpc_cpp_plugin",
+    )
+    native.bind(
+        name = "grpc_python_plugin",
+        actual = "@com_github_grpc_grpc//:grpc_python_plugin",
+    )
+
+    native.bind(
+        name = "grpc_lib",
+        actual = "@com_github_grpc_grpc//:grpc++",
     )
 
 def load_trtis():

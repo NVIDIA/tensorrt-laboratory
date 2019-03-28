@@ -72,8 +72,8 @@ using nvrpc::Executor;
 using nvrpc::Server;
 
 // NVIDIA Inference Server Protos
-#include "grpc_service.grpc.pb.h"
-#include "grpc_service.pb.h"
+#include "tensorrt-laboratory/trtis/protos/grpc_service.grpc.pb.h"
+#include "tensorrt-laboratory/trtis/protos/grpc_service.pb.h"
 
 namespace trtis = ::nvidia::inferenceserver;
 

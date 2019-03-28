@@ -54,7 +54,7 @@ cc_library(
 cc_library(
     name = "cuda_runtime",
     srcs = ["cuda/lib64/libcudart_static.a"],
-    deps = [":cuda"],
+#   deps = [":cuda"],
     linkopts = ["-lrt"],
 )
 

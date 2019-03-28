@@ -30,9 +30,9 @@ package nvidia.inferenceserver;
 
 //@@.. cpp:namespace:: nvidia::inferenceserver
 
-import "api.proto";
-import "request_status.proto";
-import "server_status.proto";
+import "tensorrt-laboratory/trtis/protos/api.proto";
+import "tensorrt-laboratory/trtis/protos/request_status.proto";
+import "tensorrt-laboratory/trtis/protos/server_status.proto";
 
 //@@
 //@@.. cpp:var:: service GRPCService

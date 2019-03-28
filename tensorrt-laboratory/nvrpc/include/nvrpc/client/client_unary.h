@@ -39,7 +39,8 @@ namespace nvrpc {
 namespace client {
 
 template<typename Request, typename Response>
-struct ClientUnary : public ::trtlab::AsyncComputeWrapper<void(Request&, Response&, ::grpc::Status&)>
+struct ClientUnary
+    : public ::trtlab::AsyncComputeWrapper<void(Request&, Response&, ::grpc::Status&)>
 {
   public:
     using PrepareFn = std::function<std::unique_ptr<::grpc::ClientAsyncResponseReader<Response>>(
@@ -53,7 +54,8 @@ struct ClientUnary : public ::trtlab::AsyncComputeWrapper<void(Request&, Respons
     ~ClientUnary() {}
 
     template<typename OnReturnFn>
-    auto Enqueue(Request* request, Response* response, OnReturnFn on_return, std::map<std::string, std::string>& headers)
+    auto Enqueue(Request* request, Response* response, OnReturnFn on_return,
+                 std::map<std::string, std::string>& headers)
     {
         auto wrapped = this->Wrap(on_return);
         auto future = wrapped->Future();
@@ -65,7 +67,7 @@ struct ClientUnary : public ::trtlab::AsyncComputeWrapper<void(Request&, Respons
             (*wrapped)(*ctx->m_Request, *ctx->m_Response, ctx->m_Status);
         };
 
-        for (auto& header : headers)
+        for(auto& header : headers)
         {
             ctx->m_Context.AddMetadata(header.first, header.second);
         }
@@ -85,13 +87,15 @@ struct ClientUnary : public ::trtlab::AsyncComputeWrapper<void(Request&, Respons
     }
 
     template<typename OnReturnFn>
-    auto Enqueue(Request&& request, OnReturnFn on_return, std::map<std::string, std::string>& headers)
+    auto Enqueue(Request&& request, OnReturnFn on_return,
+                 std::map<std::string, std::string>& headers)
     {
         auto req = std::make_shared<Request>(std::move(request));
         auto resp = std::make_shared<Response>();
 
-        auto extended_on_return = [req, resp, on_return](Request& request, Response& response,
-                                                         ::grpc::Status& status) mutable -> auto{
+        auto extended_on_return = [req, resp, on_return](Request & request, Response & response,
+                                                         ::grpc::Status & status) mutable -> auto
+        {
             return on_return(request, response, status);
         };
 
@@ -114,10 +118,7 @@ struct ClientUnary : public ::trtlab::AsyncComputeWrapper<void(Request&, Respons
             return ret;
         }
 
-        bool ExecutorShouldDeleteContext() const override
-        {
-            return true;
-        }
+        bool ExecutorShouldDeleteContext() const override { return true; }
 
       protected:
         bool StateFinishedDone(bool ok)
