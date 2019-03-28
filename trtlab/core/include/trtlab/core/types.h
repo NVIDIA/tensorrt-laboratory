@@ -57,6 +57,8 @@ struct dtype
     int64_t bytes() const;
     const DLDataType& to_dlpack() const;
 
+    std::string Description() const;
+
   private:
     dtype();
     DLDataType m_DLPackType;

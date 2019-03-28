@@ -886,7 +886,29 @@ PYBIND11_MODULE(_cpp_trtlab, m)
         .def("get", &std::shared_future<typename PyInferRunner::InferResults>::get,
              py::call_guard<py::gil_scoped_release>());
 
+    py::class_<types::dtype>(m, "dtype")
+        .def("__repr__",
+            [](const types::dtype& self) { return self.Description(); });
+
+    m.attr("int8") = types::int8;
+    m.attr("int16") = types::int16;
+    m.attr("int32") = types::int32;
+    m.attr("int64") = types::int64;
+    m.attr("uint8") = types::uint8;
+    m.attr("uint16") = types::uint16;
+    m.attr("uint32") = types::uint32;
+    m.attr("uint64") = types::uint64;
+    m.attr("fp16") = types::fp16;
+    m.attr("fp32") = types::fp32;
+    m.attr("fp64") = types::fp64;
+
+
     py::class_<CoreMemory, std::shared_ptr<CoreMemory>>(m, "CoreMemory")
+        .def_property_readonly("shape", &CoreMemory::Shape)
+        .def_property_readonly("strides", &CoreMemory::Strides)
+        .def_property_readonly("dtype", &CoreMemory::DataType)
+        .def("view_reshape", (void (CoreMemory::*)(const std::vector<mem_size_t>&)) &CoreMemory::Reshape)
+        .def("view_reshape", (void (CoreMemory::*)(const std::vector<mem_size_t>&, const types::dtype&)) &CoreMemory::Reshape)
         .def("to_dlpack", [](py::object self) { return DLPack::Export(self); })
         .def("__repr__",
              [](const CoreMemory& mem) { return "<trtlab.Memory: " + mem.Description() + ">"; });
