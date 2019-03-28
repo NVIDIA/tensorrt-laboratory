@@ -35,7 +35,6 @@ namespace py = pybind11;
 #include <memory>
 #include <string>
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "trtlab/tensorrt/bindings.h"
