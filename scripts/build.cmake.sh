@@ -31,7 +31,7 @@ mkdir -p build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake -DCMAKE_BUILD_TYPE=Release ..
-cd tensorrt-laboratory/python
+cd trtlab/pybind
 make -j
 #cd /work/notebooks
 #ln -f -s /work/build/tensorrt-laboratory/python/trtlab/trtlab.cpython-35m-x86_64-linux-gnu.so

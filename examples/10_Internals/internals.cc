@@ -24,15 +24,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/core/affinity.h"
-#include "tensorrt/laboratory/core/memory/allocator.h"
-#include "tensorrt/laboratory/core/memory/memory_stack.h"
-#include "tensorrt/laboratory/core/pool.h"
-#include "tensorrt/laboratory/core/thread_pool.h"
-#include "tensorrt/laboratory/cuda/device_info.h"
-#include "tensorrt/laboratory/cuda/memory/cuda_device.h"
-#include "tensorrt/laboratory/cuda/memory/cuda_managed.h"
-#include "tensorrt/laboratory/cuda/memory/cuda_pinned_host.h"
+#include "trtlab/core/affinity.h"
+#include "trtlab/core/memory/allocator.h"
+#include "trtlab/core/memory/memory_stack.h"
+#include "trtlab/core/pool.h"
+#include "trtlab/core/thread_pool.h"
+#include "trtlab/cuda/device_info.h"
+#include "trtlab/cuda/memory/cuda_device.h"
+#include "trtlab/cuda/memory/cuda_managed.h"
+#include "trtlab/cuda/memory/cuda_pinned_host.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>

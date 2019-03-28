@@ -34,12 +34,12 @@
 #include <thread>
 #include <unistd.h>
 
-#include "tensorrt/laboratory/core/affinity.h"
-#include "tensorrt/laboratory/core/memory/allocator.h"
-#include "tensorrt/laboratory/cuda/device_info.h"
-#include "tensorrt/laboratory/cuda/memory/cuda_pinned_host.h"
-#include "tensorrt/laboratory/inference_manager.h"
-#include "tensorrt/laboratory/runtime.h"
+#include "trtlab/core/affinity.h"
+#include "trtlab/core/memory/allocator.h"
+#include "trtlab/cuda/device_info.h"
+#include "trtlab/cuda/memory/cuda_pinned_host.h"
+#include "trtlab/tensorrt/inference_manager.h"
+#include "trtlab/tensorrt/runtime.h"
 
 #include "nvrpc/context.h"
 #include "nvrpc/executor.h"

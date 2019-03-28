@@ -58,7 +58,7 @@
 
 #include "inference.grpc.pb.h"
 
-#include "tensorrt/laboratory/core/utils.h"
+#include "trtlab/core/utils.h"
 
 using grpc::Channel;
 using grpc::ClientAsyncResponseReader;

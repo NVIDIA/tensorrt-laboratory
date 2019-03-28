@@ -1,0 +1,26 @@
+
+#python3.5-config --extension-suffix
+#.cpython-35m-x86_64-linux-gnu.so
+
+cc_binary(
+    name = "_cpp_trtlab.cpython-35m-x86_64-linux-gnu.so",
+    srcs = glob([
+        "trtlab/**/*.cc",
+        "trtlab/**/*.h",
+    ]),
+    linkshared = 1,
+    linkstatic = 1,
+    copts = [
+        "-Wno-unused-lambda-capture",
+        "-fvisibility=hidden",
+    ],
+    deps = [
+        "//trtlab/core",
+        "//trtlab/cuda",
+        "//trtlab/nvrpc",
+        "//trtlab/tensorrt",
+        "//trtlab/trtis/protos",
+        "@com_github_pybind_pybind11//:pybind11",
+        "@local_config_python3//:libpython3"
+    ],
+)

@@ -32,7 +32,7 @@
 #include "nvrpc/context.h"
 #include "nvrpc/executor.h"
 #include "nvrpc/server.h"
-#include "tensorrt/laboratory/core/thread_pool.h"
+#include "trtlab/core/thread_pool.h"
 
 using nvrpc::Context;
 using nvrpc::Executor;

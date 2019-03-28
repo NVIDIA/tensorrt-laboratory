@@ -1,0 +1,8 @@
+cc_test(
+    name = "test_core",
+    srcs = glob(["test_*.cc"]),
+    deps = [
+        "//trtlab/core:core",
+        "@com_google_googletest//:gtest_main",
+    ]
+)

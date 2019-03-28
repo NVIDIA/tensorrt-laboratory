@@ -1,0 +1,22 @@
+
+cc_library(
+    name = "tensorrt",
+    srcs = glob([
+        "src/**/*.cc",
+        "src/**/*.h",
+    ]),
+    hdrs = glob([
+        "include/**/*.h",
+    ]),
+    deps = [
+        "//trtlab/core",
+        "//trtlab/cuda",
+        "@local_config_tensorrt//:tensorrt_headers",
+        "@local_config_tensorrt//:tensorrt_infer",
+    ],
+    linkopts = [
+        "-L/usr/local/cuda/lib64/stubs",
+    ],
+    strip_include_prefix = "include",
+    visibility = ["//visibility:public"],
+)

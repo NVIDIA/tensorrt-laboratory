@@ -27,9 +27,9 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "tensorrt/laboratory/core/pool.h"
-#include "tensorrt/laboratory/core/resources.h"
-#include "tensorrt/laboratory/core/thread_pool.h"
+#include "trtlab/core/pool.h"
+#include "trtlab/core/resources.h"
+#include "trtlab/core/thread_pool.h"
 
 using trtlab::Resources;
 using trtlab::ThreadPool;

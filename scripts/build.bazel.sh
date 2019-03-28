@@ -27,4 +27,4 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 cd /work
-bazel build tensorrt/python:_cpp_trtlab.cpython-35m-x86_64-linux-gnu.so
+bazel build trtlab/pybind:_cpp_trtlab.cpython-35m-x86_64-linux-gnu.so

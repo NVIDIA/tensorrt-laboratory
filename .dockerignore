@@ -1,6 +1,6 @@
-build
+./build
 *.engine
-models
+./models
 @eaDir
 __pycache__
 bazel-*

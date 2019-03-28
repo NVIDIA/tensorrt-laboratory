@@ -1,0 +1,61 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@build_stack_rules_proto//cpp:cpp_proto_library.bzl", "cpp_proto_library")
+load("@build_stack_rules_proto//cpp:cpp_grpc_library.bzl", "cpp_grpc_library")
+
+proto_library(
+    name = "api_proto",
+    srcs = [ "api.proto" ],
+)
+
+proto_library(
+    name = "model_config_proto",
+    srcs = [ "model_config.proto" ],
+)
+
+proto_library(
+    name = "request_status_proto",
+    srcs = [ "request_status.proto" ],
+)
+
+proto_library(
+    name = "server_status_proto",
+    srcs = [ "server_status.proto" ],
+    deps = [ ":model_config_proto" ],
+)
+
+proto_library(
+    name = "trtis_service_proto",
+    srcs = [ "grpc_service.proto" ],
+    deps = [
+        ":api_proto",
+        "request_status_proto",
+        ":server_status_proto",
+    ]
+)
+
+cpp_proto_library(
+    name = "api_cpp_library",
+    deps = ["//trtlab/trtis/protos:api_proto"],
+)
+
+cpp_proto_library(
+    name = "model_config_cpp_library",
+    deps = ["//trtlab/trtis/protos:model_config_proto"],
+)
+
+cpp_proto_library(
+    name = "request_status_cpp_library",
+    deps = ["//trtlab/trtis/protos:request_status_proto"],
+)
+
+cpp_proto_library(
+    name = "server_status_cpp_library",
+    deps = ["//trtlab/trtis/protos:server_status_proto"],
+)
+
+cpp_grpc_library(
+    name = "protos",
+    deps = ["//trtlab/trtis/protos:trtis_service_proto"],
+    has_services = True,
+)

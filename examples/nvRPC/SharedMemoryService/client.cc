@@ -34,8 +34,8 @@
 #include <glog/logging.h>
 #include <grpcpp/grpcpp.h>
 
-#include "tensorrt/laboratory/core/memory/cyclic_allocator.h"
-#include "tensorrt/laboratory/core/memory/system_v.h"
+#include "trtlab/core/memory/cyclic_allocator.h"
+#include "trtlab/core/memory/system_v.h"
 
 #include "echo.grpc.pb.h"
 

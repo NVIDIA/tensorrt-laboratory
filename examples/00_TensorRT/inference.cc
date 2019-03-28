@@ -30,9 +30,9 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "tensorrt/laboratory/core/thread_pool.h"
-#include "tensorrt/laboratory/inference_manager.h"
-#include "tensorrt/laboratory/runtime.h"
+#include "trtlab/core/thread_pool.h"
+#include "trtlab/tensorrt/inference_manager.h"
+#include "trtlab/tensorrt/runtime.h"
 
 #ifdef PLAYGROUND_USE_MPI
 #include "mpi.h"

@@ -34,8 +34,8 @@
 #include "nvrpc/rpc.h"
 #include "nvrpc/server.h"
 #include "nvrpc/service.h"
-#include "tensorrt/laboratory/core/resources.h"
-#include "tensorrt/laboratory/core/thread_pool.h"
+#include "trtlab/core/resources.h"
+#include "trtlab/core/thread_pool.h"
 
 using nvrpc::AsyncRPC;
 using nvrpc::AsyncService;

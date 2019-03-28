@@ -29,8 +29,8 @@
 #include <glog/logging.h>
 #include <thread>
 
-#include "tensorrt/laboratory/core/memory/allocator.h"
-#include "tensorrt/laboratory/core/memory/malloc.h"
+#include "trtlab/core/memory/allocator.h"
+#include "trtlab/core/memory/malloc.h"
 
 using trtlab::Allocator;
 using trtlab::Malloc;

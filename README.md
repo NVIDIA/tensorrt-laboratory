@@ -23,11 +23,12 @@ git clone http://github.com/nvidia/tensorrt-laboratory
 cd tensorrt-laboratory
 make
 
-# for notebooks -  navigate to the notebooks folder
-nvidia-docker run --rm -ti tensorrt-laboratory jupyter lab
-
 # for a bash shell
-nvidia-docker run --rm -ti tensorrt-laboratory bash
+nvidia-docker run --rm -ti trtlab bash
+
+# for notebooks -  navigate to the notebooks folder
+nvidia-docker run --rm -ti trtlab jupyter lab
+
 ```
 
 ## Overview

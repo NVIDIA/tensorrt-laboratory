@@ -207,5 +207,5 @@ RUN python3 -m pip install -r /tmp/requirements.txt \
 
 WORKDIR /work
 COPY . .
-RUN ./build.sh
+RUN ./scripts/build.cmake.sh
 
