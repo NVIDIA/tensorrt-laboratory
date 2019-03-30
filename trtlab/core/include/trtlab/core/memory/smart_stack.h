@@ -29,6 +29,7 @@
 
 #include <glog/logging.h>
 
+#include "trtlab/core/memory/bytes_object.h"
 #include "trtlab/core/memory/descriptor.h"
 #include "trtlab/core/memory/memory.h"
 #include "trtlab/core/memory/memory_stack.h"
@@ -37,7 +38,8 @@ namespace trtlab {
 
 template<typename MemoryType>
 class SmartStack : public MemoryStack<MemoryType>,
-                   public std::enable_shared_from_this<SmartStack<MemoryType>>
+                   public BytesProvider<typename MemoryType::BaseType::StorageClass>
+                   //public virtual std::enable_shared_from_this<SmartStack<MemoryType>>
 {
   protected:
     using MemoryStack<MemoryType>::MemoryStack;
@@ -46,9 +48,10 @@ class SmartStack : public MemoryStack<MemoryType>,
     class StackDescriptorImpl : public Descriptor<MemoryType>
     {
       public:
-        StackDescriptorImpl(std::shared_ptr<const SmartStack<MemoryType>> stack, void* ptr, size_t size)
-            : Descriptor<MemoryType>(ptr, size, stack->Memory(), []{}, "SmartStack"), m_Stack(stack),
-              m_Offset(Stack().Offset(this->Data()))
+        StackDescriptorImpl(std::shared_ptr<const SmartStack<MemoryType>> stack, void* ptr,
+                            size_t size)
+            : Descriptor<MemoryType>(ptr, size, stack->Memory(), [] {}, "SmartStack"),
+              m_Stack(stack), m_Offset(Stack().Offset(this->Data()))
         {
         }
 
@@ -86,7 +89,8 @@ class SmartStack : public MemoryStack<MemoryType>,
         CHECK_LE(size, this->Available());
 
         auto ptr = MemoryStack<MemoryType>::Allocate(size);
-        auto stack = this->shared_from_this();
+        auto stack = std::dynamic_pointer_cast<SmartStack<MemoryType>>(this->shared_from_this());
+        //auto stack = std::enable_shared_from_this<SmartStack<MemoryType>>::shared_from_this();
 
         // Special Descriptor derived from MemoryType that hold a reference to the MemoryStack,
         // and who's destructor does not try to free the MemoryType memory.
@@ -98,6 +102,11 @@ class SmartStack : public MemoryStack<MemoryType>,
 
         return std::move(ret);
     }
+
+  private:
+    const void* BytesProviderData() const final override { return this->Memory().Data(); }
+    mem_size_t BytesProviderSize() const final override { return this->Memory().Size(); }
+    const DLContext& BytesProviderDeviceInfo() const final override { return this->Memory().DeviceInfo(); }
 };
 
 } // namespace trtlab
