@@ -35,24 +35,23 @@ namespace trtlab {
 template<typename T>
 class BytesObject;
 
-struct BytesProvider : public virtual std::enable_shared_from_this<BytesProvider>
+template<typename T>
+struct BytesProvider : public virtual std::enable_shared_from_this<BytesProvider<T>>
 {
     virtual const void* BytesProviderData() const = 0;
     virtual mem_size_t BytesProviderSize() const = 0;
     virtual const DLContext& BytesProviderDeviceInfo() const = 0;
 
-    template<typename T>
     BytesObject<T> BytesObjectFromThis(void*, mem_size_t);
 
-    template<typename T>
-    friend class BytesObject;
+    friend class BytesObject<T>;
 };
 
 template<typename T>
 class BytesObject : protected BytesHandle<T>
 {
   public:
-    static BytesObject<T> Create(void*, mem_size_t, std::shared_ptr<BytesProvider>);
+    static BytesObject<T> Create(void*, mem_size_t, std::shared_ptr<BytesProvider<T>>);
     virtual ~BytesObject() override{};
 
     BytesObject(BytesObject&&) noexcept;
@@ -73,18 +72,18 @@ class BytesObject : protected BytesHandle<T>
     // With inline, the constructor segfaults using:
     // g++ (Ubuntu 5.4.0-6ubuntu1~16.04.11) 5.4.0 20160609
     // Reduces performance by 5ns from 38ns -> 43ns (dgx station 20-core broadwell)
-    __attribute__((noinline)) BytesObject(void*, mem_size_t, std::shared_ptr<BytesProvider>);
+    __attribute__((noinline)) BytesObject(void*, mem_size_t, std::shared_ptr<BytesProvider<T>>);
 
-    bool CheckBounds(void* ptr, mem_size_t, const BytesProvider&);
+    bool CheckBounds(void* ptr, mem_size_t, const BytesProvider<T>&);
 
   private:
-    std::shared_ptr<BytesProvider> m_BytesProvider;
+    std::shared_ptr<BytesProvider<T>> m_BytesProvider;
 
-    friend class BytesProvider;
+    friend class BytesProvider<T>;
 };
 
 template<typename T>
-BytesObject<T>::BytesObject(void* ptr, mem_size_t size, std::shared_ptr<BytesProvider> provider)
+BytesObject<T>::BytesObject(void* ptr, mem_size_t size, std::shared_ptr<BytesProvider<T>> provider)
     : BytesHandle<T>(ptr, size, provider->BytesProviderDeviceInfo()), m_BytesProvider(provider)
 {
     DCHECK(CheckBounds(ptr, size, *m_BytesProvider));
@@ -92,7 +91,7 @@ BytesObject<T>::BytesObject(void* ptr, mem_size_t size, std::shared_ptr<BytesPro
 
 template<typename T>
 BytesObject<T> BytesObject<T>::Create(void* ptr, mem_size_t size,
-                                      std::shared_ptr<BytesProvider> provider)
+                                      std::shared_ptr<BytesProvider<T>> provider)
 {
     // This is a public method, so we need to validate that the user provided
     // values for ptr and size and owned by the provider
@@ -101,7 +100,7 @@ BytesObject<T> BytesObject<T>::Create(void* ptr, mem_size_t size,
 }
 
 template<typename T>
-bool BytesObject<T>::CheckBounds(void* ptr, mem_size_t size, const BytesProvider& provider)
+bool BytesObject<T>::CheckBounds(void* ptr, mem_size_t size, const BytesProvider<T>& provider)
 {
     // Validate Starting Address
     uint64_t that = reinterpret_cast<uint64_t>(provider.BytesProviderData());
@@ -122,9 +121,9 @@ BytesObject<T>::BytesObject(BytesObject&& other) noexcept
 }
 
 template<typename T>
-BytesObject<T> BytesProvider::BytesObjectFromThis(void* ptr, mem_size_t size)
+BytesObject<T> BytesProvider<T>::BytesObjectFromThis(void* ptr, mem_size_t size)
 {
-    return std::move(BytesObject<T>(ptr, size, shared_from_this()));
+    return std::move(BytesObject<T>(ptr, size, this->shared_from_this()));
 }
 
 } // namespace trtlab

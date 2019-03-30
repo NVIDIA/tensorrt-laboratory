@@ -460,7 +460,7 @@ TEST_F(TestGeneric, BytesHandleLifecycle)
     ////ASSERT_TRUE(d1.IsPinned())
 }
 
-class TestProvider : public BytesProvider
+class TestProvider : public BytesProvider<StorageType::Host>
 {
   public:
     TestProvider() : m_Memory(one_mb) {}
@@ -471,7 +471,7 @@ class TestProvider : public BytesProvider
         CHECK(m_Memory[offset + size]);
         CHECK(m_Memory[offset]);
         //CHECK(shared_from_this());
-        return BytesObjectFromThis<Backend>(m_Memory[offset], size);
+        return BytesObjectFromThis(m_Memory[offset], size);
     }
 
   private:
