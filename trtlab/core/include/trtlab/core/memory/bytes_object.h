@@ -69,9 +69,9 @@ class BytesObject : protected BytesHandle<T>
     using BytesHandle<T>::DeviceInfo;
 
   protected:
-    // With inline, the constructor segfaults using:
+    // Inlining causes the constructor to segfault with:
     // g++ (Ubuntu 5.4.0-6ubuntu1~16.04.11) 5.4.0 20160609
-    // Reduces performance by 5ns from 38ns -> 43ns (dgx station 20-core broadwell)
+    // Reduces performance of BenchStack by 5ns from 38ns -> 43ns (dgx station 20-core broadwell)
     __attribute__((noinline)) BytesObject(void*, mem_size_t, std::shared_ptr<BytesProvider<T>>);
 
     bool CheckBounds(void* ptr, mem_size_t, const BytesProvider<T>&);
