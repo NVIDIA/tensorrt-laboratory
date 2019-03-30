@@ -1,8 +1,8 @@
 # TensorRT Laboratory
 
-The TensorRT Laboratory is a place where you can explore and build high-level inference 
+The TensorRT Laboratory is a place where you can explore and build high-level inference
 examples that extend the scope of the examples provided with each of the NVIDIA software
-products, i.e. CUDA, TensorRT, TensorRT Inference Server, and DeepStream.  We hope that 
+products, i.e. CUDA, TensorRT, TensorRT Inference Server, and DeepStream.  We hope that
 the examples and ideas found in the playground will resonate and possibly inspire.
 
 ## Quickstart
@@ -96,14 +96,14 @@ What do you want to do...
 
 ### Core Components
 
-There are 4 primary folder in the [tensorrt-laboratory](tensorrt-laboratory/) folder.  Each of these
+There are 4 primary folder in the [trtlab](trtlab/) folder.  Each of these
 components builds separately and build on each other.  Both CMake and Bazel builds are supported.
 
 Components:
   - core - general algorithms and templates, no device specific code
   - cuda - CUDA implemntations of `core` functionality specific for GPU
   - nvrpc - gRPC helper library to simplify building async services.  nvRPC is a core component of the
-    TensorRT Inference Server.  
+    TensorRT Inference Server.
   - tensorrt - high-level conviencence wrappers for TensorRT objects and functionality
 
 ### Core Concepts
@@ -114,7 +114,7 @@ Aligning host and device resources can greatly improve performance on dense GPU 
 
 #### Built-in productivity tools
 
-No one wants or needs to rewrite common components.  As the TensorRT playground is focused on computing inference either locally or remotely, we try to provided many of the underlying core components for executing short lived inference transactions.  List below are the core library components that can be used 
+No one wants or needs to rewrite common components.  As the TensorRT playground is focused on computing inference either locally or remotely, we try to provided many of the underlying core components for executing short lived inference transactions.  List below are the core library components that can be used
 
   - Use Smart CUDA / TensorRT Pointers
   - Affinity-aware ThreadPools
@@ -124,9 +124,9 @@ No one wants or needs to rewrite common components.  As the TensorRT playground 
 
 #### Explore advanced features of the TensorRT API
 
-Use Unified Memory for TensorRT weight allocations.  This allows the weights of TensorRT 
-engines to be paged in and out of host/GPU memory.  This example demonstrates how to 
-create a customer IGpuAllocator and use it with an IRuntime to deserialize models and 
+Use Unified Memory for TensorRT weight allocations.  This allows the weights of TensorRT
+engines to be paged in and out of host/GPU memory.  This example demonstrates how to
+create a customer IGpuAllocator and use it with an IRuntime to deserialize models and
 capture weights in unified memory.
 
 
@@ -169,7 +169,7 @@ Password: <paste-your-ngc-api-key-here>
 
 
 The above commands build a docker image, maps the current working directory inside the container,
-and finally, builds the library inside the container.  All dependencies are provided by the container, 
+and finally, builds the library inside the container.  All dependencies are provided by the container,
 but the actual source code remains on the host.  For deployment, copy or build the library as part
 of the container's filesystem.
 
@@ -219,28 +219,28 @@ The goal of this library is to minimize the boilerplate code need, while providi
 to building highly scalable compute bound microservices.
 
 >### Asynchronous API Threading model
->  * The asynchronous model is considerably difficult to work with but is the right tool of choice when finer control on the threading aspect of the rpc handling is desired. In this model, gRPC does not create any threads internally and instead __relies on the application to handle the threading architecture__. 
+>  * The asynchronous model is considerably difficult to work with but is the right tool of choice when finer control on the threading aspect of the rpc handling is desired. In this model, gRPC does not create any threads internally and instead __relies on the application to handle the threading architecture__.
 >  * The application tells gRPC that it is interested in handling an rpc and provides it a completion key(`void*`) for the event (a client making the aforementioned rpc request).
 >  * The application then calls `Next` (potentially a blocking call) on completion queue waiting for a completion key to become available. Once the key is available, the application code may react to the rpc associated with that key by executing the code that it chooses. The rpc may require more completion keys to be added to the completion queue before finishing if it is a streaming rpc, since each read or write on the stream has its own completion event.
 >  * **Pros**
 >    * Allows the application to bring in it’s own threading model.
 >    * No intrinsic scaling limitation. Provides best performance to the integrator who is willing to go the extra mile.
 >  * **Cons**
->    * The API needs considerable boilerplate/glue code to be implemented. 
+>    * The API needs considerable boilerplate/glue code to be implemented.
 
 ## Overview
 
 There are two fundamental classes of the YAIS library:
   * `Context`
     * Defines the logic of the RPC function
-    * Maintains the state of the transaction throughout the lifecycle of the RPC. 
+    * Maintains the state of the transaction throughout the lifecycle of the RPC.
   * `Resources`
     * Provides any resources, e.g. threadpools, memory, etc. needed by
       a Context to handle the business logic of the RPC.
 
 For a high-level overview see the [YAIS Slide Deck](https://docs.google.com/presentation/d/1n0g082jMJfq72dxbef9bThn4mQbzWKG6TzirJIuCEjE/edit?usp=sharing).
 
-For details on the integrated convenience classes, see the [Internals document](examples/10_Internals/README.md). 
+For details on the integrated convenience classes, see the [Internals document](examples/10_Internals/README.md).
 
 ## Examples
 
@@ -248,8 +248,8 @@ For details on the integrated convenience classes, see the [Internals document](
 
 Code: [TensorRT](examples/00_TensorRT)
 
-Example TensoRT pipline. This example uses fixed-size resources pools for input/output 
-tensors and execution contexts. Thread pools are used to provide maximum overlap for 
+Example TensoRT pipline. This example uses fixed-size resources pools for input/output
+tensors and execution contexts. Thread pools are used to provide maximum overlap for
 async sections. Concurrency is limited by the size of the resource pools.  If a resource
 pool is starved, only that part of the pipeline will stall.
 
@@ -269,7 +269,7 @@ Combines the ideas of the first two examples to implement the compute side of an
 service.  The code shows an example (`/* commented out */`) on how one might connect to an
 external data service (e.g. an image decode service) via System V shared memory.
 
-This example is based on our flowers demo, but simplified to skip the sysv ipc shared memory 
+This example is based on our flowers demo, but simplified to skip the sysv ipc shared memory
 input buffers.  Typically this demo is run using ResNet-152, in which case, the compute is
 sufficiently large not to warrant a discrete thread for performing the async H2D copy. Instead
 the entire inference pipeline is enqueued by workers from the CudaThreadPool.
@@ -278,14 +278,14 @@ the entire inference pipeline is enqueued by workers from the CudaThreadPool.
 
 Code: [Internals](examples/10_Internals)
 
-The `internals.cc` and [README](examples/10_Internals/README.md) provide a guide on the provided 
+The `internals.cc` and [README](examples/10_Internals/README.md) provide a guide on the provided
 convenience classes. practice.  The sample codes builds a NUMA aware set of buffers and threads.
 For implementation details, go directly to the [source code](yais).
 
 ### Kubernetes
 
 The [Kubernetes example](examples/90_Kubernetes) might be useful for those who are new to developing
-a Kubernetes application.  We start by developing and building in a docker container. Next, we 
+a Kubernetes application.  We start by developing and building in a docker container. Next, we
 link our development container as an external service to a minikube cluster to expose metrics.
 
 The remaining items are TODOs:

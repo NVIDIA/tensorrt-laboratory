@@ -143,17 +143,45 @@ class MemoryStack
 template<class MemoryType>
 void* MemoryStack<MemoryType>::Allocate(size_t size)
 {
-    DLOG(INFO) << "Allocate pushes MemoryStack<" << m_Memory->TypeName() << "> Pointer by : "
-               << size;
+    DLOG(INFO) << "Allocate pushes MemoryStack<" << m_Memory->TypeName()
+               << "> Pointer by : " << size;
 
+    // Compute Aligned Size
+    void* return_ptr = m_CurrentPointer;
+    size_t remainder = size % m_Alignment;
+    size = (remainder == 0) ? size : size + m_Alignment - remainder;
+
+    // This check causes a tight loop of allocates to be just as expensive
+    // as returning a DataHandle object.  Regardless of whether or not the
+    // string component is included.
+    // ------------------------------------------------------------------
+    // Benchmark w/o CHECK_LE             Time           CPU Iterations
+    // ------------------------------------------------------------------
+    // BM_MemoryStack_Allocate/1          11 ns         11 ns   62495166
+    // BM_MemoryStack_Allocate/2          13 ns         13 ns   55541273
+    // BM_MemoryStack_Allocate/4          14 ns         14 ns   49153400
+    // BM_MemoryStack_Allocate/8          17 ns         17 ns   40489140
+    // BM_MemoryStack_Allocate/16         24 ns         24 ns   29026866
+    // ------------------------------------------------------------------
+    // ------------------------------------------------------------------
+    // Benchmark w/ CHECK_LE               Time           CPU Iterations
+    // ------------------------------------------------------------------
+    // BM_MemoryStack_Allocate/1          15 ns         15 ns   46127782
+    // BM_MemoryStack_Allocate/2          28 ns         28 ns   24626879
+    // BM_MemoryStack_Allocate/4          55 ns         55 ns   12683665
+    // BM_MemoryStack_Allocate/8         110 ns        110 ns    6382288
+    // BM_MemoryStack_Allocate/16        218 ns        218 ns    3216917
+    // ------------------------------------------------------------------
+    // This is a necessary error check for a general purpose memory stack;
+    // We could alternatively provided an AllocateWithoutBoundsCheck if
+    // this were every to be used inside a tight loop and in a manner
+    // guaranteed not to overrun the stack.
+    // ------------------------------------------------------------------
     CHECK_LE(m_CurrentSize + size, m_Memory->Size())
         << "Allocation too large.  Memory Total: " << m_Memory->Size() / (1024 * 1024) << "MB. "
         << "Used: " << m_CurrentSize / (1024 * 1024) << "MB. "
         << "Requested: " << size / (1024 * 1024) << "MB.";
 
-    void* return_ptr = m_CurrentPointer;
-    size_t remainder = size % m_Alignment;
-    size = (remainder == 0) ? size : size + m_Alignment - remainder;
     m_CurrentPointer = static_cast<unsigned char*>(m_CurrentPointer) + size;
     m_CurrentSize += size;
     return return_ptr;

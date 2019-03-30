@@ -28,7 +28,7 @@
 
 #include <dlpack/dlpack.h>
 
-#include "trtlab/core/memory/allocator.h"
+#include "trtlab/core/memory/common.h"
 #include "trtlab/core/types.h"
 
 namespace trtlab {
@@ -57,7 +57,7 @@ class CoreMemory
     inline const void* Data() const { return m_Handle.data; }
 
     // bytes used by the current shape
-    mem_size_t Size() const { return m_Size; }
+    inline mem_size_t Size() const { return m_Size; }
 
     // total bytes allocated
     mem_size_t Capacity() const { return m_Capacity; }
@@ -78,6 +78,9 @@ class CoreMemory
 
     virtual bool IsHostMemory() const = 0;
     virtual bool IsPinnedMemory() const = 0;
+
+    template<typename T>
+    T* Cast() { return static_cast<T*>(m_Handle.data); }
 
     std::string Description() const;
 

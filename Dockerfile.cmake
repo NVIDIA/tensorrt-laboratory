@@ -50,19 +50,18 @@ RUN git clone -b v2.2.2 https://github.com/gflags/gflags.git \
         -DBUILD_SHARED_LIBS=ON \
         -DBUILD_STATIC_LIBS=ON \
         -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE \
-        -DBUILD_gflags_LIB=ON .. \ 
+        -DBUILD_gflags_LIB=OFF .. \ 
+        -DBUILD_gflags_nothreads_LIBS=ON \
  && make -j \
  && make install \
  && cd /tmp && rm -rf gflags
 
 # install glog
-RUN git clone -b v0.3.5 https://github.com/google/glog.git \
+RUN git clone -b v0.4.0 https://github.com/google/glog.git \
  && cd glog \
  && cmake -H. -Bbuild -G "Unix Makefiles" \
+        -DWITH_GFLAGS=ON \
         -DBUILD_SHARED_LIBS=OFF \
-        -DBUILD_STATIC_LIBS=ON \
-        -DBUILD_STATIC_LIBRARIES=ON \
-        -DBUILD_SHARED_LIBRARIES=ON \
         -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE \
  && cmake --build build \
  && cmake --build build --target install \

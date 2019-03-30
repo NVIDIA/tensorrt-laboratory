@@ -9,20 +9,20 @@ Tracking:
 https://github.com/NVIDIA/tensorrt-inference-server/issues/110
 
 The import paths are manually modifyed to correspond to the trtlab project.
-I don't understand why we cannot use import paths relative to the local 
+I don't understand why we cannot use import paths relative to the local
 directory.
 
 Similarly, it is really difficult to get CMake and Bazel to build protobufs
-in a consistent way between build platforms.  
+in a consistent way between build platforms.
 
-I created two new marcros for this purpose.  
+I created two new marcros for this purpose.
 
 - `PROTOBUF_GENERATE_CPP_LIKE_BAZEL`
 - `GRPC_GENERATE_CPP_LIKE_BAZEL`
 
 These new macros generate the compiled proto into source files located
 in the full path from the project root/workspace.  This makes its so the
-.h files will appear in a `tensorrt-laboratory/trtis/protos` directory, which
+.h files will appear in a `trtlab/trtis/protos` directory, which
 actually provides a better and more descriptive #include.
 
 ```
@@ -32,5 +32,5 @@ actually provides a better and more descriptive #include.
 becomes
 
 ```
-#include "tensorrt-laboratory/trtis/protos/model_config.pb.h"
+#include "trtlab/trtis/protos/model_config.pb.h"
 ```

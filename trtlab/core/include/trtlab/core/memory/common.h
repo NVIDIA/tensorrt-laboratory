@@ -25,32 +25,27 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
-#include <string>
+#include <cstddef>
+#include <cstdint>
 
-#include "trtlab/core/memory/descriptor.h"
-#include "trtlab/core/memory/memory.h"
-#include "trtlab/core/utils.h"
+#include <dlpack/dlpack.h>
 
+typedef int64_t mem_size_t;
+
+// clang-format off
 namespace trtlab {
+namespace StorageType {
+struct Host {};
+} // namespace StorageType
+// clang-format on
 
-namespace nextgen {
-class HostDescriptor;
-}
-
-class HostMemory : public BaseMemory<HostMemory>
+struct IBytesHandle
 {
-  public:
-    using BaseMemory<HostMemory>::BaseMemory;
-    using StorageClass = StorageType::Host;
-    static size_t DefaultAlignment();
-
-    bool IsHostMemory() const final override { return true; }
-    bool IsPinnedMemory() const override { return false; }
-
-    const char* TypeName() const override { return "HostMemory"; }
-
-  protected:
-    static DLContext DeviceContext();
+    virtual void* Data() = 0;
+    virtual const void* Data() const = 0;
+    virtual mem_size_t Size() const = 0;
+    virtual const DLContext& DeviceInfo() const = 0;
+    virtual ~IBytesHandle() {}
 };
 
 } // namespace trtlab

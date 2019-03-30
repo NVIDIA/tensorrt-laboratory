@@ -2,6 +2,21 @@ find_package(glog 0.3.5 REQUIRED)
 find_package(dlpack REQUIRED)
 find_library(TCMALLOC_LIB NAMES libtcmalloc_minimal.a tcmalloc_minimal)
 
+# when linking against static glog one also needs to link against gflags
+# which version of gflags is depended on build type
+find_package(gflags REQUIRED)
+if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
+  find_package(gflags COMPONENTS nothreads_shared)
+  set(trtlab_gflags "gflags_nothreads_shared")
+  message(STATUS "gflags: ${trtlab_gflags}")
+  message(STATUS "build_type: ${CMAKE_BUILD_TYPE}")
+else()
+  find_package(gflags COMPONENTS nothreads_static)
+  set(trtlab_gflags "gflags_nothreads_static")
+  message(STATUS "gflags: ${trtlab_gflags}")
+  message(STATUS "build_type: ${CMAKE_BUILD_TYPE}")
+endif()
+
 add_library(core
   src/types.cc
   src/affinity.cc
@@ -21,6 +36,7 @@ target_link_libraries(core
     Threads::Threads
     $<$<AND:$<BOOL:UNIX>,$<NOT:$<BOOL:APPLE>>>:rt>
     glog
+    ${trtlab_gflags}
 )
 
 target_include_directories(core

@@ -36,11 +36,13 @@ static void BM_ThreadPool_Enqueue(benchmark::State& state)
 
     for(auto _ : state)
     {
+        CHECK(pool);
+        // enqueue only
         auto future = pool->enqueue([] {});
-        future.get();
+        //future.get();
     }
 }
-BENCHMARK(BM_ThreadPool_Enqueue);
+BENCHMARK(BM_ThreadPool_Enqueue)->UseRealTime();
 
 static void BM_HybridThreadPool_Enqueue(benchmark::State& state)
 {
@@ -50,7 +52,6 @@ static void BM_HybridThreadPool_Enqueue(benchmark::State& state)
     for(auto _ : state)
     {
         auto future = pool->enqueue([] {});
-        future.get();
     }
 }
-BENCHMARK(BM_HybridThreadPool_Enqueue);
+BENCHMARK(BM_HybridThreadPool_Enqueue)->UseRealTime();

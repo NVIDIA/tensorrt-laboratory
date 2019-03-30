@@ -25,12 +25,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
-#include <cstddef>
-#include <cstdint>
+
+#include "trtlab/core/memory/common.h"
 
 namespace trtlab {
-
-typedef int64_t mem_size_t;
 
 template<class MemoryType>
 class Allocator final : public MemoryType

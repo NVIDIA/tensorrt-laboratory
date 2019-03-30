@@ -28,7 +28,6 @@ find_package(gflags REQUIRED)
 
 if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
   find_package(gflags COMPONENTS nothreads_shared)
-  set(trtlab_gflags "/usr/local/lib/libgflags_nothreads_debug.so")
   set(trtlab_gflags "gflags_nothreads_shared")
   message(STATUS "gflags: ${trtlab_gflags}")
   message(STATUS "build_type: ${CMAKE_BUILD_TYPE}")

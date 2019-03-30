@@ -25,6 +25,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "trtlab/core/memory/allocator.h"
+#include "trtlab/core/memory/bytes_handle.h"
+#include "trtlab/core/memory/bytes_object.h"
 #include "trtlab/core/memory/copy.h"
 #include "trtlab/core/memory/malloc.h"
 #include "trtlab/core/memory/system_v.h"
@@ -249,7 +251,6 @@ TYPED_TEST(TestMemory, alignment)
     */
 }
 
-
 // This tests an object very similar to the pybind11
 // DLPack Descriptor
 template<typename MemoryType>
@@ -257,8 +258,9 @@ class DescFromSharedPointer : public Descriptor<MemoryType>
 {
   public:
     DescFromSharedPointer(std::shared_ptr<MemoryType> shared)
-        : Descriptor<MemoryType>(shared, std::string(
-            "SharedPointer<" + std::string(shared->TypeName()) + ">").c_str()),
+        : Descriptor<MemoryType>(
+              shared,
+              std::string("SharedPointer<" + std::string(shared->TypeName()) + ">").c_str()),
           m_ManagedMemory(shared)
     {
     }
@@ -421,6 +423,127 @@ TEST_F(TestGeneric, AllocatedPolymorphism)
 
     memory.push_back(std::move(malloc));
     memory.push_back(std::move(sysv));
+}
+
+TEST_F(TestGeneric, BytesHandleLifecycle)
+{
+    auto d1 = detail::HostBytesHandle((void*)0xDEADBEEF, 1024);
+    // auto p1 = detail::BytesHandleFactory::HostPinned((void*)0xFACEBEEF, 2048);
+    // auto g1 = detail::BytesHandleFactory::Device((void*)0xFACEB000, 1024*1024);
+
+    auto d2 = d1;
+    ASSERT_EQ(d2.Data(), d1.Data());
+    ASSERT_EQ(d2.Size(), d1.Size());
+
+    auto d3 = std::move(d2);
+    ASSERT_EQ(d3.Data(), d1.Data());
+    ASSERT_EQ(d3.Size(), d1.Size());
+    ASSERT_EQ(d2.Data(), nullptr);
+    ASSERT_EQ(d2.Size(), 0);
+
+    detail::HostBytesHandle d4(std::move(d3));
+    ASSERT_EQ(d4.Data(), d1.Data());
+    ASSERT_EQ(d4.Size(), d1.Size());
+    ASSERT_EQ(d3.Data(), nullptr);
+    ASSERT_EQ(d3.Size(), 0);
+
+    detail::HostBytesHandle d5(d4);
+    ASSERT_EQ(d4.Data(), d1.Data());
+    ASSERT_EQ(d4.Size(), d1.Size());
+    ASSERT_EQ(d5.Data(), d1.Data());
+    ASSERT_EQ(d5.Size(), d1.Size());
+
+    BytesHandle<StorageType::Host> a(d5);
+    // cpu and pinned can be
+    // ASSERT_FALSE(d1.IsPinned())
+    // d1 = p1;
+    ////ASSERT_TRUE(d1.IsPinned())
+}
+
+class TestProvider : public BytesProvider
+{
+  public:
+    TestProvider() : m_Memory(one_mb) {}
+    using Backend = typename Malloc::BaseType::StorageClass;
+
+    BytesObject<Backend> Allocate(size_t offset, size_t size)
+    {
+        CHECK(m_Memory[offset + size]);
+        CHECK(m_Memory[offset]);
+        //CHECK(shared_from_this());
+        return BytesObjectFromThis<Backend>(m_Memory[offset], size);
+    }
+
+  private:
+    const void* BytesProviderData() const final override { return m_Memory.Data(); }
+    mem_size_t BytesProviderSize() const final override { return m_Memory.Size(); }
+    const DLContext& BytesProviderDeviceInfo() const final override { m_Memory.DeviceInfo(); }
+
+    Allocator<Malloc> m_Memory;
+};
+
+TEST_F(TestGeneric, BytesObjectCapture)
+{
+    auto provider = std::make_shared<TestProvider>();
+    CHECK(provider);
+    std::weak_ptr<TestProvider> weak = provider;
+
+    {
+        auto bytes = std::move(provider->Allocate(0, one_mb));
+        ASSERT_EQ(bytes.Size(), one_mb);
+
+        provider.reset();
+        ASSERT_FALSE(weak.expired());
+    }
+    ASSERT_TRUE(weak.expired());
+}
+
+TEST_F(TestGeneric, BytesObjectCopyMoveAssignment)
+{
+    auto provider = std::make_shared<TestProvider>();
+    CHECK(provider);
+    std::weak_ptr<TestProvider> weak = provider;
+    ASSERT_EQ(provider.use_count(), 1);
+    const auto half_mb = one_mb/2;
+
+    {
+        auto b1 = std::move(provider->Allocate(0, one_mb));
+        ASSERT_EQ(b1.Size(), one_mb);
+        ASSERT_EQ(weak.use_count(), 2);
+
+        auto b2 = b1;
+        ASSERT_EQ(weak.use_count(), 3);
+
+        BytesHandle<StorageType::Host> h1 = b2.Handle();
+        ASSERT_EQ(weak.use_count(), 3);
+        ASSERT_EQ(h1.Data(), b1.Data());
+        ASSERT_EQ(h1.Size(), one_mb);
+
+        // this is a compiler error because we inherit
+        // BytesHandle as protected
+        // BytesHandle<StorageType::Host> h2 = std::move(b2);
+
+        auto b3 = std::move(b2);
+        ASSERT_EQ(weak.use_count(), 3);
+        ASSERT_EQ(b3.Data(), b1.Data());
+        ASSERT_EQ(b2.Data(), nullptr);
+
+        // failes to compile - good!
+        // BytesHandle<StorageType::Host> h2(b3);
+        // BytesHandle<StorageType::Host> h2(std::move(b3);
+
+        BytesObject<StorageType::Host> b4(std::move(b3));
+        ASSERT_EQ(weak.use_count(), 3);
+        ASSERT_EQ(b4.Data(), b1.Data());
+        ASSERT_EQ(b3.Data(), nullptr);
+
+        BytesObject<StorageType::Host> b5(b4);
+        ASSERT_EQ(weak.use_count(), 4);
+        ASSERT_EQ(b4.Data(), b1.Data());
+        ASSERT_EQ(b5.Data(), b1.Data());
+
+    }
+    ASSERT_EQ(weak.use_count(), 1);
 }
 
 /*
