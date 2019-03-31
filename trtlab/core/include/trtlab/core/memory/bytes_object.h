@@ -25,8 +25,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
-#include <glog/logging.h>
 #include <memory>
+
+#include <glog/logging.h>
 
 #include "trtlab/core/memory/bytes_handle.h"
 

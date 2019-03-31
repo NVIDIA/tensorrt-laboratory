@@ -425,41 +425,6 @@ TEST_F(TestGeneric, AllocatedPolymorphism)
     memory.push_back(std::move(sysv));
 }
 
-TEST_F(TestGeneric, BytesHandleLifecycle)
-{
-    auto d1 = detail::HostBytesHandle((void*)0xDEADBEEF, 1024);
-    // auto p1 = detail::BytesHandleFactory::HostPinned((void*)0xFACEBEEF, 2048);
-    // auto g1 = detail::BytesHandleFactory::Device((void*)0xFACEB000, 1024*1024);
-
-    auto d2 = d1;
-    ASSERT_EQ(d2.Data(), d1.Data());
-    ASSERT_EQ(d2.Size(), d1.Size());
-
-    auto d3 = std::move(d2);
-    ASSERT_EQ(d3.Data(), d1.Data());
-    ASSERT_EQ(d3.Size(), d1.Size());
-    ASSERT_EQ(d2.Data(), nullptr);
-    ASSERT_EQ(d2.Size(), 0);
-
-    detail::HostBytesHandle d4(std::move(d3));
-    ASSERT_EQ(d4.Data(), d1.Data());
-    ASSERT_EQ(d4.Size(), d1.Size());
-    ASSERT_EQ(d3.Data(), nullptr);
-    ASSERT_EQ(d3.Size(), 0);
-
-    detail::HostBytesHandle d5(d4);
-    ASSERT_EQ(d4.Data(), d1.Data());
-    ASSERT_EQ(d4.Size(), d1.Size());
-    ASSERT_EQ(d5.Data(), d1.Data());
-    ASSERT_EQ(d5.Size(), d1.Size());
-
-    BytesHandle<StorageType::Host> a(d5);
-    // cpu and pinned can be
-    // ASSERT_FALSE(d1.IsPinned())
-    // d1 = p1;
-    ////ASSERT_TRUE(d1.IsPinned())
-}
-
 class TestProvider : public BytesProvider<StorageType::Host>
 {
   public:
@@ -481,6 +446,50 @@ class TestProvider : public BytesProvider<StorageType::Host>
 
     Allocator<Malloc> m_Memory;
 };
+
+TEST_F(TestGeneric, TypeSizes)
+{
+    ASSERT_EQ(sizeof(void), 1);
+    ASSERT_EQ(sizeof(void*), 8);
+}
+
+TEST_F(TestGeneric, BytesHandleLifecycle)
+{
+    auto provider = std::make_shared<TestProvider>();
+    auto obj = provider->Allocate(one_kb, one_kb);
+    auto d1 = obj.Handle();
+    // auto p1 = detail::BytesHandleFactory::HostPinned((void*)0xFACEBEEF, 2048);
+    // auto g1 = detail::BytesHandleFactory::Device((void*)0xFACEB000, 1024*1024);
+
+    auto d2 = d1;
+    ASSERT_EQ(d2.Data(), d1.Data());
+    ASSERT_EQ(d2.Size(), d1.Size());
+
+    auto d3 = std::move(d2);
+    ASSERT_EQ(d3.Data(), d1.Data());
+    ASSERT_EQ(d3.Size(), d1.Size());
+    ASSERT_EQ(d2.Data(), nullptr);
+    ASSERT_EQ(d2.Size(), 0);
+
+    BytesHandle<StorageType::Host> d4(std::move(d3));
+    ASSERT_EQ(d4.Data(), d1.Data());
+    ASSERT_EQ(d4.Size(), d1.Size());
+    ASSERT_EQ(d3.Data(), nullptr);
+    ASSERT_EQ(d3.Size(), 0);
+
+    BytesHandle<StorageType::Host> d5(d4);
+    ASSERT_EQ(d4.Data(), d1.Data());
+    ASSERT_EQ(d4.Size(), d1.Size());
+    ASSERT_EQ(d5.Data(), d1.Data());
+    ASSERT_EQ(d5.Size(), d1.Size());
+
+    //BytesHandle<StorageType::Host> a(d5);
+    // cpu and pinned can be
+    // ASSERT_FALSE(d1.IsPinned())
+    // d1 = p1;
+    ////ASSERT_TRUE(d1.IsPinned())
+}
+
 
 TEST_F(TestGeneric, BytesObjectCapture)
 {
