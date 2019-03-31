@@ -59,11 +59,15 @@ struct StackWithInternalDescriptor : public BytesProvider<typename MemoryType::B
         ~InternalHandle() final override {}
     };
 
-    struct InternalObject final : public BytesObject<Backend>
+    BytesHandle<Backend> AllocateBytesHandle(size_t size)
     {
-            InternalObject(void*ptr, mem_size_t size, std::shared_ptr<BytesProvider<Backend>> provider)
-            : BytesObject<Backend>(ptr, size, provider) {}
-    };
+        return InternalHandle(m_Stack->Allocate(size), size, m_Stack->Memory());
+    }
+
+    BytesObject<Backend> AllocateBytesObject(size_t size)
+    {
+        return this->BytesObjectFromThis(m_Stack->Allocate(size), size);
+    }
 
     typename MemoryType::BaseType&& AllocateInternalDesc(size_t size)
     {
@@ -74,19 +78,6 @@ struct StackWithInternalDescriptor : public BytesProvider<typename MemoryType::B
     {
         return std::move(
             std::make_unique<InternalDescriptor>(m_Stack->Allocate(size), size, m_Stack->Memory()));
-    }
-
-
-    BytesHandle<Backend> AllocateBytesHandle(size_t size)
-    {
-        return InternalHandle(m_Stack->Allocate(size), size, m_Stack->Memory());
-    }
-
-    BytesObject<Backend> AllocateBytesObject(size_t size)
-    {
-        //return InternalObject(m_Stack->Allocate(size), size, shared_from_this());
-        //return BytesObject<Backend>::Create(m_Stack->Allocate(size), size, shared_from_this());
-        return this->BytesObjectFromThis(m_Stack->Allocate(size), size);
     }
 
     void Reset() { m_Stack->Reset(); }
