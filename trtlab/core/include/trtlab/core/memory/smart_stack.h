@@ -90,7 +90,6 @@ class SmartStack : public MemoryStack<MemoryType>,
 
         auto ptr = MemoryStack<MemoryType>::Allocate(size);
         auto stack = std::dynamic_pointer_cast<SmartStack<MemoryType>>(this->shared_from_this());
-        //auto stack = std::enable_shared_from_this<SmartStack<MemoryType>>::shared_from_this();
 
         // Special Descriptor derived from MemoryType that hold a reference to the MemoryStack,
         // and who's destructor does not try to free the MemoryType memory.
@@ -101,6 +100,17 @@ class SmartStack : public MemoryStack<MemoryType>,
                    << " on SmartStack " << stack.get();
 
         return std::move(ret);
+    }
+
+    BytesObject<typename MemoryType::StorageClass> AllocateBytesObject(size_t size)
+    {
+        CHECK_LE(size, this->Available());
+        auto ptr = MemoryStack<MemoryType>::Allocate(size);
+
+        DLOG(INFO) << "Allocated " << size << " starting at " << ptr
+                   << " on SmartStack " << this;
+
+        return BytesObjectFromThis(ptr, size);
     }
 
   private:

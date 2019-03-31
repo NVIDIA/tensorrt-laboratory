@@ -30,6 +30,7 @@
 #include "trtlab/core/types.h"
 
 using namespace trtlab;
+using namespace trtlab::types;
 
 class TestTypes : public ::testing::Test
 {
@@ -97,4 +98,10 @@ TEST_F(TestTypes, Equivalence)
     types::dtype test(dlpack);
     LOG(INFO) << test;
     EXPECT_EQ(test, types::uint8);
+}
+
+TEST_F(TestTypes, TypeVsObject)
+{
+    ASSERT_EQ(dtype(Type<void>::DataTypeInfo()), bytes);
+    ASSERT_EQ(dtype::from<void>(), bytes);
 }

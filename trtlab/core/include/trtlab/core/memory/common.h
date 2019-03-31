@@ -36,6 +36,7 @@ typedef int64_t mem_size_t;
 namespace trtlab {
 namespace StorageType {
 struct Host {};
+struct HostPinned :public Host {};
 } // namespace StorageType
 // clang-format on
 

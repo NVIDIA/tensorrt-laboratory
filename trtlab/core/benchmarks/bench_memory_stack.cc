@@ -38,7 +38,7 @@ using namespace trtlab;
 using namespace trtlab;
 
 template<typename MemoryType>
-struct StackWithInternalDescriptor : public BytesProvider
+struct StackWithInternalDescriptor : public BytesProvider<typename MemoryType::BaseType::StorageClass>
 {
     using Backend = typename MemoryType::BaseType::StorageClass;
     StackWithInternalDescriptor(size_t size) : m_Stack(std::make_shared<MemoryStack<MemoryType>>(size)) {}
@@ -61,20 +61,21 @@ struct StackWithInternalDescriptor : public BytesProvider
 
     struct InternalObject final : public BytesObject<Backend>
     {
-            InternalObject(void*ptr, mem_size_t size, std::shared_ptr<BytesProvider> provider)
+            InternalObject(void*ptr, mem_size_t size, std::shared_ptr<BytesProvider<Backend>> provider)
             : BytesObject<Backend>(ptr, size, provider) {}
     };
 
-    DescriptorHandle<typename MemoryType::BaseType> Allocate(size_t size)
+    typename MemoryType::BaseType&& AllocateInternalDesc(size_t size)
+    {
+        return std::move(InternalDescriptor(m_Stack->Allocate(size), size, m_Stack->Memory()));
+    }
+
+    DescriptorHandle<typename MemoryType::BaseType> AllocateUniqueInternalDesc(size_t size)
     {
         return std::move(
             std::make_unique<InternalDescriptor>(m_Stack->Allocate(size), size, m_Stack->Memory()));
     }
 
-    typename MemoryType::BaseType&& Allocate2(size_t size)
-    {
-        return std::move(InternalDescriptor(m_Stack->Allocate(size), size, m_Stack->Memory()));
-    }
 
     BytesHandle<Backend> AllocateBytesHandle(size_t size)
     {
@@ -85,7 +86,7 @@ struct StackWithInternalDescriptor : public BytesProvider
     {
         //return InternalObject(m_Stack->Allocate(size), size, shared_from_this());
         //return BytesObject<Backend>::Create(m_Stack->Allocate(size), size, shared_from_this());
-        return BytesObjectFromThis<Backend>(m_Stack->Allocate(size), size);
+        return this->BytesObjectFromThis(m_Stack->Allocate(size), size);
     }
 
     void Reset() { m_Stack->Reset(); }
@@ -137,25 +138,25 @@ static void BM_MemoryStackWithDescriptor_AllocateBytesObject(benchmark::State& s
     }
 }
 
-static void BM_MemoryStackWithDescriptor_Allocate(benchmark::State& state)
+static void BM_MemoryStackWithDescriptor_AllocateInternalDesc(benchmark::State& state)
 {
     auto stack = std::make_shared<StackWithInternalDescriptor<Malloc>>(1024 * 1024);
     for(auto _ : state)
     {
         for(int i = 0; i < state.range(0); i++)
         {
-            auto ptr = stack->Allocate(1024);
+            auto ptr = stack->AllocateInternalDesc(1024);
         }
         stack->Reset();
     }
 }
 
-static void BM_MemoryStackWithDescriptor_Allocate2(benchmark::State& state)
+static void BM_MemoryStackWithDescriptor_AllocateUniqueInternalDesc(benchmark::State& state)
 {
     auto stack = std::make_shared<StackWithInternalDescriptor<Malloc>>(1024 * 1024);
     for(auto _ : state)
     {
-        auto ptr = stack->Allocate2(1024);
+        auto ptr = stack->AllocateUniqueInternalDesc(1024);
         stack->Reset();
     }
 }
@@ -194,11 +195,11 @@ static void BM_CyclicAllocator_SystemV_Allocate(benchmark::State& state)
     }
 }
 
-BENCHMARK(BM_MemoryStack_Allocate)->RangeMultiplier(2)->Range(1, 8 << 1);
-BENCHMARK(BM_MemoryStackWithDescriptor_Allocate)->RangeMultiplier(2)->Range(1, 8 << 1);
-BENCHMARK(BM_MemoryStackWithDescriptor_AllocateBytesHandle)->RangeMultiplier(2)->Range(1, 8 << 1);
-BENCHMARK(BM_MemoryStackWithDescriptor_AllocateBytesObject)->RangeMultiplier(2)->Range(1, 8 << 1);
-BENCHMARK(BM_MemoryStackWithDescriptor_Allocate2);
+BENCHMARK(BM_MemoryStack_Allocate)->RangeMultiplier(2)->Range(1, 1 << 0);
+BENCHMARK(BM_MemoryStackWithDescriptor_AllocateBytesHandle)->RangeMultiplier(16)->Range(1, 1 << 0);
+BENCHMARK(BM_MemoryStackWithDescriptor_AllocateBytesObject)->RangeMultiplier(16)->Range(1, 1 << 0);
+BENCHMARK(BM_MemoryStackWithDescriptor_AllocateInternalDesc)->RangeMultiplier(16)->Range(1, 1 << 0);
+BENCHMARK(BM_MemoryStackWithDescriptor_AllocateUniqueInternalDesc);
 BENCHMARK(BM_SmartStack_Allocate)->RangeMultiplier(2)->Range(1, 8 << 4);
 BENCHMARK(BM_CyclicAllocator_Malloc_Allocate)->RangeMultiplier(2)->Range(1, 8 << 4);
 BENCHMARK(BM_CyclicAllocator_SystemV_Allocate);

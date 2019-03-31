@@ -425,18 +425,19 @@ TEST_F(TestGeneric, AllocatedPolymorphism)
     memory.push_back(std::move(sysv));
 }
 
-class TestProvider : public BytesProvider<StorageType::Host>
+template<typename T>
+class TestProvider : public BytesProvider<T>
 {
   public:
     TestProvider() : m_Memory(one_mb) {}
-    using Backend = typename Malloc::BaseType::StorageClass;
+    using Backend = T;
 
-    BytesObject<Backend> Allocate(size_t offset, size_t size)
+    BytesObject<T> Allocate(size_t offset, size_t size)
     {
         CHECK(m_Memory[offset + size]);
         CHECK(m_Memory[offset]);
-        //CHECK(shared_from_this());
-        return BytesObjectFromThis(m_Memory[offset], size);
+        // CHECK(shared_from_this());
+        return this->BytesObjectFromThis(m_Memory[offset], size);
     }
 
   private:
@@ -447,15 +448,9 @@ class TestProvider : public BytesProvider<StorageType::Host>
     Allocator<Malloc> m_Memory;
 };
 
-TEST_F(TestGeneric, TypeSizes)
-{
-    ASSERT_EQ(sizeof(void), 1);
-    ASSERT_EQ(sizeof(void*), 8);
-}
-
 TEST_F(TestGeneric, BytesHandleLifecycle)
 {
-    auto provider = std::make_shared<TestProvider>();
+    auto provider = std::make_shared<TestProvider<StorageType::Host>>();
     auto obj = provider->Allocate(one_kb, one_kb);
     auto d1 = obj.Handle();
     // auto p1 = detail::BytesHandleFactory::HostPinned((void*)0xFACEBEEF, 2048);
@@ -483,19 +478,53 @@ TEST_F(TestGeneric, BytesHandleLifecycle)
     ASSERT_EQ(d5.Data(), d1.Data());
     ASSERT_EQ(d5.Size(), d1.Size());
 
-    //BytesHandle<StorageType::Host> a(d5);
+    ASSERT_EQ(d5.Size(), d5.Bytes());
+
+    // BytesHandle<StorageType::Host> a(d5);
     // cpu and pinned can be
     // ASSERT_FALSE(d1.IsPinned())
     // d1 = p1;
     ////ASSERT_TRUE(d1.IsPinned())
 }
 
+TEST_F(TestGeneric, RandomStuff)
+{
+        int i[4]{0, 1, 42, -2};
+        int j[4];
+
+        std::copy(i, &i[4], j);
+
+        ASSERT_EQ(j[0], 0);
+        ASSERT_EQ(j[1], 1);
+        ASSERT_EQ(j[2], 42);
+        ASSERT_EQ(j[3], -2);
+
+        EXPECT_EQ(i[0], 0);
+        EXPECT_EQ(i[1], 1);
+        EXPECT_EQ(i[2], 42);
+        EXPECT_EQ(i[3], -2);
+
+        EXPECT_NE(i, j);
+}
+
+TEST_F(TestGeneric, BytesHandleStorageType)
+{
+    auto host = std::make_shared<TestProvider<StorageType::Host>>();
+    auto pinned = std::make_shared<TestProvider<StorageType::HostPinned>>();
+    auto host_obj = host->Allocate(one_kb, one_kb);
+    auto pinned_obj = pinned->Allocate(one_kb, one_kb);
+
+    auto h1 = host_obj.Handle();
+    auto p1 = pinned_obj.Handle();
+
+    // h1 = p1;
+}
 
 TEST_F(TestGeneric, BytesObjectCapture)
 {
-    auto provider = std::make_shared<TestProvider>();
+    auto provider = std::make_shared<TestProvider<StorageType::Host>>();
     CHECK(provider);
-    std::weak_ptr<TestProvider> weak = provider;
+    std::weak_ptr<TestProvider<StorageType::Host>> weak = provider;
 
     {
         auto bytes = std::move(provider->Allocate(0, one_mb));
@@ -509,11 +538,11 @@ TEST_F(TestGeneric, BytesObjectCapture)
 
 TEST_F(TestGeneric, BytesObjectCopyMoveAssignment)
 {
-    auto provider = std::make_shared<TestProvider>();
+    auto provider = std::make_shared<TestProvider<StorageType::Host>>();
     CHECK(provider);
-    std::weak_ptr<TestProvider> weak = provider;
+    std::weak_ptr<TestProvider<StorageType::Host>> weak = provider;
     ASSERT_EQ(provider.use_count(), 1);
-    const auto half_mb = one_mb/2;
+    const auto half_mb = one_mb / 2;
 
     {
         auto b1 = std::move(provider->Allocate(0, one_mb));
@@ -550,7 +579,6 @@ TEST_F(TestGeneric, BytesObjectCopyMoveAssignment)
         ASSERT_EQ(weak.use_count(), 4);
         ASSERT_EQ(b4.Data(), b1.Data());
         ASSERT_EQ(b5.Data(), b1.Data());
-
     }
     ASSERT_EQ(weak.use_count(), 1);
 }

@@ -38,10 +38,61 @@
 namespace trtlab {
 namespace types {
 
+template<typename T>
+struct Type final
+{
+    using NativeType = T;
+    static uint64_t ItemSize();
+    static DLDataType DataTypeInfo();
+
+    Type() = default;
+};
+
+template<typename T>
+DLDataType Type<T>::DataTypeInfo()
+{
+    DLDataType dtype;
+    // clang-format off
+    if(std::is_floating_point<T>::value) { dtype.code = kDLFloat; }
+    else if(std::is_integral<T>::value)
+    {
+        dtype.code = kDLUInt;
+        if(std::is_signed<unsigned int>::value) { dtype.code = kDLInt; }
+    }
+    else { throw std::runtime_error("Only integer or floating point types accepted"); }
+    // clang-format on
+
+    dtype.bits = 8 * ItemSize();
+    dtype.lanes = 1;
+
+    return dtype;
+}
+
+template<typename T>
+uint64_t Type<T>::ItemSize()
+{
+    return sizeof(T);
+}
+
+template<>
+inline DLDataType Type<void>::DataTypeInfo()
+{
+    return Type<uint8_t>::DataTypeInfo();
+}
+
+template<>
+inline uint64_t Type<void>::ItemSize()
+{
+    return 1;
+}
+
 struct dtype
 {
     dtype(const DLDataType&);
     dtype(uint8_t code, uint8_t bits, uint16_t lanes);
+
+    template<typename T>
+    static dtype from() { return dtype(Type<T>::DataTypeInfo()); }
 
     dtype(dtype&&) noexcept;
     dtype& operator=(dtype&&) noexcept;
@@ -66,6 +117,8 @@ struct dtype
 
     friend std::ostream& operator<<(std::ostream& os, const dtype& dt);
 };
+
+
 
 static const auto nil = dtype(kDLInt, 0U, 0U);
 static const auto bytes = dtype(kDLUInt, 8U, 1U);

@@ -28,15 +28,12 @@
 #include <utility>
 
 #include "trtlab/core/memory/common.h"
+#include "trtlab/core/memory/array.h"
 
 namespace trtlab {
 
-namespace detail {
-class UnsafeBytesHandleFactory;
-}
-
-template<typename T>
-class BytesHandle : private IBytesHandle
+template<typename Backend>
+class BytesHandle : public ArrayBase<types::Type<void>>
 {
   public:
     virtual ~BytesHandle() override {}
@@ -47,63 +44,47 @@ class BytesHandle : private IBytesHandle
     BytesHandle(const BytesHandle&) = default;
     BytesHandle& operator=(const BytesHandle&) = default;
 
-    void* Data() final override { return m_Data; };
-    const void* Data() const final override { return m_Data; }
-    mem_size_t Size() const final override { return m_Size; };
-    const DLContext& DeviceInfo() const final override { return m_DeviceContext; }
+    const DLContext& DeviceInfo() const { return m_DeviceContext; }
 
   protected:
     BytesHandle(void*, mem_size_t, DLDeviceType, int);
     BytesHandle(void*, mem_size_t, DLContext);
 
   private:
-    void* m_Data;
-    mem_size_t m_Size;
     DLContext m_DeviceContext;
-
-    friend class UnsafeBytesHandleFactory;
 };
 
-template<typename T>
-BytesHandle<T>::BytesHandle(void* ptr, mem_size_t size, DLDeviceType d, int id)
-    : m_Data(ptr), m_Size(size), m_DeviceContext{d, id}
+template<typename Backend>
+BytesHandle<Backend>::BytesHandle(void* ptr, mem_size_t size, DLDeviceType d, int id)
+    : ArrayBase<types::Type<void>>(ptr, size), m_DeviceContext{d, id}
 {
 }
 
-template<typename T>
-BytesHandle<T>::BytesHandle(void* ptr, mem_size_t size, DLContext ctx)
-    : m_Data(ptr), m_Size(size), m_DeviceContext{ctx}
+template<typename Backend>
+BytesHandle<Backend>::BytesHandle(void* ptr, mem_size_t size, DLContext ctx)
+    : ArrayBase<types::Type<void>>(ptr, size), m_DeviceContext{ctx}
 {
 }
 
-template<typename T>
-BytesHandle<T>::BytesHandle(BytesHandle&& other) noexcept
-    : m_Data{std::exchange(other.m_Data, nullptr)}, m_Size{std::exchange(other.m_Size, 0)},
+template<typename Backend>
+BytesHandle<Backend>::BytesHandle(BytesHandle&& other) noexcept
+    : ArrayBase<types::Type<void>>(std::move(other)),
       m_DeviceContext(other.m_DeviceContext)
 {
 }
 
-namespace detail {
-
-class UnsafeBytesHandleFactory
-{
-    template<typename T>
-    BytesHandle<T> Create(void* ptr, mem_size_t size, DLContext ctx)
-    {
-        return BytesHandle<T>(ptr, size, ctx);
-    }
-};
-
-
-class HostBytesHandle : public BytesHandle<StorageType::Host>
+/*
+template<>
+class BytesHandle<StorageType::HostPinned>
 {
   public:
-    HostBytesHandle(void* ptr, mem_size_t size)
-        : BytesHandle<StorageType::Host>(ptr, size, kDLCPU, 0)
-    {
-    }
+    BytesHandle<StorageType::Host> toHost();
 };
 
-} // namespace detail
-
+template<>
+BytesHandle<StorageType::Host> BytesHandle<StorageType::HostPinned>::toHost()
+{
+    return *this;
+}
+*/
 } // namespace trtlab
