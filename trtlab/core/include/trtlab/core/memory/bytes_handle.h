@@ -32,8 +32,17 @@
 
 namespace trtlab {
 
+struct BytesBase : protected Array1D<void> {
+  protected:
+    using Array1D<void>::Array1D;
+
+  public:
+    using Array1D::Data;
+    using Array1D::Size;
+};
+
 template<typename Backend>
-class BytesHandle : public ArrayBase<types::Type<void>>
+class BytesHandle : public BytesBase
 {
   public:
     virtual ~BytesHandle() override {}
@@ -46,45 +55,48 @@ class BytesHandle : public ArrayBase<types::Type<void>>
 
     const DLContext& DeviceInfo() const { return m_DeviceContext; }
 
+    template<typename T>
+    BytesHandle<T> Cast();
+
   protected:
-    BytesHandle(void*, mem_size_t, DLDeviceType, int);
+    BytesHandle(void*, mem_size_t, int);
     BytesHandle(void*, mem_size_t, DLContext);
 
   private:
     DLContext m_DeviceContext;
+
+    template<typename T>
+    friend class BytesHandle::BytesHandle;
 };
 
 template<typename Backend>
-BytesHandle<Backend>::BytesHandle(void* ptr, mem_size_t size, DLDeviceType d, int id)
-    : ArrayBase<types::Type<void>>(ptr, size), m_DeviceContext{d, id}
+BytesHandle<Backend>::BytesHandle(void* ptr, mem_size_t size, int id)
+    : BytesBase(ptr, size), m_DeviceContext{Backend::DeviceType(), id}
 {
 }
 
 template<typename Backend>
 BytesHandle<Backend>::BytesHandle(void* ptr, mem_size_t size, DLContext ctx)
-    : ArrayBase<types::Type<void>>(ptr, size), m_DeviceContext{ctx}
+    : BytesBase(ptr, size), m_DeviceContext{ctx}
 {
 }
 
 template<typename Backend>
 BytesHandle<Backend>::BytesHandle(BytesHandle&& other) noexcept
-    : ArrayBase<types::Type<void>>(std::move(other)),
+    : BytesBase(std::move(other)),
       m_DeviceContext(other.m_DeviceContext)
 {
 }
 
-/*
-template<>
-class BytesHandle<StorageType::HostPinned>
+template<typename Backend>
+template<typename T>
+BytesHandle<T> BytesHandle<Backend>::Cast()
 {
-  public:
-    BytesHandle<StorageType::Host> toHost();
-};
-
-template<>
-BytesHandle<StorageType::Host> BytesHandle<StorageType::HostPinned>::toHost()
-{
-    return *this;
+    if(!std::is_convertible<Backend*, T*>::value)
+    {
+        throw std::bad_cast();
+    }
+    return BytesHandle<T>(Data(), Size(), DeviceInfo());
 }
-*/
+
 } // namespace trtlab

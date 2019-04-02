@@ -39,17 +39,18 @@ namespace trtlab {
 namespace types {
 
 template<typename T>
-struct Type final
+struct ArrayType final
 {
     using NativeType = T;
     static uint64_t ItemSize();
     static DLDataType DataTypeInfo();
 
-    Type() = default;
+  protected:
+    ArrayType() = default;
 };
 
 template<typename T>
-DLDataType Type<T>::DataTypeInfo()
+DLDataType ArrayType<T>::DataTypeInfo()
 {
     DLDataType dtype;
     // clang-format off
@@ -69,19 +70,19 @@ DLDataType Type<T>::DataTypeInfo()
 }
 
 template<typename T>
-uint64_t Type<T>::ItemSize()
+uint64_t ArrayType<T>::ItemSize()
 {
     return sizeof(T);
 }
 
 template<>
-inline DLDataType Type<void>::DataTypeInfo()
+inline DLDataType ArrayType<void>::DataTypeInfo()
 {
-    return Type<uint8_t>::DataTypeInfo();
+    return ArrayType<uint8_t>::DataTypeInfo();
 }
 
 template<>
-inline uint64_t Type<void>::ItemSize()
+inline uint64_t ArrayType<void>::ItemSize()
 {
     return 1;
 }
@@ -92,7 +93,7 @@ struct dtype
     dtype(uint8_t code, uint8_t bits, uint16_t lanes);
 
     template<typename T>
-    static dtype from() { return dtype(Type<T>::DataTypeInfo()); }
+    static dtype from() { return dtype(ArrayType<T>::DataTypeInfo()); }
 
     dtype(dtype&&) noexcept;
     dtype& operator=(dtype&&) noexcept;

@@ -33,8 +33,6 @@
 
 namespace trtlab {
 
-
-
 template<typename T>
 struct IArrayImmutable
 {
@@ -52,110 +50,52 @@ struct IArray : public IArrayImmutable<T>
     virtual T* Data() = 0;
 };
 
-/*
-template<typename T, int N>
-class ArrayBase : public IArray<T>
-{
-  public:
-    virtual ~ArrayBase() {}
-
-    ArrayBase(ArrayBase&&) noexcept;
-    ArrayBase& operator=(ArrayBase&&) noexcept = default;
-
-    ArrayBase(const ArrayBase&);
-    ArrayBase& operator=(const ArrayBase&);
-
-    T* Data() final override { return m_Data; };
-    const T* Data() const final override { return m_Data; }
-
-    uint64_t Size() const final override;
-    uint64_t Bytes() const final override;
-    uint64_t ItemSize() const final override;
-
-    int NDims() const final override { return N; }
-
-  protected:
-    ArrayBase(T*, int64_t shape[N]);
-
-  private:
-    T* m_Data;
-    int64_t m_Shape[N];
-    int64_t m_Strides[N];
-};
-
-template<typename T, int N>
-ArrayBase<T, N>::ArrayBase(T* ptr, int64_t shape[N]) : m_Data(ptr)
-{
-    std::copy(shape, &shape[N], m_Shape);
-}
-
-template<typename T, int N>
-uint64_t ArrayBase<T, N>::ItemSize() const
-{
-    return sizeof(T);
-}
-
-template<int N>
-uint64_t ArrayBase<void, N>::ItemSize() const
-{
-    return 1;
-}
-
-template<typename T, int N>
-uint64_t ArrayBase<T, N>::Size() const
-{
-    return std::accumulate(&m_Shape[0], &m_Shape[N], uint64_t(1), std::multiplies<uint64_t>());
-}
-
 template<typename T>
-uint64_t ArrayBase<T, 1>::Size() const
-{
-    return m_Shape[0];
-}
-
-typename<typename T, int N> uint64_t ArrayBase<T, N>::Bytes() const { return Size() * ItemSize(); }
-*/
-
-template<typename Type>
-class ArrayBase : public IArray<typename Type::NativeType>
+class Array1D : public IArray<T>
 {
   public:
-    using T = typename Type::NativeType;
+    virtual ~Array1D() {}
 
-    virtual ~ArrayBase() {}
+    Array1D(Array1D&&) noexcept;
+    Array1D& operator=(Array1D&&) noexcept = default;
 
-    ArrayBase(ArrayBase&&) noexcept;
-    ArrayBase& operator=(ArrayBase&&) noexcept = default;
-
-    ArrayBase(const ArrayBase&) = default;
-    ArrayBase& operator=(const ArrayBase&) = default;
+    Array1D(const Array1D&) = default;
+    Array1D& operator=(const Array1D&) = default;
 
     T* Data() final override { return m_Data; };
     const T* Data() const final override { return m_Data; }
     uint64_t Size() const final override { return m_Size; }
-    uint64_t Bytes() const final override { return m_Size * Type::ItemSize(); }
-    uint64_t ItemSize() const final override { return Type::ItemSize(); }
-
+    uint64_t Bytes() const final override { return m_Size * ItemSize(); }
+    uint64_t ItemSize() const final override { return types::ArrayType<T>::ItemSize(); }
     int NDims() const final override { return 1; }
 
   protected:
-    ArrayBase(T*, uint64_t);
+    Array1D(T*, uint64_t);
 
   private:
     T* m_Data;
     uint64_t m_Size;
+    uint64_t m_Capacity;
 };
 
-template<typename Type>
-ArrayBase<Type>::ArrayBase(T* ptr, uint64_t size) : m_Data(ptr), m_Size(size)
+template<typename T>
+Array1D<T>::Array1D(T* ptr, uint64_t size) : m_Data(ptr), m_Size(size), m_Capacity(size)
 {
 }
 
-template<typename Type>
-ArrayBase<Type>::ArrayBase(ArrayBase&& other) noexcept
-    : m_Data{std::exchange(other.m_Data, nullptr)}, m_Size{std::exchange(other.m_Size, 0)}
+template<typename T>
+Array1D<T>::Array1D(Array1D&& other) noexcept
+    : m_Data{std::exchange(other.m_Data, nullptr)}, m_Size{std::exchange(other.m_Size, 0)},
+      m_Capacity{std::exchange(other.m_Capacity, 0)}
 {
 }
 
+/*
+template<typename T, int N>
+uint64_t Array1D<T, N>::Size() const
+{
+    return std::accumulate(&m_Shape[0], &m_Shape[N], uint64_t(1), std::multiplies<uint64_t>());
+}
+*/
 
 } // namespace trtlab

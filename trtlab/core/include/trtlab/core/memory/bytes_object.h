@@ -36,20 +36,22 @@ namespace trtlab {
 template<typename T>
 class BytesObject;
 
-template<typename T>
-struct BytesProvider : public virtual std::enable_shared_from_this<BytesProvider<T>>
+struct IBytesProvider
 {
     virtual const void* BytesProviderData() const = 0;
     virtual mem_size_t BytesProviderSize() const = 0;
     virtual const DLContext& BytesProviderDeviceInfo() const = 0;
+};
 
+template<typename T>
+struct BytesProvider : public IBytesProvider, public std::enable_shared_from_this<BytesProvider<T>>
+{
     BytesObject<T> BytesObjectFromThis(void*, mem_size_t);
-
     friend class BytesObject<T>;
 };
 
 template<typename T>
-class BytesObject : protected BytesHandle<T>
+class BytesObject final : protected BytesHandle<T>
 {
   public:
     static BytesObject<T> Create(void*, mem_size_t, std::shared_ptr<BytesProvider<T>>);
@@ -64,6 +66,10 @@ class BytesObject : protected BytesHandle<T>
     // Expose a handle for copying
     const BytesHandle<T>& Handle() const { return *this; }
 
+    // Downcast the backend storage calls to any parents of T
+    template<typename U>
+    BytesObject<U> Cast();
+
     // Elevate the protected getters from BytesHandle to public
     using BytesHandle<T>::Data;
     using BytesHandle<T>::Size;
@@ -73,21 +79,26 @@ class BytesObject : protected BytesHandle<T>
     // Inlining causes the constructor to segfault with:
     // g++ (Ubuntu 5.4.0-6ubuntu1~16.04.11) 5.4.0 20160609
     // Reduces performance of BenchStack by 5ns from 38ns -> 43ns (dgx station 20-core broadwell)
-    __attribute__((noinline)) BytesObject(void*, mem_size_t, std::shared_ptr<BytesProvider<T>>);
+    //__attribute__((noinline)) BytesObject(void*, mem_size_t, std::shared_ptr<BytesProvider<T>>);
+    __attribute__((noinline)) BytesObject(void*, mem_size_t, std::shared_ptr<IBytesProvider>);
 
-    bool CheckBounds(void* ptr, mem_size_t, const BytesProvider<T>&);
+    bool CheckBounds(void* ptr, mem_size_t, const IBytesProvider&);
 
   private:
-    std::shared_ptr<BytesProvider<T>> m_BytesProvider;
+    std::shared_ptr<IBytesProvider> m_BytesProvider;
 
     friend class BytesProvider<T>;
+
+    template<typename U>
+    friend class BytesObject::BytesObject;
 };
 
 template<typename T>
-BytesObject<T>::BytesObject(void* ptr, mem_size_t size, std::shared_ptr<BytesProvider<T>> provider)
+__attribute__((noinline))
+BytesObject<T>::BytesObject(void* ptr, mem_size_t size, std::shared_ptr<IBytesProvider> provider)
     : BytesHandle<T>(ptr, size, provider->BytesProviderDeviceInfo()), m_BytesProvider(provider)
 {
-    DCHECK(CheckBounds(ptr, size, *m_BytesProvider));
+    CHECK(CheckBounds(ptr, size, *m_BytesProvider));
 }
 
 template<typename T>
@@ -101,7 +112,7 @@ BytesObject<T> BytesObject<T>::Create(void* ptr, mem_size_t size,
 }
 
 template<typename T>
-bool BytesObject<T>::CheckBounds(void* ptr, mem_size_t size, const BytesProvider<T>& provider)
+bool BytesObject<T>::CheckBounds(void* ptr, mem_size_t size, const IBytesProvider& provider)
 {
     // Validate Starting Address
     uint64_t that = reinterpret_cast<uint64_t>(provider.BytesProviderData());
@@ -116,15 +127,27 @@ bool BytesObject<T>::CheckBounds(void* ptr, mem_size_t size, const BytesProvider
 
 template<typename T>
 BytesObject<T>::BytesObject(BytesObject&& other) noexcept
-    : m_BytesProvider(std::exchange(other.m_BytesProvider, nullptr)), BytesHandle<T>(
-                                                                          std::move(other))
+    : m_BytesProvider(std::exchange(other.m_BytesProvider, nullptr)),
+      BytesHandle<T>(std::move(other))
 {
 }
 
 template<typename T>
-BytesObject<T> BytesProvider<T>::BytesObjectFromThis(void* ptr, mem_size_t size)
+__attribute__((noinline)) BytesObject<T> BytesProvider<T>::BytesObjectFromThis(void* ptr,
+                                                                               mem_size_t size)
 {
-    return std::move(BytesObject<T>(ptr, size, this->shared_from_this()));
+    return BytesObject<T>(ptr, size, std::enable_shared_from_this<BytesProvider<T>>::shared_from_this());
+}
+
+template<typename From>
+template<typename To>
+BytesObject<To> BytesObject<From>::Cast()
+{
+    if(!std::is_convertible<From*, To*>::value)
+    {
+        throw std::bad_cast();
+    }
+    return BytesObject<To>(Data(), Size(), m_BytesProvider);
 }
 
 } // namespace trtlab

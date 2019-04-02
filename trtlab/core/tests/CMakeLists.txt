@@ -26,7 +26,7 @@
 
 #include_directories(${GTEST_INCLUDE_DIRS})
 
-# set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fno-inline")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fno-inline")
 
 add_executable(test_core
   test_types.cc

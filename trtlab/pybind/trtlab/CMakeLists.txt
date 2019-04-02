@@ -26,18 +26,6 @@
 
 find_package(gflags REQUIRED)
 
-if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
-  find_package(gflags COMPONENTS nothreads_shared)
-  set(trtlab_gflags "gflags_nothreads_shared")
-  message(STATUS "gflags: ${trtlab_gflags}")
-  message(STATUS "build_type: ${CMAKE_BUILD_TYPE}")
-else()
-  find_package(gflags COMPONENTS nothreads_static)
-  set(trtlab_gflags "gflags_nothreads_static")
-  message(STATUS "gflags: ${trtlab_gflags}")
-  message(STATUS "build_type: ${CMAKE_BUILD_TYPE}")
-endif()
-
 pybind11_add_module(_cpp_trtlab
   dlpack.cc
   numpy.cc
@@ -53,8 +41,6 @@ target_link_libraries(_cpp_trtlab
     nvrpc-client
     tensorrt
     trtis-protos
-    glog
-    ${trtlab_gflags}
 )
 
 target_include_directories(_cpp_trtlab

@@ -30,6 +30,7 @@
 #include "trtlab/core/memory/copy.h"
 #include "trtlab/core/memory/malloc.h"
 #include "trtlab/core/memory/system_v.h"
+#include "trtlab/core/memory/provider.h"
 #include "trtlab/core/utils.h"
 
 #include <cstring>
@@ -430,13 +431,11 @@ class TestProvider : public BytesProvider<T>
 {
   public:
     TestProvider() : m_Memory(one_mb) {}
-    using Backend = T;
 
     BytesObject<T> Allocate(size_t offset, size_t size)
     {
         CHECK(m_Memory[offset + size]);
         CHECK(m_Memory[offset]);
-        // CHECK(shared_from_this());
         return this->BytesObjectFromThis(m_Memory[offset], size);
     }
 
@@ -445,12 +444,12 @@ class TestProvider : public BytesProvider<T>
     mem_size_t BytesProviderSize() const final override { return m_Memory.Size(); }
     const DLContext& BytesProviderDeviceInfo() const final override { m_Memory.DeviceInfo(); }
 
-    Allocator<Malloc> m_Memory;
+    Allocator<T> m_Memory;
 };
 
 TEST_F(TestGeneric, BytesHandleLifecycle)
 {
-    auto provider = std::make_shared<TestProvider<StorageType::Host>>();
+    auto provider = std::make_shared<TestProvider<Malloc>>();
     auto obj = provider->Allocate(one_kb, one_kb);
     auto d1 = obj.Handle();
     // auto p1 = detail::BytesHandleFactory::HostPinned((void*)0xFACEBEEF, 2048);
@@ -466,65 +465,38 @@ TEST_F(TestGeneric, BytesHandleLifecycle)
     ASSERT_EQ(d2.Data(), nullptr);
     ASSERT_EQ(d2.Size(), 0);
 
-    BytesHandle<StorageType::Host> d4(std::move(d3));
+    BytesHandle<Malloc> d4(std::move(d3));
     ASSERT_EQ(d4.Data(), d1.Data());
     ASSERT_EQ(d4.Size(), d1.Size());
     ASSERT_EQ(d3.Data(), nullptr);
     ASSERT_EQ(d3.Size(), 0);
 
-    BytesHandle<StorageType::Host> d5(d4);
+    BytesHandle<Malloc> d5(d4);
     ASSERT_EQ(d4.Data(), d1.Data());
     ASSERT_EQ(d4.Size(), d1.Size());
     ASSERT_EQ(d5.Data(), d1.Data());
     ASSERT_EQ(d5.Size(), d1.Size());
 
-    ASSERT_EQ(d5.Size(), d5.Bytes());
+    // Downcasting from Malloc to HostMemory is allowed
+    auto h1 = d5.Cast<HostMemory>();
 
-    // BytesHandle<StorageType::Host> a(d5);
-    // cpu and pinned can be
-    // ASSERT_FALSE(d1.IsPinned())
-    // d1 = p1;
-    ////ASSERT_TRUE(d1.IsPinned())
+    // Upcasting from HostMemory to Malloc is forbidden
+    EXPECT_THROW(auto m1 = h1.Cast<Malloc>(), std::bad_cast);
+
+    // compiler error; different types
+    // h1 = d4;
+    // h1 = std::move(d4);
+    // BytesHandle<Malloc> copy_ctor(h1);
+    // BytesHandle<Malloc> move_ctor(std::move(h1));
 }
 
-TEST_F(TestGeneric, RandomStuff)
-{
-        int i[4]{0, 1, 42, -2};
-        int j[4];
 
-        std::copy(i, &i[4], j);
-
-        ASSERT_EQ(j[0], 0);
-        ASSERT_EQ(j[1], 1);
-        ASSERT_EQ(j[2], 42);
-        ASSERT_EQ(j[3], -2);
-
-        EXPECT_EQ(i[0], 0);
-        EXPECT_EQ(i[1], 1);
-        EXPECT_EQ(i[2], 42);
-        EXPECT_EQ(i[3], -2);
-
-        EXPECT_NE(i, j);
-}
-
-TEST_F(TestGeneric, BytesHandleStorageType)
-{
-    auto host = std::make_shared<TestProvider<StorageType::Host>>();
-    auto pinned = std::make_shared<TestProvider<StorageType::HostPinned>>();
-    auto host_obj = host->Allocate(one_kb, one_kb);
-    auto pinned_obj = pinned->Allocate(one_kb, one_kb);
-
-    auto h1 = host_obj.Handle();
-    auto p1 = pinned_obj.Handle();
-
-    // h1 = p1;
-}
 
 TEST_F(TestGeneric, BytesObjectCapture)
 {
-    auto provider = std::make_shared<TestProvider<StorageType::Host>>();
+    auto provider = std::make_shared<TestProvider<Malloc>>();
     CHECK(provider);
-    std::weak_ptr<TestProvider<StorageType::Host>> weak = provider;
+    std::weak_ptr<TestProvider<Malloc>> weak = provider;
 
     {
         auto bytes = std::move(provider->Allocate(0, one_mb));
@@ -538,9 +510,9 @@ TEST_F(TestGeneric, BytesObjectCapture)
 
 TEST_F(TestGeneric, BytesObjectCopyMoveAssignment)
 {
-    auto provider = std::make_shared<TestProvider<StorageType::Host>>();
+    auto provider = std::make_shared<TestProvider<Malloc>>();
     CHECK(provider);
-    std::weak_ptr<TestProvider<StorageType::Host>> weak = provider;
+    std::weak_ptr<TestProvider<Malloc>> weak = provider;
     ASSERT_EQ(provider.use_count(), 1);
     const auto half_mb = one_mb / 2;
 
@@ -552,14 +524,14 @@ TEST_F(TestGeneric, BytesObjectCopyMoveAssignment)
         auto b2 = b1;
         ASSERT_EQ(weak.use_count(), 3);
 
-        BytesHandle<StorageType::Host> h1 = b2.Handle();
+        BytesHandle<Malloc> h1 = b2.Handle();
         ASSERT_EQ(weak.use_count(), 3);
         ASSERT_EQ(h1.Data(), b1.Data());
         ASSERT_EQ(h1.Size(), one_mb);
 
         // this is a compiler error because we inherit
         // BytesHandle as protected
-        // BytesHandle<StorageType::Host> h2 = std::move(b2);
+        // BytesHandle<Malloc> h2 = std::move(b2);
 
         auto b3 = std::move(b2);
         ASSERT_EQ(weak.use_count(), 3);
@@ -567,21 +539,48 @@ TEST_F(TestGeneric, BytesObjectCopyMoveAssignment)
         ASSERT_EQ(b2.Data(), nullptr);
 
         // failes to compile - good!
-        // BytesHandle<StorageType::Host> h2(b3);
-        // BytesHandle<StorageType::Host> h2(std::move(b3);
+        // BytesHandle<Malloc> h2(b3);
+        // BytesHandle<Malloc> h2(std::move(b3);
 
-        BytesObject<StorageType::Host> b4(std::move(b3));
+        BytesObject<Malloc> b4(std::move(b3));
         ASSERT_EQ(weak.use_count(), 3);
         ASSERT_EQ(b4.Data(), b1.Data());
         ASSERT_EQ(b3.Data(), nullptr);
 
-        BytesObject<StorageType::Host> b5(b4);
+        BytesObject<Malloc> b5(b4);
         ASSERT_EQ(weak.use_count(), 4);
         ASSERT_EQ(b4.Data(), b1.Data());
         ASSERT_EQ(b5.Data(), b1.Data());
     }
     ASSERT_EQ(weak.use_count(), 1);
 }
+
+TEST_F(TestGeneric, MemoryProvider)
+{
+    auto mbo = MemoryProvider<Malloc>::Allocate(one_mb);
+    auto sbo = MemoryProvider<SystemV>::Allocate(2*one_mb);
+
+    // compilation should fail
+    // BytesObject<HostMemory> h = mbo;
+
+    auto h1 = mbo.Cast<HostMemory>();
+}
+
+
+/*
+TEST_F(TestGeneric, BytesHandleStorageType)
+{
+    auto host = std::make_shared<TestProvider<Malloc>>();
+    //auto pinned = std::make_shared<TestProvider<MallocPinned>>();
+    auto host_obj = host->Allocate(one_kb, one_kb);
+    auto pinned_obj = pinned->Allocate(one_kb, one_kb);
+
+    auto h1 = host_obj.Handle();
+    auto p1 = pinned_obj.Handle();
+
+    // h1 = p1;
+}
+*/
 
 /*
 TEST_F(TestGeneric, HostDescriptorDLTensorLifecycle)

@@ -102,6 +102,5 @@ TEST_F(TestTypes, Equivalence)
 
 TEST_F(TestTypes, TypeVsObject)
 {
-    ASSERT_EQ(dtype(Type<void>::DataTypeInfo()), bytes);
     ASSERT_EQ(dtype::from<void>(), bytes);
 }
