@@ -87,7 +87,7 @@ inline uint64_t ArrayType<void>::ItemSize()
     return 1;
 }
 
-struct dtype
+struct dtype final
 {
     dtype(const DLDataType&);
     dtype(uint8_t code, uint8_t bits, uint16_t lanes);
@@ -110,10 +110,12 @@ struct dtype
     bool operator!=(const dtype& other) const { return !(*this == other); }
 
     int64_t bytes() const;
+    int64_t itemsize() const { return bytes(); };
     const DLDataType& to_dlpack() const;
 
     std::string Description() const;
 
+  protected:
     uint32_t code() const { return m_DLPackType.code; }
     uint32_t bits() const { return m_DLPackType.bits; }
     uint32_t lanes() const { return m_DLPackType.lanes; }
@@ -129,7 +131,6 @@ struct dtype
 template<typename T>
 bool dtype::is_compatible() const
 {
-    if(std::is_same<T, void>::value ) { return true; }
     if(lanes() != 1) { return false; }
     if(bits() != sizeof(T) * 8) { return false; }
     if(std::is_integral<T>::value)
@@ -141,6 +142,12 @@ bool dtype::is_compatible() const
     {
         if(code() != kDLFloat) { return false; }
     }
+    return true;
+}
+
+template<>
+inline bool dtype::is_compatible<void>() const
+{
     return true;
 }
 
