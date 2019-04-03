@@ -132,7 +132,10 @@ TEST_F(TestTypes, ArbituaryDLDataTypes)
     dt.bits = 32;
     dt.code = 7;
     ASSERT_THROW(dtype unknown(dt), std::runtime_error);
+}
 
+TEST_F(TestTypes, CheckAllForCompatibility)
+{
     for(const auto& t : types::All)
     {
         int count = 0;
