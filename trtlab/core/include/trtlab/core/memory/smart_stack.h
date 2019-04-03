@@ -29,7 +29,7 @@
 
 #include <glog/logging.h>
 
-#include "trtlab/core/memory/bytes_object.h"
+#include "trtlab/core/memory/bytes_array.h"
 #include "trtlab/core/memory/descriptor.h"
 #include "trtlab/core/memory/memory.h"
 #include "trtlab/core/memory/memory_stack.h"
@@ -101,7 +101,7 @@ class SmartStack : public MemoryStack<MemoryType>,
         return std::move(ret);
     }
 
-    BytesObject<MemoryType> AllocateBytesObject(size_t size)
+    BytesArray<MemoryType> AllocateBytesArray(size_t size)
     {
         CHECK_LE(size, this->Available());
         auto ptr = MemoryStack<MemoryType>::Allocate(size);
@@ -109,7 +109,7 @@ class SmartStack : public MemoryStack<MemoryType>,
         DLOG(INFO) << "Allocated " << size << " starting at " << ptr
                    << " on SmartStack " << this;
 
-        return this->BytesObjectFromThis(ptr, size);
+        return this->BytesArrayFromThis(ptr, size);
     }
 
   private:

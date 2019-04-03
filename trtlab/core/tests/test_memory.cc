@@ -26,7 +26,7 @@
  */
 #include "trtlab/core/memory/allocator.h"
 #include "trtlab/core/memory/bytes_handle.h"
-#include "trtlab/core/memory/bytes_object.h"
+#include "trtlab/core/memory/bytes_array.h"
 #include "trtlab/core/memory/copy.h"
 #include "trtlab/core/memory/malloc.h"
 #include "trtlab/core/memory/system_v.h"
@@ -432,11 +432,11 @@ class TestProvider : public BytesProvider<T>
   public:
     TestProvider() : m_Memory(one_mb) {}
 
-    BytesObject<T> Allocate(size_t offset, size_t size)
+    BytesArray<T> Allocate(size_t offset, size_t size)
     {
         CHECK(m_Memory[offset + size]);
         CHECK(m_Memory[offset]);
-        return this->BytesObjectFromThis(m_Memory[offset], size);
+        return this->BytesArrayFromThis(m_Memory[offset], size);
     }
 
   private:
@@ -513,7 +513,7 @@ TEST_F(TestGeneric, ProtectedInheritance)
     EXPECT_FALSE((std::is_convertible<const d&, const a&>::value));
 }
 
-TEST_F(TestGeneric, BytesObjectCapture)
+TEST_F(TestGeneric, BytesArrayCapture)
 {
     auto provider = std::make_shared<TestProvider<Malloc>>();
     CHECK(provider);
@@ -529,7 +529,7 @@ TEST_F(TestGeneric, BytesObjectCapture)
     ASSERT_TRUE(weak.expired());
 }
 
-TEST_F(TestGeneric, BytesObjectCopyMoveAssignment)
+TEST_F(TestGeneric, BytesArrayCopyMoveAssignment)
 {
     auto provider = std::make_shared<TestProvider<Malloc>>();
     CHECK(provider);
@@ -563,12 +563,12 @@ TEST_F(TestGeneric, BytesObjectCopyMoveAssignment)
         // BytesHandle<Malloc> h2(b3);
         // BytesHandle<Malloc> h2(std::move(b3);
 
-        BytesObject<Malloc> b4(std::move(b3));
+        BytesArray<Malloc> b4(std::move(b3));
         ASSERT_EQ(weak.use_count(), 3);
         ASSERT_EQ(b4.Data(), b1.Data());
         ASSERT_EQ(b3.Data(), nullptr);
 
-        BytesObject<Malloc> b5(b4);
+        BytesArray<Malloc> b5(b4);
         ASSERT_EQ(weak.use_count(), 4);
         ASSERT_EQ(b4.Data(), b1.Data());
         ASSERT_EQ(b5.Data(), b1.Data());
@@ -582,7 +582,7 @@ TEST_F(TestGeneric, MemoryProvider)
     auto sbo = MemoryProvider<SystemV>::Allocate(2*one_mb);
 
     // compilation should fail
-    // BytesObject<HostMemory> h = mbo;
+    // BytesArray<HostMemory> h = mbo;
 
     auto h1 = mbo.BaseObject();
 }

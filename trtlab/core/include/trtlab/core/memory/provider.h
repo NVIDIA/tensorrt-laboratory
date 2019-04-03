@@ -27,7 +27,7 @@
 #pragma once
 #include <memory>
 
-#include "trtlab/core/memory/bytes_object.h"
+#include "trtlab/core/memory/bytes_array.h"
 
 #include "trtlab/core/memory/allocator.h"
 
@@ -39,24 +39,24 @@ class MemoryProvider : public BytesProvider<T>
     struct internal_guard {};
 
   public:
-    static BytesObject<T> Allocate(mem_size_t size)
+    static BytesArray<T> Allocate(mem_size_t size)
     {
         auto shared = std::make_shared<MemoryProvider<T>>(
             std::move(std::make_unique<Allocator<T>>(size)), internal_guard());
-        return shared->GetBytesObject();
+        return shared->GetBytesArray();
     }
 
-    static BytesObject<T> Expose(std::unique_ptr<Allocator<T>> memory)
+    static BytesArray<T> Expose(std::unique_ptr<Allocator<T>> memory)
     {
         auto shared = std::make_shared<MemoryProvider<T>>(std::move(memory), internal_guard());
-        return shared->GetBytesObject();
+        return shared->GetBytesArray();
     }
 
-    static BytesObject<T> Expose(Allocator<T>&& memory)
+    static BytesArray<T> Expose(Allocator<T>&& memory)
     {
         auto unique = std::make_unique<Allocator<T>>(std::move(memory));
         auto shared = std::make_shared<MemoryProvider<T>>(std::move(unique), internal_guard());
-        return shared->GetBytesObject();
+        return shared->GetBytesArray();
     }
 
     MemoryProvider(std::unique_ptr<Allocator<T>> memory, internal_guard)
@@ -67,9 +67,9 @@ class MemoryProvider : public BytesProvider<T>
     ~MemoryProvider() { DLOG(INFO) << "MemoryProvider deleting: " << *m_Memory; }
 
   protected:
-    BytesObject<T> GetBytesObject()
+    BytesArray<T> GetBytesArray()
     {
-        return this->BytesObjectFromThis(m_Memory->Data(), m_Memory->Size());
+        return this->BytesArrayFromThis(m_Memory->Data(), m_Memory->Size());
     }
 
   private:

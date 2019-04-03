@@ -32,7 +32,7 @@
 #include "trtlab/core/memory/smart_stack.h"
 #include "trtlab/core/memory/system_v.h"
 #include "trtlab/core/memory/bytes_handle.h"
-#include "trtlab/core/memory/bytes_object.h"
+#include "trtlab/core/memory/bytes_array.h"
 
 using namespace trtlab;
 using namespace trtlab;
@@ -64,9 +64,9 @@ struct StackWithInternalDescriptor : public BytesProvider<MemoryType>
         return InternalHandle(m_Stack->Allocate(size), size, m_Stack->Memory());
     }
 
-    BytesObject<MemoryType> AllocateBytesObject(size_t size)
+    BytesArray<MemoryType> AllocateBytesArray(size_t size)
     {
-        return this->BytesObjectFromThis(m_Stack->Allocate(size), size);
+        return this->BytesArrayFromThis(m_Stack->Allocate(size), size);
     }
 
     typename MemoryType::BaseType&& AllocateInternalDesc(size_t size)
@@ -117,14 +117,14 @@ static void BM_MemoryStackWithDescriptor_AllocateBytesHandle(benchmark::State& s
     }
 }
 
-static void BM_MemoryStackWithDescriptor_AllocateBytesObject(benchmark::State& state)
+static void BM_MemoryStackWithDescriptor_AllocateBytesArray(benchmark::State& state)
 {
     auto stack = std::make_shared<StackWithInternalDescriptor<Malloc>>(1024 * 1024);
     for(auto _ : state)
     {
         for(int i = 0; i < state.range(0); i++)
         {
-            auto ptr = stack->AllocateBytesObject(1024);
+            auto ptr = stack->AllocateBytesArray(1024);
         }
         stack->Reset();
     }
@@ -166,14 +166,14 @@ static void BM_SmartStack_Allocate(benchmark::State& state)
     }
 }
 
-static void BM_SmartStack_AllocateBytesObject(benchmark::State& state)
+static void BM_SmartStack_AllocateBytesArray(benchmark::State& state)
 {
     auto stack = std::make_shared<SmartStack<Malloc>>(1024 * 1024);
     for(auto _ : state)
     {
         for(int i = 0; i < state.range(0); i++)
         {
-            auto ptr = stack->AllocateBytesObject(1024);
+            auto ptr = stack->AllocateBytesArray(1024);
         }
         stack->Reset();
     }
@@ -202,10 +202,10 @@ static void BM_CyclicAllocator_SystemV_Allocate(benchmark::State& state)
 
 BENCHMARK(BM_MemoryStack_Allocate)->RangeMultiplier(2)->Range(1, 1 << 0);
 BENCHMARK(BM_MemoryStackWithDescriptor_AllocateBytesHandle)->RangeMultiplier(16)->Range(1, 1 << 0);
-BENCHMARK(BM_MemoryStackWithDescriptor_AllocateBytesObject)->RangeMultiplier(16)->Range(1, 1 << 0);
+BENCHMARK(BM_MemoryStackWithDescriptor_AllocateBytesArray)->RangeMultiplier(16)->Range(1, 1 << 0);
 BENCHMARK(BM_MemoryStackWithDescriptor_AllocateInternalDesc)->RangeMultiplier(16)->Range(1, 1 << 0);
 BENCHMARK(BM_MemoryStackWithDescriptor_AllocateUniqueInternalDesc);
 BENCHMARK(BM_SmartStack_Allocate)->RangeMultiplier(2)->Range(1, 1 << 0);
-BENCHMARK(BM_SmartStack_AllocateBytesObject)->RangeMultiplier(2)->Range(1, 1 << 0);
+BENCHMARK(BM_SmartStack_AllocateBytesArray)->RangeMultiplier(2)->Range(1, 1 << 0);
 BENCHMARK(BM_CyclicAllocator_Malloc_Allocate)->RangeMultiplier(2)->Range(1, 1 << 0);
 BENCHMARK(BM_CyclicAllocator_SystemV_Allocate);
