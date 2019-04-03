@@ -38,8 +38,7 @@ namespace trtlab {
 
 template<typename MemoryType>
 class SmartStack : public MemoryStack<MemoryType>,
-                   public BytesProvider<typename MemoryType::BaseType::StorageClass>
-                   //public virtual std::enable_shared_from_this<SmartStack<MemoryType>>
+                   public BytesProvider<MemoryType>
 {
   protected:
     using MemoryStack<MemoryType>::MemoryStack;
@@ -102,7 +101,7 @@ class SmartStack : public MemoryStack<MemoryType>,
         return std::move(ret);
     }
 
-    BytesObject<typename MemoryType::StorageClass> AllocateBytesObject(size_t size)
+    BytesObject<MemoryType> AllocateBytesObject(size_t size)
     {
         CHECK_LE(size, this->Available());
         auto ptr = MemoryStack<MemoryType>::Allocate(size);
@@ -110,13 +109,14 @@ class SmartStack : public MemoryStack<MemoryType>,
         DLOG(INFO) << "Allocated " << size << " starting at " << ptr
                    << " on SmartStack " << this;
 
-        return BytesObjectFromThis(ptr, size);
+        return this->BytesObjectFromThis(ptr, size);
     }
 
   private:
     const void* BytesProviderData() const final override { return this->Memory().Data(); }
     mem_size_t BytesProviderSize() const final override { return this->Memory().Size(); }
     const DLContext& BytesProviderDeviceInfo() const final override { return this->Memory().DeviceInfo(); }
+    const MemoryType& BytesProviderMemory() const final override { return this->Memory(); }
 };
 
 } // namespace trtlab

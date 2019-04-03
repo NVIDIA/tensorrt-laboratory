@@ -41,10 +41,11 @@ struct BytesBase : protected Array1D<void> {
     using Array1D::Size;
 };
 
-template<typename Backend>
+template<typename MemoryType>
 class BytesHandle : public BytesBase
 {
   public:
+    using BaseType = typename MemoryType::BaseType;
     virtual ~BytesHandle() override {}
 
     BytesHandle(BytesHandle&&) noexcept;
@@ -55,12 +56,14 @@ class BytesHandle : public BytesBase
 
     const DLContext& DeviceInfo() const { return m_DeviceContext; }
 
-    template<typename T>
-    BytesHandle<T> Cast();
+    BytesHandle<BaseType> BaseHandle() { return Cast<BaseType>(); };
 
   protected:
-    BytesHandle(void*, mem_size_t, int);
-    BytesHandle(void*, mem_size_t, DLContext);
+    // BytesHandle(void*, mem_size_t, int);
+    BytesHandle(void*, mem_size_t, const DLContext&);
+
+    template<typename T>
+    BytesHandle<T> Cast();
 
   private:
     DLContext m_DeviceContext;
@@ -69,30 +72,32 @@ class BytesHandle : public BytesBase
     friend class BytesHandle::BytesHandle;
 };
 
-template<typename Backend>
-BytesHandle<Backend>::BytesHandle(void* ptr, mem_size_t size, int id)
-    : BytesBase(ptr, size), m_DeviceContext{Backend::DeviceType(), id}
+/*
+template<typename MemoryType>
+BytesHandle<MemoryType>::BytesHandle(void* ptr, mem_size_t size, int id)
+    : BytesBase(ptr, size), m_DeviceContext{MemoryType::DeviceType(), id}
+{
+}
+*/
+
+template<typename MemoryType>
+BytesHandle<MemoryType>::BytesHandle(void* ptr, mem_size_t size, const DLContext& ctx)
+    : BytesBase(ptr, size), m_DeviceContext(ctx)
 {
 }
 
-template<typename Backend>
-BytesHandle<Backend>::BytesHandle(void* ptr, mem_size_t size, DLContext ctx)
-    : BytesBase(ptr, size), m_DeviceContext{ctx}
-{
-}
-
-template<typename Backend>
-BytesHandle<Backend>::BytesHandle(BytesHandle&& other) noexcept
+template<typename MemoryType>
+BytesHandle<MemoryType>::BytesHandle(BytesHandle&& other) noexcept
     : BytesBase(std::move(other)),
       m_DeviceContext(other.m_DeviceContext)
 {
 }
 
-template<typename Backend>
+template<typename MemoryType>
 template<typename T>
-BytesHandle<T> BytesHandle<Backend>::Cast()
+BytesHandle<T> BytesHandle<MemoryType>::Cast()
 {
-    if(!std::is_convertible<Backend*, T*>::value)
+    if(!std::is_convertible<MemoryType*, T*>::value)
     {
         throw std::bad_cast();
     }

@@ -38,10 +38,10 @@ using namespace trtlab;
 using namespace trtlab;
 
 template<typename MemoryType>
-struct StackWithInternalDescriptor : public BytesProvider<typename MemoryType::BaseType::StorageClass>
+struct StackWithInternalDescriptor : public BytesProvider<MemoryType>
 {
-    using Backend = typename MemoryType::BaseType::StorageClass;
     StackWithInternalDescriptor(size_t size) : m_Stack(std::make_shared<MemoryStack<MemoryType>>(size)) {}
+
     class InternalDescriptor final : public Descriptor<MemoryType>
     {
       public:
@@ -52,19 +52,19 @@ struct StackWithInternalDescriptor : public BytesProvider<typename MemoryType::B
         ~InternalDescriptor() final override {}
     };
 
-    struct InternalHandle final : public BytesHandle<Backend>
+    struct InternalHandle final : public BytesHandle<MemoryType>
     {
         InternalHandle(void* ptr, mem_size_t size, const MemoryType& parent)
-            : BytesHandle<Backend>(ptr, size, parent.DeviceInfo()) {}
+            : BytesHandle<MemoryType>(ptr, size, parent.DeviceInfo()) {}
         ~InternalHandle() final override {}
     };
 
-    BytesHandle<Backend> AllocateBytesHandle(size_t size)
+    BytesHandle<MemoryType> AllocateBytesHandle(size_t size)
     {
         return InternalHandle(m_Stack->Allocate(size), size, m_Stack->Memory());
     }
 
-    BytesObject<Backend> AllocateBytesObject(size_t size)
+    BytesObject<MemoryType> AllocateBytesObject(size_t size)
     {
         return this->BytesObjectFromThis(m_Stack->Allocate(size), size);
     }
@@ -86,6 +86,7 @@ struct StackWithInternalDescriptor : public BytesProvider<typename MemoryType::B
     const void* BytesProviderData() const { return m_Stack->Memory().Data(); }
     mem_size_t BytesProviderSize() const { return m_Stack->Memory().Size(); }
     const DLContext& BytesProviderDeviceInfo() const { return m_Stack->Memory().DeviceInfo(); }
+    const MemoryType& BytesProviderMemory() const { return m_Stack->Memory(); }
 
     std::shared_ptr<MemoryStack<MemoryType>> m_Stack;
 };
@@ -165,6 +166,19 @@ static void BM_SmartStack_Allocate(benchmark::State& state)
     }
 }
 
+static void BM_SmartStack_AllocateBytesObject(benchmark::State& state)
+{
+    auto stack = std::make_shared<SmartStack<Malloc>>(1024 * 1024);
+    for(auto _ : state)
+    {
+        for(int i = 0; i < state.range(0); i++)
+        {
+            auto ptr = stack->AllocateBytesObject(1024);
+        }
+        stack->Reset();
+    }
+}
+
 static void BM_CyclicAllocator_Malloc_Allocate(benchmark::State& state)
 {
     auto stack = std::make_unique<CyclicAllocator<Malloc>>(10, 1024 * 1024);
@@ -191,6 +205,7 @@ BENCHMARK(BM_MemoryStackWithDescriptor_AllocateBytesHandle)->RangeMultiplier(16)
 BENCHMARK(BM_MemoryStackWithDescriptor_AllocateBytesObject)->RangeMultiplier(16)->Range(1, 1 << 0);
 BENCHMARK(BM_MemoryStackWithDescriptor_AllocateInternalDesc)->RangeMultiplier(16)->Range(1, 1 << 0);
 BENCHMARK(BM_MemoryStackWithDescriptor_AllocateUniqueInternalDesc);
-BENCHMARK(BM_SmartStack_Allocate)->RangeMultiplier(2)->Range(1, 8 << 4);
-BENCHMARK(BM_CyclicAllocator_Malloc_Allocate)->RangeMultiplier(2)->Range(1, 8 << 4);
+BENCHMARK(BM_SmartStack_Allocate)->RangeMultiplier(2)->Range(1, 1 << 0);
+BENCHMARK(BM_SmartStack_AllocateBytesObject)->RangeMultiplier(2)->Range(1, 1 << 0);
+BENCHMARK(BM_CyclicAllocator_Malloc_Allocate)->RangeMultiplier(2)->Range(1, 1 << 0);
 BENCHMARK(BM_CyclicAllocator_SystemV_Allocate);

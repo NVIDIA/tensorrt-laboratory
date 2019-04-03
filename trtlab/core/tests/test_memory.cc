@@ -442,7 +442,8 @@ class TestProvider : public BytesProvider<T>
   private:
     const void* BytesProviderData() const final override { return m_Memory.Data(); }
     mem_size_t BytesProviderSize() const final override { return m_Memory.Size(); }
-    const DLContext& BytesProviderDeviceInfo() const final override { m_Memory.DeviceInfo(); }
+    const DLContext& BytesProviderDeviceInfo() const final override { return m_Memory.DeviceInfo(); }
+    const T& BytesProviderMemory() const final override { return m_Memory; }
 
     Allocator<T> m_Memory;
 };
@@ -478,10 +479,10 @@ TEST_F(TestGeneric, BytesHandleLifecycle)
     ASSERT_EQ(d5.Size(), d1.Size());
 
     // Downcasting from Malloc to HostMemory is allowed
-    auto h1 = d5.Cast<HostMemory>();
+    auto h1 = d5.BaseHandle();
 
     // Upcasting from HostMemory to Malloc is forbidden
-    EXPECT_THROW(auto m1 = h1.Cast<Malloc>(), std::bad_cast);
+    // EXPECT_THROW(auto m1 = h1.Cast<Malloc>(), std::bad_cast);
 
     // compiler error; different types
     // h1 = d4;
@@ -490,7 +491,27 @@ TEST_F(TestGeneric, BytesHandleLifecycle)
     // BytesHandle<Malloc> move_ctor(std::move(h1));
 }
 
+TEST_F(TestGeneric, ProtectedInheritance)
+{
+    struct a {};
+    struct b : protected a {};
 
+    EXPECT_FALSE((std::is_convertible<b*, a*>::value));
+
+    struct c : public a {};
+
+    EXPECT_TRUE((std::is_convertible<c*, a*>::value));
+
+    struct d : protected a
+    {
+        operator const a&() { return *this; }
+    };
+
+    d objd;
+    a obja = (const a&)objd;
+
+    EXPECT_FALSE((std::is_convertible<const d&, const a&>::value));
+}
 
 TEST_F(TestGeneric, BytesObjectCapture)
 {
@@ -563,7 +584,7 @@ TEST_F(TestGeneric, MemoryProvider)
     // compilation should fail
     // BytesObject<HostMemory> h = mbo;
 
-    auto h1 = mbo.Cast<HostMemory>();
+    auto h1 = mbo.BaseObject();
 }
 
 

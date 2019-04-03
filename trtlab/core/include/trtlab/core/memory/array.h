@@ -81,6 +81,7 @@ class Array1D : public IArray<T>
 template<typename T>
 Array1D<T>::Array1D(T* ptr, uint64_t size) : m_Data(ptr), m_Size(size), m_Capacity(size)
 {
+    DLOG(INFO) << "array1d ctor: " << ptr << "; " << size;
 }
 
 template<typename T>
@@ -88,6 +89,7 @@ Array1D<T>::Array1D(Array1D&& other) noexcept
     : m_Data{std::exchange(other.m_Data, nullptr)}, m_Size{std::exchange(other.m_Size, 0)},
       m_Capacity{std::exchange(other.m_Capacity, 0)}
 {
+    DLOG(INFO) << "array1d mv_ctor: ";
 }
 
 /*
