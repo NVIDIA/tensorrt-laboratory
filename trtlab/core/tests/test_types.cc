@@ -104,3 +104,52 @@ TEST_F(TestTypes, TypeVsObject)
 {
     ASSERT_EQ(dtype::from<void>(), bytes);
 }
+
+TEST_F(TestTypes, ArbituaryDLDataTypes)
+{
+    DLDataType dt;
+
+    dt.code = kDLFloat;
+    dt.bits = 32;
+    dt.lanes = 1;
+
+    dtype float32(dt);
+    ASSERT_TRUE(float32.is_compatible<float>());
+
+    // todo: we could allow this to be compatible
+    dt.lanes = 3;
+    dtype float3(dt);
+    ASSERT_FALSE(float3.is_compatible<float>());
+    ASSERT_TRUE(float3.is_compatible<void>());
+
+    dt.lanes = 1;
+    dt.bits = 33;
+    dtype float33(dt);
+    ASSERT_EQ(float33.bytes(), 5); // round to nearest byte
+    ASSERT_FALSE(float3.is_compatible<float>());
+    ASSERT_TRUE(float3.is_compatible<void>());
+
+    dt.bits = 32;
+    dt.code = 7;
+    ASSERT_THROW(dtype unknown(dt), std::runtime_error);
+
+    for(const auto& t : types::All)
+    {
+        int count = 0;
+        count += (int)t.is_compatible<int8_t>();
+        count += (int)t.is_compatible<int16_t>();
+        count += (int)t.is_compatible<int32_t>();
+        count += (int)t.is_compatible<int64_t>();
+        count += (int)t.is_compatible<uint8_t>();
+        count += (int)t.is_compatible<uint16_t>();
+        count += (int)t.is_compatible<uint32_t>();
+        count += (int)t.is_compatible<uint64_t>();
+        count += (int)t.is_compatible<float>();
+        count += (int)t.is_compatible<double>();
+
+        if(t == types::fp16) { count++; }
+
+        LOG(INFO) << t;
+        ASSERT_EQ(count, 1);
+    }
+}

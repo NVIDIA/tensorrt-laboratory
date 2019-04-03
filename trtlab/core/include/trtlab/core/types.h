@@ -95,6 +95,9 @@ struct dtype
     template<typename T>
     static dtype from() { return dtype(ArrayType<T>::DataTypeInfo()); }
 
+    template<typename T>
+    bool is_compatible() const;
+
     dtype(dtype&&) noexcept;
     dtype& operator=(dtype&&) noexcept;
 
@@ -111,6 +114,10 @@ struct dtype
 
     std::string Description() const;
 
+    uint32_t code() const { return m_DLPackType.code; }
+    uint32_t bits() const { return m_DLPackType.bits; }
+    uint32_t lanes() const { return m_DLPackType.lanes; }
+
   private:
     dtype();
     DLDataType m_DLPackType;
@@ -119,6 +126,23 @@ struct dtype
     friend std::ostream& operator<<(std::ostream& os, const dtype& dt);
 };
 
+template<typename T>
+bool dtype::is_compatible() const
+{
+    if(std::is_same<T, void>::value ) { return true; }
+    if(lanes() != 1) { return false; }
+    if(bits() != sizeof(T) * 8) { return false; }
+    if(std::is_integral<T>::value)
+    {
+        if(std::is_signed<T>::value) { if(code() != kDLInt) { return false; } }
+        else{ if(code() != kDLUInt) { return false; }}
+    }
+    else if(std::is_floating_point<T>::value)
+    {
+        if(code() != kDLFloat) { return false; }
+    }
+    return true;
+}
 
 
 static const auto nil = dtype(kDLInt, 0U, 0U);

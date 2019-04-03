@@ -33,7 +33,8 @@ namespace types {
 
 dtype::dtype(const DLDataType& dlpack) : m_DLPackType(dlpack)
 {
-    m_Bytes = ((uint64_t)m_DLPackType.bits * (uint64_t)m_DLPackType.lanes) / 8;
+    m_Bytes = (bits() * lanes() + 7) / 8;
+    if(code() > 2) { throw std::runtime_error("Invalid DLDataTypeCode: "); }
 }
 
 dtype::dtype(uint8_t code, uint8_t bits, uint16_t lanes) : dtype(DLDataType{code, bits, lanes}) {}
