@@ -107,7 +107,7 @@ class BytesBaseType : public BytesBase
 };
 
 template<typename MemoryType>
-class Bytes : public BytesBaseType<typename MemoryType::BaseType>
+class Bytes final : public BytesBaseType<typename MemoryType::BaseType>
 {
   public:
     virtual ~Bytes() override{};
