@@ -609,6 +609,9 @@ TEST_F(TestGeneric, BytesCopyMoveAssignment)
         ASSERT_EQ(weak.use_count(), 1);
         EXPECT_EQ(host.Data(), ptr);
         EXPECT_EQ(take_away.Data(), nullptr);
+
+        host.Release();
+        ASSERT_EQ(weak.use_count(), 0);
     }
     ASSERT_EQ(weak.use_count(), 0);
 }

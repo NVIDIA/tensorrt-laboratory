@@ -87,6 +87,7 @@ class BytesBaseType : public BytesBase
     BytesBaseType(const BytesBaseType&) = delete;
     BytesBaseType& operator=(const BytesBaseType&) = delete;
 
+    void Release() { *this = BytesBaseType(nullptr, 0, nullptr); }
     const DLContext& DeviceInfo() const { return m_Provider->BytesProviderDeviceInfo(); }
 
   protected:
