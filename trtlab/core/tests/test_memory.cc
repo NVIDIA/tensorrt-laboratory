@@ -26,10 +26,10 @@
  */
 #include "trtlab/core/memory/allocator.h"
 #include "trtlab/core/memory/bytes.h"
+#include "trtlab/core/memory/bytes_allocator.h"
 #include "trtlab/core/memory/copy.h"
 #include "trtlab/core/memory/malloc.h"
 #include "trtlab/core/memory/system_v.h"
-#include "trtlab/core/memory/provider.h"
 #include "trtlab/core/utils.h"
 
 #include <cstring>
@@ -441,7 +441,10 @@ class TestProvider : public BytesProvider<T>
   private:
     const void* BytesProviderData() const final override { return m_Memory.Data(); }
     mem_size_t BytesProviderSize() const final override { return m_Memory.Size(); }
-    const DLContext& BytesProviderDeviceInfo() const final override { return m_Memory.DeviceInfo(); }
+    const DLContext& BytesProviderDeviceInfo() const final override
+    {
+        return m_Memory.DeviceInfo();
+    }
     const T& BytesProviderMemory() const final override { return m_Memory; }
 
     Allocator<T> m_Memory;
@@ -492,18 +495,21 @@ TEST_F(TestGeneric, BytesHandleLifecycle)
 }
 #endif
 
-namespace middleman
+namespace middleman {
+class base
 {
-class base {};
+};
 
 template<typename T>
-class derived_base : public base {};
+class derived_base : public base
+{
+};
 
 template<typename T>
-class derived : public derived_base<typename T::BaseType> {};
-}
-
-
+class derived : public derived_base<typename T::BaseType>
+{
+};
+} // namespace middleman
 
 TEST_F(TestGeneric, TemplatedMiddleman)
 {
@@ -514,17 +520,22 @@ TEST_F(TestGeneric, TemplatedMiddleman)
     // derived<Malloc> : derived_base<HostName>
 
     // std::shared_ptr<middleman::derived<HostMemory>> host = derived;
-
 }
 
 TEST_F(TestGeneric, ProtectedInheritance)
 {
-    struct a {};
-    struct b : protected a {};
+    struct a
+    {
+    };
+    struct b : protected a
+    {
+    };
 
     EXPECT_FALSE((std::is_convertible<b*, a*>::value));
 
-    struct c : public a {};
+    struct c : public a
+    {
+    };
 
     EXPECT_TRUE((std::is_convertible<c*, a*>::value));
 

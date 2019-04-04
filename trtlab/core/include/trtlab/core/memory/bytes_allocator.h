@@ -34,48 +34,46 @@
 namespace trtlab {
 
 template<typename T>
-class MemoryProvider : public BytesProvider<T>
+class BytesAllocator : public BytesProvider<T>
 {
     struct internal_guard {};
 
   public:
     static Bytes<T> Allocate(mem_size_t size)
     {
-        auto shared = std::make_shared<MemoryProvider<T>>(
+        auto shared = std::make_shared<BytesAllocator<T>>(
             std::move(std::make_unique<Allocator<T>>(size)), internal_guard());
         return shared->GetBytes();
     }
 
     static Bytes<T> Expose(std::unique_ptr<Allocator<T>> memory)
     {
-        auto shared = std::make_shared<MemoryProvider<T>>(std::move(memory), internal_guard());
+        auto shared = std::make_shared<BytesAllocator<T>>(std::move(memory), internal_guard());
         return shared->GetBytes();
     }
 
     static Bytes<T> Expose(Allocator<T>&& memory)
     {
         auto unique = std::make_unique<Allocator<T>>(std::move(memory));
-        auto shared = std::make_shared<MemoryProvider<T>>(std::move(unique), internal_guard());
+        auto shared = std::make_shared<BytesAllocator<T>>(std::move(unique), internal_guard());
         return shared->GetBytes();
     }
 
-    MemoryProvider(std::unique_ptr<Allocator<T>> memory, internal_guard)
-        : m_Memory(std::move(memory))
-    {
-    }
+    BytesAllocator(std::unique_ptr<Allocator<T>> memory, internal_guard)
+        : m_Memory(std::move(memory)) {}
 
-    ~MemoryProvider() { DLOG(INFO) << "MemoryProvider deleting: " << *m_Memory; }
+    ~BytesAllocator() { DLOG(INFO) << "BytesAllocator deleting: " << *m_Memory; }
 
   protected:
-    Bytes<T> GetBytes()
-    {
-        return this->BytesFromThis(m_Memory->Data(), m_Memory->Size());
-    }
+    Bytes<T> GetBytes() { return this->BytesFromThis(m_Memory->Data(), m_Memory->Size()); }
 
   private:
     const void* BytesProviderData() const final override { return m_Memory->Data(); }
     mem_size_t BytesProviderSize() const final override { return m_Memory->Size(); }
-    const DLContext& BytesProviderDeviceInfo() const final override { return m_Memory->DeviceInfo(); }
+    const DLContext& BytesProviderDeviceInfo() const final override
+    {
+        return m_Memory->DeviceInfo();
+    }
     const T& BytesProviderMemory() const final override { return *m_Memory; }
 
     std::unique_ptr<Allocator<T>> m_Memory;
