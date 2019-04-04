@@ -25,8 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "trtlab/core/memory/allocator.h"
-#include "trtlab/core/memory/bytes_handle.h"
-#include "trtlab/core/memory/bytes_array.h"
+#include "trtlab/core/memory/bytes.h"
 #include "trtlab/core/memory/copy.h"
 #include "trtlab/core/memory/malloc.h"
 #include "trtlab/core/memory/system_v.h"
@@ -432,11 +431,11 @@ class TestProvider : public BytesProvider<T>
   public:
     TestProvider() : m_Memory(one_mb) {}
 
-    BytesArray<T> Allocate(size_t offset, size_t size)
+    Bytes<T> Allocate(size_t offset, size_t size)
     {
         CHECK(m_Memory[offset + size]);
         CHECK(m_Memory[offset]);
-        return this->BytesArrayFromThis(m_Memory[offset], size);
+        return this->BytesFromThis(m_Memory[offset], size);
     }
 
   private:
@@ -448,6 +447,7 @@ class TestProvider : public BytesProvider<T>
     Allocator<T> m_Memory;
 };
 
+#if ENABLED_BYTES_HANDLE
 TEST_F(TestGeneric, BytesHandleLifecycle)
 {
     auto provider = std::make_shared<TestProvider<Malloc>>();
@@ -490,6 +490,32 @@ TEST_F(TestGeneric, BytesHandleLifecycle)
     // BytesHandle<Malloc> copy_ctor(h1);
     // BytesHandle<Malloc> move_ctor(std::move(h1));
 }
+#endif
+
+namespace middleman
+{
+class base {};
+
+template<typename T>
+class derived_base : public base {};
+
+template<typename T>
+class derived : public derived_base<typename T::BaseType> {};
+}
+
+
+
+TEST_F(TestGeneric, TemplatedMiddleman)
+{
+    auto t = middleman::derived<Malloc>();
+    auto derived = std::make_shared<middleman::derived<Malloc>>(std::move(t));
+    std::shared_ptr<middleman::derived_base<HostMemory>> host = derived;
+
+    // derived<Malloc> : derived_base<HostName>
+
+    // std::shared_ptr<middleman::derived<HostMemory>> host = derived;
+
+}
 
 TEST_F(TestGeneric, ProtectedInheritance)
 {
@@ -513,7 +539,7 @@ TEST_F(TestGeneric, ProtectedInheritance)
     EXPECT_FALSE((std::is_convertible<const d&, const a&>::value));
 }
 
-TEST_F(TestGeneric, BytesArrayCapture)
+TEST_F(TestGeneric, BytesCapture)
 {
     auto provider = std::make_shared<TestProvider<Malloc>>();
     CHECK(provider);
@@ -529,7 +555,7 @@ TEST_F(TestGeneric, BytesArrayCapture)
     ASSERT_TRUE(weak.expired());
 }
 
-TEST_F(TestGeneric, BytesArrayCopyMoveAssignment)
+TEST_F(TestGeneric, BytesCopyMoveAssignment)
 {
     auto provider = std::make_shared<TestProvider<Malloc>>();
     CHECK(provider);
@@ -538,55 +564,67 @@ TEST_F(TestGeneric, BytesArrayCopyMoveAssignment)
     const auto half_mb = one_mb / 2;
 
     {
-        auto b1 = std::move(provider->Allocate(0, one_mb));
-        ASSERT_EQ(b1.Size(), one_mb);
+        // move assignment
+        auto mv_assign = std::move(provider->Allocate(0, one_mb));
+        ASSERT_EQ(mv_assign.Size(), one_mb);
         ASSERT_EQ(weak.use_count(), 2);
+        auto ptr = mv_assign.Data();
 
-        auto b2 = b1;
-        ASSERT_EQ(weak.use_count(), 3);
+        Bytes<Malloc> mv_ctor(std::move(mv_assign));
+        ASSERT_EQ(weak.use_count(), 2);
+        ASSERT_EQ(mv_ctor.Data(), ptr);
+        ASSERT_EQ(mv_assign.Data(), nullptr);
 
-        BytesHandle<Malloc> h1 = b2.Handle();
-        ASSERT_EQ(weak.use_count(), 3);
-        ASSERT_EQ(h1.Data(), b1.Data());
-        ASSERT_EQ(h1.Size(), one_mb);
+        // check to ensure we can get back to the Provider's Memory object
+        ASSERT_EQ(mv_ctor.Memory().Data(), ptr);
 
-        // this is a compiler error because we inherit
-        // BytesHandle as protected
-        // BytesHandle<Malloc> h2 = std::move(b2);
+        // release the shared_ptr to the provider; our Bytes object still has a ref
+        provider.reset();
+        ASSERT_EQ(weak.use_count(), 1);
+        ASSERT_EQ(mv_ctor.Data(), ptr);
 
-        auto b3 = std::move(b2);
-        ASSERT_EQ(weak.use_count(), 3);
-        ASSERT_EQ(b3.Data(), b1.Data());
-        ASSERT_EQ(b2.Data(), nullptr);
+        auto derived = std::make_shared<Bytes<Malloc>>(std::move(mv_ctor));
+        std::shared_ptr<BytesBase> base = derived;
+        ASSERT_EQ(derived->Data(), ptr);
+        ASSERT_EQ(base->Data(), ptr);
 
-        // failes to compile - good!
-        // BytesHandle<Malloc> h2(b3);
-        // BytesHandle<Malloc> h2(std::move(b3);
+        auto take_away = std::move(*derived);
+        EXPECT_EQ(take_away.Data(), ptr);
+        EXPECT_EQ(derived->Data(), nullptr);
+        EXPECT_EQ(base->Data(), nullptr);
 
-        BytesArray<Malloc> b4(std::move(b3));
-        ASSERT_EQ(weak.use_count(), 3);
-        ASSERT_EQ(b4.Data(), b1.Data());
-        ASSERT_EQ(b3.Data(), nullptr);
+        // should not compile
+        // public inheritance; protected copy/move ctors/assignments
+        // BytesBase base = std::move(*derived);
 
-        BytesArray<Malloc> b5(b4);
-        ASSERT_EQ(weak.use_count(), 4);
-        ASSERT_EQ(b4.Data(), b1.Data());
-        ASSERT_EQ(b5.Data(), b1.Data());
+        // should not compile
+        // copy ctor deleted
+        // Bytes<Malloc> copy_ctor(*derived);
+
+        // should not compile
+        // copy ctor/assignment deleted
+        // auto copy = *derived
+
+        BytesBaseType<HostMemory> host = std::move(take_away);
+        ASSERT_EQ(weak.use_count(), 1);
+        EXPECT_EQ(host.Data(), ptr);
+        EXPECT_EQ(take_away.Data(), nullptr);
     }
-    ASSERT_EQ(weak.use_count(), 1);
+    ASSERT_EQ(weak.use_count(), 0);
 }
 
+/*
 TEST_F(TestGeneric, MemoryProvider)
 {
     auto mbo = MemoryProvider<Malloc>::Allocate(one_mb);
     auto sbo = MemoryProvider<SystemV>::Allocate(2*one_mb);
 
     // compilation should fail
-    // BytesArray<HostMemory> h = mbo;
+    // Bytes<HostMemory> h = mbo;
 
     auto h1 = mbo.BaseObject();
 }
-
+*/
 
 /*
 TEST_F(TestGeneric, BytesHandleStorageType)

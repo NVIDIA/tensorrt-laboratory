@@ -41,16 +41,4 @@ struct Resources : public std::enable_shared_from_this<Resources>
     }
 };
 
-// credit:
-// https://stackoverflow.com/questions/16082785/use-of-enable-shared-from-this-with-multiple-inheritance
-template<class T>
-class InheritableResources : virtual public Resources
-{
-  public:
-    std::shared_ptr<T> shared_from_this()
-    {
-        return std::dynamic_pointer_cast<T>(Resources::shared_from_this());
-    }
-};
-
 } // namespace trtlab

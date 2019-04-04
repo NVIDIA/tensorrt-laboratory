@@ -33,6 +33,55 @@
 
 namespace trtlab {
 
+
+
+// type-less array interfaces
+
+// general array base class
+// specialized: Array1D and ArrayND
+
+// typed Array1D: void-only?
+// typed ArrayND: void and numeric
+//   - void to covert lanes > 1 or non-standards bytes/bit size
+
+
+// device agnostic
+/*
+class array_base
+{
+  public:
+    virtual void* Data() const = 0;
+    virtual const void* Data() const = 0;
+    virtual uint64_t Size() const = 0;
+    virtual uint64_t Bytes() const = 0;
+    virtual uint64_t ItemSize() const = 0;
+
+    virtual int NDims() const = 0;
+    virtual uint64_t Shape() const = 0;
+    virtual uint64_t Strides() const = 0;
+    virtual uint64_t StridesInBytes() const = 0;
+
+  protected:
+    struct internal_guard {};
+};
+
+// device agnostic
+class array_1d : public array_base
+{
+  public:
+    array_1d(internal_guard, void*, uint64_t, const dtype&);
+
+    array_nd&& Reshape(std::vector<uint64_t>, const dtype&);
+    array_nd&& Reshape(std::vector<uint64_t>, std::vector<uint64_t>, const dtype&);
+};
+
+// device agnostic
+class array_nd : public array_base
+{
+  public:
+    array_nd(internal_guard, void*, std::vector<uint64_t>, std::vector<uint64_t>, const dtype&);
+};
+*/
 template<typename T>
 struct IArrayImmutable
 {
@@ -53,14 +102,15 @@ struct IArray : public IArrayImmutable<T>
 template<typename T>
 class Array1D : public IArray<T>
 {
-  public:
-    virtual ~Array1D() {}
-
+  protected:
     Array1D(Array1D&&) noexcept;
     Array1D& operator=(Array1D&&) noexcept = default;
 
     Array1D(const Array1D&) = default;
     Array1D& operator=(const Array1D&) = default;
+
+  public:
+    virtual ~Array1D() {}
 
     T* Data() final override { return m_Data; };
     const T* Data() const final override { return m_Data; }
