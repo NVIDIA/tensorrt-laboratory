@@ -28,6 +28,7 @@
   - `/work/build/examples/00_TensorRT/infer.x --engine=model-b8-fp16.engine --contexts=6`
 
 - `./run_jpeg_test.py --image=images/broccoli-3784.jpg model-b1-fp16.engine`
+  - Note this example requires MxNet for image preprocessing: `pip install mxnet`
   - On a V100 using FP16, your results should be
   ```
   *** Results ***
