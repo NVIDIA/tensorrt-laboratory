@@ -99,10 +99,11 @@ void ExecutionContext::Infer(const std::shared_ptr<Bindings>& bindings)
     m_ElapsedTimer = [start] {
         return std::chrono::duration<double>(std::chrono::system_clock::now() - start).count();
     };
-    if(m_GraphWorkspace)
+    const auto& name = bindings->GetModel()->Name();
+    if(m_GraphWorkspace) // this will prevent a hard fail && m_GraphWorkspace->IsGraphAvailable(name, bindings->BatchSize()))
     {
         DLOG(INFO) << "Launching Inference Execution via cudaGraphs";
-        auto graph = m_GraphWorkspace->GraphByName(bindings->GetModel()->Name());
+        auto graph = m_GraphWorkspace->GetGraph(bindings->GetModel()->Name(), bindings->BatchSize());
         CHECK_EQ(cudaGraphLaunch(graph, bindings->Stream()), CUDA_SUCCESS);
     }
     else

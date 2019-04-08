@@ -56,7 +56,7 @@ class InferenceManager : public ::trtlab::Resources
     void RegisterModel(const std::string& name, std::shared_ptr<Model> model);
     void RegisterModel(const std::string& name, std::shared_ptr<Model> model, uint32_t max_concurrency);
 
-    void BuildGraphForModel(const std::string& name);
+    void BuildGraphForModel(const std::string& name, uint32_t batch_size);
 
     // void RegisterModel(const std::string& name, const std::string& model_path, uint32_t max_concurrency);
     // void RegisterModel(const std::string& name, const std::string& model_path, uint32_t max_concurrency);
@@ -99,7 +99,12 @@ class InferenceManager : public ::trtlab::Resources
     std::shared_ptr<Pool<Buffers>> m_Buffers;
     std::shared_ptr<Pool<ExecutionContext>> m_ExecutionContexts;
 
-    std::map<std::string, bool> m_RegisteredGraphsByModelName;
+    using Key = std::pair<std::string, uint32_t>;
+    inline static Key MakeKey(std::string model_name, uint32_t batch_size)
+    {
+        return std::make_pair(model_name, batch_size);
+    }
+    std::map<Key, bool> m_RegisteredGraphsByModelName;
 
     std::size_t Align(std::size_t size, std::size_t alignment)
     {

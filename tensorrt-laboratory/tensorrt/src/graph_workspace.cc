@@ -48,7 +48,7 @@ std::size_t Align(std::size_t size, std::size_t alignment)
 namespace trtlab {
 namespace TensorRT {
 
-GraphWorkspace::GraphWorkspace()
+GraphWorkspace::GraphWorkspace() : m_DeviceStackSize(0), m_ActivationsSize(0)
 {
     DLOG(INFO) << "GraphWorkspace Constructor";
     CHECK_EQ(cudaStreamCreate(&m_Stream), cudaSuccess);
@@ -74,17 +74,21 @@ GraphWorkspace::~GraphWorkspace()
     CHECK_EQ(cudaStreamDestroy(m_Stream), CUDA_SUCCESS);
 }
 
-void GraphWorkspace::RegisterModel(const std::string& name, std::shared_ptr<Model> model)
+void GraphWorkspace::RegisterModel(const std::string& name, std::shared_ptr<Model> model,
+                                   uint32_t batch_size)
 {
     if(m_BindingsStack || m_ActivationSpace)
     {
         LOG(FATAL) << "Registration of new models is not allowed after graph creation";
     }
 
-    auto item = m_Models.find(name);
-    if(item != m_Models.end())
+    CHECK_LE(batch_size, model->GetMaxBatchSize());
+
+    auto key = MakeKey(name, batch_size);
+    auto search = m_ModelsAndBatchSize.find(key);
+    if(search != m_ModelsAndBatchSize.end())
     {
-        LOG(FATAL) << "Model naming collsion; Model with name=" << name
+        LOG(FATAL) << "Model collsion; Model with name=" << name << " and bs=" << batch_size
                    << " is already registered.";
     }
 
@@ -110,6 +114,7 @@ void GraphWorkspace::RegisterModel(const std::string& name, std::shared_ptr<Mode
     model->SetName(name);
     m_Models[name] = model;
     m_ExecutionContexts[name] = model->CreateExecutionContext();
+    m_ModelsAndBatchSize[key] = model;
 }
 
 void GraphWorkspace::BuildGraphs()
@@ -127,13 +132,15 @@ void GraphWorkspace::BuildGraphs()
     m_BindingsStack = std::make_unique<MemoryStack<CudaDeviceMemory>>(m_DeviceStackSize);
     m_ActivationSpace = std::make_unique<Allocator<CudaDeviceMemory>>(m_ActivationsSize);
 
-    for(const auto& item : m_Models)
+    for(const auto& item : m_ModelsAndBatchSize)
     {
         // Unpack map entry { std::string, std::shared_ptr<Model> }
-        const auto& name = item.first;
+        const auto& key = item.first;
         const auto& model = *(item.second);
+        const auto& name = key.first;
+        const auto& batch_size = key.second;
 
-        LOG(INFO) << "Building Graph for: " << name;
+        DLOG(INFO) << "Building Graph for: " << name << "; bs=" << batch_size;
 
         // Set the IExecutionContext to use the Workspace's activation memory
         auto& ctx = m_ExecutionContexts.at(name);
@@ -141,41 +148,64 @@ void GraphWorkspace::BuildGraphs()
 
         // Push Model Bindings on Device Memory Stack
         // These pointers will get baked into the graph
-        auto max_batch_size = model.GetMaxBatchSize();
         std::vector<void*> bindings;
-        bindings.resize(model.GetBindingsCount());
-        for(int i = 0; i < model.GetBindingsCount(); i++)
+
+        // Only push and save the stack once per model since we allocated for max_batch_size
+        auto search = m_DeviceBindings.find(name);
+        if(search == m_DeviceBindings.end())
         {
-            const auto& info = model.GetBinding(i);
-            auto size = max_batch_size * info.bytesPerBatchItem;
-            bindings[i] = m_BindingsStack->Allocate(size);
+            auto max_batch_size = model.GetMaxBatchSize();
+            bindings.resize(model.GetBindingsCount());
+            for(int i = 0; i < model.GetBindingsCount(); i++)
+            {
+                const auto& info = model.GetBinding(i);
+                auto size = max_batch_size * info.bytesPerBatchItem;
+                bindings[i] = m_BindingsStack->Allocate(size);
+            }
+            m_DeviceBindings[name] = bindings;
+        }
+        else
+        {
+            bindings = m_DeviceBindings[name];
         }
 
         // Build Graph
         cudaGraph_t graph;
         // these fail
         // CHECK_EQ(cudaStreamBeginCapture(m_Stream, cudaStreamCaptureModeGlobal), CUDA_SUCCESS);
-        // CHECK_EQ(cudaStreamBeginCapture(m_Stream, cudaStreamCaptureModeThreadLocal), CUDA_SUCCESS);
+        // CHECK_EQ(cudaStreamBeginCapture(m_Stream, cudaStreamCaptureModeThreadLocal),
+        // CUDA_SUCCESS);
         CHECK_EQ(cudaStreamBeginCapture(m_Stream, cudaStreamCaptureModeRelaxed), CUDA_SUCCESS);
-        ctx->enqueue(max_batch_size, (void**)bindings.data(), m_Stream, nullptr);
+        ctx->enqueue(batch_size, (void**)bindings.data(), m_Stream, nullptr);
         CHECK_EQ(cudaStreamEndCapture(m_Stream, &graph), CUDA_SUCCESS);
 
         // Store the Graph by Model Name
-        m_Graphs[name] = graph;
-        m_DeviceBindings[name] = std::move(bindings);
+        m_Graphs[key] = graph;
+        // m_DeviceBindings[name] = std::move(bindings);
 
         // Reset the Device Memory Stack
         m_BindingsStack->Reset();
 
         cudaGraphExec_t graphExec;
         CHECK_EQ(cudaGraphInstantiate(&graphExec, graph, NULL, NULL, 0), CUDA_SUCCESS);
-        m_GraphExecutors[name] = graphExec;
+        m_GraphExecutors[key] = graphExec;
     }
 }
 
 bool GraphWorkspace::IsModelRegistered(const std::string& name) const
 {
-    auto search = m_GraphExecutors.find(name);
+    auto search = m_Models.find(name);
+    if(search == m_Models.end())
+    {
+        return false;
+    }
+    return true;
+}
+
+bool GraphWorkspace::IsGraphAvailable(const std::string& name, uint32_t batch_size) const
+{
+    auto key = MakeKey(name, batch_size);
+    auto search = m_GraphExecutors.find(key);
     if(search == m_GraphExecutors.end())
     {
         return false;
@@ -183,9 +213,10 @@ bool GraphWorkspace::IsModelRegistered(const std::string& name) const
     return true;
 }
 
-cudaGraphExec_t GraphWorkspace::GraphByName(const std::string& name)
+cudaGraphExec_t GraphWorkspace::GetGraph(const std::string& name, uint32_t batch_size)
 {
-    auto search = m_GraphExecutors.find(name);
+    auto key = MakeKey(name, batch_size);
+    auto search = m_GraphExecutors.find(key);
     if(search == m_GraphExecutors.end())
     {
         throw std::runtime_error("No graph executor for " + name);

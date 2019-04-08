@@ -210,8 +210,10 @@ void InferenceManager::AllocateResources()
         DLOG(INFO) << "Building Graphs for Buffer #" << i;
         for(const auto& item : m_RegisteredGraphsByModelName)
         {
-            const auto& name = item.first;
-            buffers->m_GraphWorkspace->RegisterModel(name, GetModel(name));
+            const auto& key = item.first;
+            const auto& name = key.first;
+            const auto& batch_size = key.second;
+            buffers->m_GraphWorkspace->RegisterModel(name, GetModel(name), batch_size);
         }
         buffers->m_GraphWorkspace->BuildGraphs();
 
@@ -347,9 +349,10 @@ void InferenceManager::ForEachModel(std::function<void(const Model&)> callback)
     }
 }
 
-void InferenceManager::BuildGraphForModel(const std::string& name)
+void InferenceManager::BuildGraphForModel(const std::string& name, uint32_t batch_size)
 {
-    m_RegisteredGraphsByModelName[name] = true;
+    auto key = MakeKey(name, batch_size);
+    m_RegisteredGraphsByModelName[key] = true;
 }
 
 } // namespace TensorRT
