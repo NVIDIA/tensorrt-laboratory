@@ -178,14 +178,16 @@ class Pool : public Queue<std::shared_ptr<ResourceType>>
      */
     std::shared_ptr<ResourceType> Pop(std::function<void(ResourceType*)> onReturn)
     {
-        auto pool_ptr = this->shared_from_this();
+        // auto pool_ptr = this->shared_from_this();
         auto from_pool = Queue<std::shared_ptr<ResourceType>>::Pop();
-        std::shared_ptr<ResourceType> ptr(from_pool.get(),
-                                          [from_pool, pool_ptr, onReturn](auto p) mutable {
-                                              onReturn(p);
-                                              pool_ptr->Push(std::move(from_pool));
-                                              pool_ptr.reset();
-                                          });
+        auto raw = from_pool.get();
+        std::shared_ptr<ResourceType> ptr(raw, [from_pool = std::move(from_pool),
+                                                pool_ptr = std::move(this->shared_from_this()),
+                                                onReturn](auto p) mutable {
+            onReturn(p);
+            pool_ptr->Push(std::move(from_pool));
+            pool_ptr.reset();
+        });
         return ptr;
     }
 
