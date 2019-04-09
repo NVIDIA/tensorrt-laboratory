@@ -30,6 +30,7 @@
 #include <glog/logging.h>
 
 #include "trtlab/core/memory/array.h"
+#include "trtlab/core/memory/tensor_shape.h"
 
 namespace trtlab {
 
@@ -58,20 +59,42 @@ class BytesProvider : public IBytesProvider, public std::enable_shared_from_this
     friend class Bytes<T>;
 };
 
-struct BytesBase : protected Array1D<void>
+struct BytesBase : public ITensorShape
 {
-  protected:
-    using Array1D<void>::Array1D;
+  public:
+    BytesBase(void* ptr, dims_t size) : m_Data(ptr), m_Size(size), m_NDims(1)
+    {
+        DCHECK_GE(size, 0);
+    }
+    virtual ~BytesBase() {}
 
-    BytesBase(BytesBase&&) noexcept = default;
+    // ITensorShape Interface
+    uint32_t NDims() const final override { return m_NDims; }
+    const dims_t* Shape() const final override { return &m_Size; }
+    const dims_t* Strides() const final override { return &m_NDims; }
+    uint64_t Size() const final override { return (uint64_t)m_Size; }
+
+    void* Data() { return m_Data; }
+    const void* Data() const { return m_Data; }
+
+  protected:
+    BytesBase() : m_Data(nullptr), m_Size(0), m_NDims(0) {}
+
+    BytesBase(BytesBase&& other) noexcept
+        : m_Data(std::exchange(other.m_Data, nullptr)),
+          m_Size(std::exchange(other.m_Size, 0)),
+          m_NDims(std::exchange(other.m_NDims, 0))
+    {
+    }
     BytesBase& operator=(BytesBase&&) noexcept = default;
 
     BytesBase(const BytesBase&) = delete;
     BytesBase& operator=(const BytesBase&) = delete;
 
-  public:
-    using Array1D::Data;
-    using Array1D::Size;
+  private:
+    void* m_Data;
+    dims_t m_Size;
+    int64_t m_NDims;
 };
 
 template<typename BaseType>
@@ -131,7 +154,7 @@ class Bytes final : public BytesBaseType<typename MemoryType::BaseType>
     friend class BytesProvider<MemoryType>;
 };
 
-// Implementation
+// Implementation Bytes
 
 template<typename BaseType>
 bool BytesBaseType<BaseType>::CheckBounds(void* ptr, mem_size_t size,
@@ -159,6 +182,8 @@ const MemoryType& Bytes<MemoryType>::Memory() const
     }
     return derived->BytesProviderMemory();
 }
+
+// Implementation BytesProvider
 
 template<typename T>
 Bytes<T> BytesProvider<T>::BytesFromThis(void* ptr, mem_size_t size)

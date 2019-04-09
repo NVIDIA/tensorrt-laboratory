@@ -25,55 +25,60 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
-#include <memory>
-
-#include "trtlab/core/memory/bytes.h"
-
-#include "trtlab/core/memory/allocator.h"
+#include <cstdint>
+#include <functional>
+#include <limits>
+#include <numeric>
+#include <utility>
+#include <vector>
 
 namespace trtlab {
 
-template<typename T>
-class BytesAllocator : public BytesProvider<T>
+struct ITensorShape
 {
-    struct internal_guard
-    {
-    };
+    using dims_t = int64_t;
 
+    virtual uint32_t NDims() const = 0;
+    virtual uint64_t Size() const = 0;
+    virtual const dims_t* Shape() const = 0;
+    virtual const dims_t* Strides() const = 0;
+};
+
+class TensorShapeGeneric : public ITensorShape
+{
   public:
-    static Bytes<T> Allocate(mem_size_t size)
+    using shape_t = std::vector<dims_t>;
+    using strides_t = std::vector<dims_t>;
+
+    TensorShapeGeneric(int64_t size) : m_Shape({size}), m_Strides({1}), m_Items(size) { CheckShape(); }
+    TensorShapeGeneric(const shape_t& shape)
+        : m_Shape(shape), m_Items(0) { Initialize(); }
+    TensorShapeGeneric(const shape_t& shape, const strides_t& strides)
+        : m_Shape(shape), m_Strides(strides), m_Items(0) { Initialize(); }
+
+    uint32_t NDims() const final override { return m_Shape.size(); }
+    const dims_t* Shape() const final override { return &m_Shape[0]; }
+    const dims_t* Strides() const final override { return &m_Strides[0]; }
+    uint64_t Size() const final override
     {
-        return Expose(std::move(Allocator<T> {size}));
+        return std::accumulate(m_Shape.cbegin(), m_Shape.cend(), uint64_t(1),
+                               std::multiplies<dims_t>());
     }
 
-    static Bytes<T> Expose(std::unique_ptr<Allocator<T>> memory)
-    {
-        return Expose(std::move(*memory));
-    }
-
-    static Bytes<T> Expose(Allocator<T>&& memory)
-    {
-        auto shared = std::make_shared<BytesAllocator<T>>(std::move(memory), internal_guard());
-        return shared->GetBytes();
-    }
-
-    BytesAllocator(Allocator<T>&& memory, internal_guard) : m_Memory(std::move(memory)) {}
-
-    ~BytesAllocator() { DLOG(INFO) << "BytesAllocator deleting: " << m_Memory; }
+    bool IsCompact() const { return (bool)(Size() == m_Items); }
+    bool IsStrided() const { return (bool)(m_Items > Size()); }
+    bool IsBroadcasted() const { return (bool)(m_Items < Size()); }
 
   protected:
-    Bytes<T> GetBytes() { return this->BytesFromThis(m_Memory.Data(), m_Memory.Size()); }
+    void Initialize();
+    void CheckShape();
+    void SetStridesCompactRowMajor();
+    void ValidateDimensions();
 
   private:
-    const void* BytesProviderData() const final override { return m_Memory.Data(); }
-    mem_size_t BytesProviderSize() const final override { return m_Memory.Size(); }
-    const DLContext& BytesProviderDeviceInfo() const final override
-    {
-        return m_Memory.DeviceInfo();
-    }
-    const T& BytesProviderMemory() const final override { return m_Memory; }
-
-    Allocator<T> m_Memory;
+    shape_t m_Shape;
+    strides_t m_Strides;
+    int64_t m_Items;
 };
 
 } // namespace trtlab

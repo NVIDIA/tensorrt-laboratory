@@ -25,6 +25,7 @@ add_library(core
   src/memory/host_memory.cc
   src/memory/malloc.cc
   src/memory/system_v.cc
+  src/memory/tensor_shape.cc
   src/utils.cc
 )
 

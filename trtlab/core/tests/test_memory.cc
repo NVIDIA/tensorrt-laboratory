@@ -27,6 +27,7 @@
 #include "trtlab/core/memory/allocator.h"
 #include "trtlab/core/memory/bytes.h"
 #include "trtlab/core/memory/bytes_allocator.h"
+#include "trtlab/core/memory/tensor.h"
 #include "trtlab/core/memory/copy.h"
 #include "trtlab/core/memory/malloc.h"
 #include "trtlab/core/memory/system_v.h"
@@ -577,9 +578,12 @@ TEST_F(TestGeneric, BytesCopyMoveAssignment)
     {
         // move assignment
         auto mv_assign = std::move(provider->Allocate(0, one_mb));
-        ASSERT_EQ(mv_assign.Size(), one_mb);
-        ASSERT_EQ(weak.use_count(), 2);
         auto ptr = mv_assign.Data();
+        ASSERT_EQ(weak.use_count(), 2);
+        EXPECT_EQ(mv_assign.Size(), one_mb);
+        EXPECT_EQ(mv_assign.NDims(), 1);
+        EXPECT_EQ(mv_assign.Shape()[0], one_mb);
+        EXPECT_EQ(mv_assign.Strides()[0], 1);
 
         Bytes<Malloc> mv_ctor(std::move(mv_assign));
         ASSERT_EQ(weak.use_count(), 2);
@@ -611,15 +615,23 @@ TEST_F(TestGeneric, BytesCopyMoveAssignment)
         // should not compile
         // copy ctor deleted
         // Bytes<Malloc> copy_ctor(*derived);
+        ASSERT_FALSE(std::is_copy_constructible<Bytes<Malloc>>::value);
+        ASSERT_TRUE(std::is_move_constructible<Bytes<Malloc>>::value);
 
         // should not compile
         // copy ctor/assignment deleted
         // auto copy = *derived
+        ASSERT_FALSE(std::is_copy_assignable<Bytes<Malloc>>::value);
+        ASSERT_TRUE(std::is_move_assignable<Bytes<Malloc>>::value);
 
         BytesBaseType<HostMemory> host = std::move(take_away);
         ASSERT_EQ(weak.use_count(), 1);
         EXPECT_EQ(host.Data(), ptr);
         EXPECT_EQ(take_away.Data(), nullptr);
+        EXPECT_EQ(take_away.Size(), 0);
+        EXPECT_EQ(take_away.NDims(), 0);
+        EXPECT_EQ(take_away.Shape()[0], 0);
+        EXPECT_EQ(take_away.Strides()[0], 0);
 
         host.Release();
         ASSERT_EQ(weak.use_count(), 0);
@@ -627,18 +639,15 @@ TEST_F(TestGeneric, BytesCopyMoveAssignment)
     ASSERT_EQ(weak.use_count(), 0);
 }
 
-/*
+
 TEST_F(TestGeneric, MemoryProvider)
 {
-    auto mbo = MemoryProvider<Malloc>::Allocate(one_mb);
-    auto sbo = MemoryProvider<SystemV>::Allocate(2*one_mb);
+    auto sysv = Allocator<SystemV>(2*one_mb);
+    auto mb = BytesAllocator<Malloc>::Allocate(one_mb);
+    auto sb = BytesAllocator<SystemV>::Expose(std::move(sysv));
 
-    // compilation should fail
-    // Bytes<HostMemory> h = mbo;
-
-    auto h1 = mbo.BaseObject();
 }
-*/
+
 
 /*
 TEST_F(TestGeneric, BytesHandleStorageType)
