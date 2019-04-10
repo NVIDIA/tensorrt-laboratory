@@ -156,20 +156,16 @@ void* MemoryStack<MemoryType>::Allocate(size_t size)
     // ------------------------------------------------------------------
     // Benchmark w/o CHECK_LE             Time           CPU Iterations
     // ------------------------------------------------------------------
-    // BM_MemoryStack_Allocate/1          11 ns         11 ns   62495166
-    // BM_MemoryStack_Allocate/2          13 ns         13 ns   55541273
-    // BM_MemoryStack_Allocate/4          14 ns         14 ns   49153400
-    // BM_MemoryStack_Allocate/8          17 ns         17 ns   40489140
-    // BM_MemoryStack_Allocate/16         24 ns         24 ns   29026866
+    // BM_MemoryStack_Allocate/1          2 ns          2 ns  288150249
+    // BM_MemoryStack_Allocate/2          3 ns          3 ns  207978552
+    // BM_MemoryStack_Allocate/4          5 ns          5 ns  136731782
     // ------------------------------------------------------------------
     // ------------------------------------------------------------------
     // Benchmark w/ CHECK_LE               Time           CPU Iterations
     // ------------------------------------------------------------------
-    // BM_MemoryStack_Allocate/1          15 ns         15 ns   46127782
-    // BM_MemoryStack_Allocate/2          28 ns         28 ns   24626879
-    // BM_MemoryStack_Allocate/4          55 ns         55 ns   12683665
-    // BM_MemoryStack_Allocate/8         110 ns        110 ns    6382288
-    // BM_MemoryStack_Allocate/16        218 ns        218 ns    3216917
+    // BM_MemoryStack_Allocate/1          6 ns          6 ns  121789742
+    // BM_MemoryStack_Allocate/2         10 ns         10 ns   69706358
+    // BM_MemoryStack_Allocate/4         19 ns         19 ns   36843480
     // ------------------------------------------------------------------
     // This is a necessary error check for a general purpose memory stack;
     // We could alternatively provided an AllocateWithoutBoundsCheck if
