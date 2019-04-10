@@ -148,8 +148,7 @@ void* MemoryStack<MemoryType>::Allocate(size_t size)
 
     // Compute Aligned Size
     void* return_ptr = m_CurrentPointer;
-    size_t remainder = size % m_Alignment;
-    size = (remainder == 0) ? size : size + m_Alignment - remainder;
+    size = (size + (m_Alignment-1)) & ~(m_Alignment-1);
 
     // This check causes a tight loop of allocates to be just as expensive
     // as returning a DataHandle object.  Regardless of whether or not the
