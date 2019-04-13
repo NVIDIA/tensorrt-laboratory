@@ -178,6 +178,6 @@ RUN python3 -m pip install -r /tmp/requirements.txt \
 
 WORKDIR /work
 COPY . .
-# RUN ./build.sh
+RUN ./build.sh
 
 ENV PYTHONPATH=/work/build/tensorrt-laboratory/python/trtlab

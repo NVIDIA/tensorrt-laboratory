@@ -1,4 +1,4 @@
-BASE_IMAGE ?= nvcr.io/nvidia/tensorrt:19.02-py3
+BASE_IMAGE ?= nvcr.io/nvidia/tensorrt:19.03-py3
 IMAGE_NAME ?= trtlab
 RELEASE_IMAGE ?= ryanolson/tensorrt-laboratory
 
