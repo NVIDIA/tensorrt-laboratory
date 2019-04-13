@@ -119,6 +119,8 @@ class CyclicAllocator
 
     Descriptor Allocate(size_t size) { return InternalAllocate(size); }
 
+    Bytes<MemoryType> AllocateBytes(size_t size) { return std::move(InternalAllocateBytes(size)); }
+
     size_t MaxAllocationSize() const { return m_MaximumAllocationSize; }
 
     /*
@@ -166,6 +168,29 @@ class CyclicAllocator
             m_CurrentSegment.reset();
         }
         return retval;
+    }
+
+    Bytes<MemoryType> InternalAllocateBytes(size_t size)
+    {
+        DLOG(INFO) << "Requested Allocation: " << size << " bytes";
+        CHECK_LE(size, m_MaximumAllocationSize)
+            << "Requested allocation of " << size << " bytes exceeds the maximum allocation "
+            << "size of " << m_MaximumAllocationSize << " for this CyclicAllocator.";
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        if(!m_CurrentSegment || size > m_CurrentSegment->Available())
+        {
+            DLOG(INFO) << "Current Segment cannot fulfill the request; rotate segment";
+            m_CurrentSegment.reset(); // explicitily drop the current segment -> returns to pool
+            m_CurrentSegment = InternalPopSegment(); // get the next segment from pool
+        }
+        auto bytes = m_CurrentSegment->AllocateBytes(size);
+        // TODO: proactive release should be dependent the recent allocations statistics
+        if(!m_CurrentSegment->Available())
+        {
+            DLOG(INFO) << "Proactively releasing the current segment as it is maxed";
+            m_CurrentSegment.reset();
+        }
+        return std::move(bytes);
     }
 
     void InternalPushSegment()

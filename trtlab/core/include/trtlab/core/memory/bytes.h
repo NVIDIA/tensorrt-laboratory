@@ -114,6 +114,7 @@ class BytesBaseType : public BytesBase
     const DLContext& DeviceInfo() const { return m_Provider->BytesProviderDeviceInfo(); }
 
   protected:
+    BytesBaseType() : BytesBase() {}
     BytesBaseType(void* ptr, uint64_t size, std::shared_ptr<IBytesProvider> provider)
         : BytesBase(ptr, size), m_Provider(provider)
     {
@@ -134,6 +135,7 @@ template<typename MemoryType>
 class Bytes final : public BytesBaseType<typename MemoryType::BaseType>
 {
   public:
+    Bytes() : BytesBaseType<typename MemoryType::BaseType>() {}
     virtual ~Bytes() override{};
 
     Bytes(Bytes&& other) noexcept = default;

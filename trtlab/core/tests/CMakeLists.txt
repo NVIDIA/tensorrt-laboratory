@@ -35,6 +35,7 @@ add_executable(test_core
   test_cyclic_allocator.cc
   test_async_compute.cc
   test_tensor.cc
+  test_stl_allocator.cc
 )
 
 target_link_libraries(test_core

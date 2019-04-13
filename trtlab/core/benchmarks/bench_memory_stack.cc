@@ -32,6 +32,7 @@
 #include "trtlab/core/memory/smart_stack.h"
 #include "trtlab/core/memory/system_v.h"
 #include "trtlab/core/memory/bytes.h"
+#include "trtlab/core/memory/stl_allocator.h"
 
 using namespace trtlab;
 using namespace trtlab;
@@ -165,6 +166,18 @@ static void BM_CyclicAllocator_Malloc_Allocate(benchmark::State& state)
     }
 }
 
+static void BM_CyclicAllocator_Malloc_AllocateBytes(benchmark::State& state)
+{
+    auto stack = std::make_unique<CyclicAllocator<Malloc>>(10, 1024 * 1024);
+    for(auto _ : state)
+    {
+        for(int i = 0; i < state.range(0); i++)
+        {
+            auto ptr = stack->AllocateBytes(1024);
+        }
+    }
+}
+
 static void BM_CyclicAllocator_SystemV_Allocate(benchmark::State& state)
 {
     auto stack = std::make_unique<CyclicAllocator<SystemV>>(10, 1024 * 1024);
@@ -174,11 +187,70 @@ static void BM_CyclicAllocator_SystemV_Allocate(benchmark::State& state)
     }
 }
 
-BENCHMARK(BM_MemoryStack_Allocate)->RangeMultiplier(2)->Range(1, 1 << 0);
+template<typename T>
+using custom_vector = std::vector<T, stl::temporary_allocator<T, Malloc>>;
+
+static void BM_CyclicAllocator_stl_allocator(benchmark::State& state)
+{
+    {
+        auto v0 = custom_vector<int>(1024);
+    }
+    for(auto _ : state)
+    {
+        custom_vector<int> vector;
+        vector.reserve(1024*1024);
+    }
+}
+
+static void BM_CyclicAllocator_stl_allocator2(benchmark::State& state)
+{
+    size_t ctr = 1024;
+    for(auto _ : state)
+    {
+        custom_vector<int> v3;
+        v3.reserve(ctr*ctr*8);
+    }
+}
+
+static void BM_CyclicAllocator_stl_vector(benchmark::State& state)
+{
+    size_t ctr = 1024;
+    for(auto _ : state)
+    {
+        std::vector<int> v3;
+        v3.reserve(ctr*ctr*8);
+    }
+}
+
+static void BM_stl_allocator_ctor(benchmark::State& state)
+{
+    for(auto _ : state)
+    {
+        auto a = stl::temporary_allocator<int, Malloc>();
+    }
+}
+
+static void BM_stl_allocator_allocate_lifecycle(benchmark::State& state)
+{
+    for(auto _ : state)
+    {
+        auto a = stl::temporary_allocator<int, Malloc>();
+        auto i = a.allocate(1024);
+        a.deallocate(i, 1024);
+    }
+}
+
+BENCHMARK(BM_MemoryStack_Allocate)->RangeMultiplier(2)->Range(1, 1 << 2);
 BENCHMARK(BM_MemoryStackWithDescriptor_AllocateBytes)->RangeMultiplier(16)->Range(1, 1 << 0);
 BENCHMARK(BM_MemoryStackWithDescriptor_AllocateInternalDesc)->RangeMultiplier(16)->Range(1, 1 << 0);
 BENCHMARK(BM_MemoryStackWithDescriptor_AllocateUniqueInternalDesc);
 BENCHMARK(BM_SmartStack_Allocate)->RangeMultiplier(2)->Range(1, 1 << 0);
 BENCHMARK(BM_SmartStack_AllocateBytes)->RangeMultiplier(2)->Range(1, 1 << 0);
 BENCHMARK(BM_CyclicAllocator_Malloc_Allocate)->RangeMultiplier(2)->Range(1, 1 << 0);
+BENCHMARK(BM_CyclicAllocator_Malloc_AllocateBytes)->RangeMultiplier(2)->Range(1, 1 << 0);
 BENCHMARK(BM_CyclicAllocator_SystemV_Allocate);
+BENCHMARK(BM_CyclicAllocator_stl_allocator);
+BENCHMARK(BM_CyclicAllocator_stl_allocator2);
+BENCHMARK(BM_CyclicAllocator_stl_vector);
+BENCHMARK(BM_stl_allocator_ctor);
+BENCHMARK(BM_stl_allocator_allocate_lifecycle);
