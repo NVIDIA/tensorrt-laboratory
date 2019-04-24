@@ -8,11 +8,12 @@
   - cli options:
     - `--batch` will select the batch size, multiple can be given, a separate
       engine for each batch size will be generated.
-    - `--precision` can be `fp32`, `fp16`.  if multiple precision are given, an
+    - `--precision` can be `fp32`, `fp16`, or `int8`.  if multiple precision are given, an
       engine for each will be created.  
+    - **Note**: To use `int8` precision, you will need a Turing, Volta, or Pascal GPU with compute capability 6.1.
   - If you have a Turing or Volta GPU, then run the following commmand which will generates 4 engines:
     ```
-    ./build.py --batch=1 --batch=8 --precision=fp16 --precision=fp32 resnet50/model.onnx
+    ./build.py --batch=1 --batch=8 --precision=fp16 --precision=int8 resnet50/model.onnx
     ```
   - If you have a Pascal GPU, run the following which generates 2 engines:
     ```
@@ -34,6 +35,12 @@
   *** Results ***
   broccoli 0.9511453
   ```
+- `./run_jpeg_test.py --image=images/broccoli-3784.jpg model-b1-int8.engine`
+  - When using INT8, your results should be
+  ```
+   *** Results ***
+   broccoli 0.89453125
+   ```
 
 ## Credits
 
