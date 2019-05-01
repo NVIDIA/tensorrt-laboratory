@@ -1,7 +1,7 @@
 # TensorRT ResNet50 Example
 
-- `fetch.sh` downloads the onnx model and test data from S3
-  - after running this script the `resnet50` directory should be present in your
+- `fetch.sh` downloads the onnx model, test data, and calibration images from S3
+  - after running this script the `resnet50` and `calibration_images` directories should be present in your
     local path
 
 - Build (`build.py`) TensorRT engines from the `model.onnx` file
@@ -30,24 +30,26 @@
 
 - `./run_jpeg_test.py --image=images/broccoli-3784.jpg model-b1-fp16.engine`
   - Note this example requires MxNet for image preprocessing: `pip install mxnet`
-  - On a V100 using FP16, your results should be
+  - On a V100 using FP16, your results should be close to
   ```
   *** Results ***
   broccoli 0.9511453
   ```
 - `./run_jpeg_test.py --image=images/broccoli-3784.jpg model-b1-int8.engine`
-  - When using INT8, your results should be
+  - When using INT8, your results should be close to
   ```
-   *** Results ***
-   broccoli 0.89453125
-   ```
+  *** Results ***
+  broccoli 0.9228073
+  ```
 
 ## Credits
 
- - [broccoli image](https://www.openfotos.com/view/broccoli-3784) - OpenFotosa
+ - [broccoli image](https://www.openfotos.com/view/broccoli-3784) - OpenFotos
    - https://www.openfotos.com/pages/open-fotos-license
+ - [calibration images](calibration_images.csv) - Images from OpenFotos and Pixabay
+   - https://www.openfotos.com/pages/open-fotos-license
+   - https://pixabay.com/service/license/ 
 
 ## TODOs
 
- - [ ] Add Int8 calibration example
  - [ ] Update `run_jpeg_test.py` to highlight the async interface.
