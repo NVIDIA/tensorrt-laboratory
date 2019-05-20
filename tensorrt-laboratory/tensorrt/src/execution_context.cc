@@ -137,7 +137,6 @@ auto ExecutionContext::Synchronize() -> double
  */
 void ExecutionContext::Reset()
 {
-    m_Context->setDeviceMemory(nullptr);
     m_Context.reset();
     m_GraphWorkspace.reset();
     m_ElapsedTimer = [] { return 0.0; };
