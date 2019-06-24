@@ -702,7 +702,7 @@ PYBIND11_MODULE(trtlab, m)
         .def("infer_runner", &PyRemoteInferenceManager::InferRunner);
 
     py::class_<PyInferRunner, std::shared_ptr<PyInferRunner>>(m, "InferRunner")
-        .def("infer", &PyInferRunner::Infer, py::call_guard<py::gil_scoped_release>())
+        .def("infer", &PyInferRunner::Infer)
         .def("input_bindings", &PyInferRunner::InputBindings)
         .def("output_bindings", &PyInferRunner::OutputBindings)
         .def("max_batch_size", &PyInferRunner::MaxBatchSize);
