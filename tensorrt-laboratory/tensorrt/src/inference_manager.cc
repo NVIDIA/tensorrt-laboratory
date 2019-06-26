@@ -164,90 +164,98 @@ void InferenceManager::RegisterModel(const std::string& name, std::shared_ptr<Mo
 }
 
 /**
- * @brief Register a Model with the InferenceManager object
+ * @brief Register a ensemble of Models with the InferenceManager object
  */
-void InferenceManager::RegisterModelAccum(const std::string& name, std::shared_ptr<Model> model)
+void InferenceManager::RegisterModel(const std::vector<std::string>& names, std::vector<std::shared_ptr<Model>> models)
 {
-    RegisterModelAccum(name, model, m_MaxExecutions);
+    RegisterModel(names, models, m_MaxExecutions);
 }
 
 /**
- * @brief Register a Model with the InferenceManager object
+ * @brief Register a ensemble of Models with the InferenceManager object
  *
  * This variant allows you to specify an alternate maximum concurrency for this model.  The value
  * must be 1 <= concurrency <= MaxConcurrency.  Larger values will be capped to the maximum
  * concurrency allowed by the InferenceManager object.
  */
-void InferenceManager::RegisterModelAccum(const std::string& name, std::shared_ptr<Model> model,
-                                     uint32_t max_concurrency)
+void InferenceManager::RegisterModel(const std::vector<std::string>& names, std::vector<std::shared_ptr<Model>> models, uint32_t max_concurrency)
 {
-    auto item = m_Models.find(name);
-    if(item != m_Models.end())
+    size_t m_HostStackSize_temp = 0;
+    size_t m_DeviceStackSize_temp = 0;
+
+    for(size_t i = 0; i < names.size(); i++)
     {
-        LOG(ERROR) << "Model naming collsion; Model with name=" << name
-                   << " is already registered.";
-        return;
-    }
+        auto name = names.at(i);
+        auto model = models.at(i);
 
-    if(max_concurrency > m_MaxExecutions)
-    {
-        LOG(WARNING) << "Requested concurrency (" << max_concurrency
-                     << ") exceeds max concurrency. "
-                     << "Concurrency will be capped to " << m_MaxExecutions;
-        max_concurrency = m_MaxExecutions;
-    }
-
-    // Size according to largest padding - device alignment
-    size_t bindings =
-        model->GetBindingMemorySize() + model->GetBindingsCount() * DeviceInfo::Alignment();
-    size_t activations = Align(model->GetActivationsMemorySize(), 128 * 1024); // add a cacheline
-
-    size_t host = Align(bindings, 32 * 1024);
-    size_t device = Align(bindings, 128 * 1024);
-
-    // TODO: Check to see if m_Buffers has been allocated.  If so, we should thown an exception
-    // if the registered model requirements are larger than our allocated buffers.
-    if(m_Buffers)
-    {
-        if(host > m_HostStackSize || device > m_DeviceStackSize)
+        auto item = m_Models.find(name);
+        if(item != m_Models.end())
         {
-            throw std::runtime_error(
-                "Required binding resources are greater than allocated capacity");
+            LOG(ERROR) << "Model naming collsion; Model with name=" << name
+                       << " is already registered.";
+            return;
+        }
+
+        if(max_concurrency > m_MaxExecutions)
+        {
+            LOG(WARNING) << "Requested concurrency (" << max_concurrency
+                         << ") exceeds max concurrency. "
+                         << "Concurrency will be capped to " << m_MaxExecutions;
+            max_concurrency = m_MaxExecutions;
+        }
+
+        // Size according to largest padding - device alignment
+        size_t bindings =
+            model->GetBindingMemorySize() + model->GetBindingsCount() * DeviceInfo::Alignment();
+        size_t activations = Align(model->GetActivationsMemorySize(), 128 * 1024); // add a cacheline
+
+        size_t host = Align(bindings, 32 * 1024);
+        size_t device = Align(bindings, 128 * 1024);
+
+        // TODO: Check to see if m_Buffers has been allocated.  If so, we should thown an exception
+        // if the registered model requirements are larger than our allocated buffers.
+        m_HostStackSize_temp += host;
+        m_DeviceStackSize_temp += device;
+
+        if(m_Buffers)
+        {
+            if(m_HostStackSize_temp > m_HostStackSize || m_DeviceStackSize_temp > m_DeviceStackSize)
+            {
+                throw std::runtime_error(
+                    "Required binding resources are greater than allocated capacity");
+            }
+        }
+
+        if(m_ExecutionContexts)
+        {
+            if(activations > m_ActivationsSize)
+            {
+                throw std::runtime_error(
+                    "Required activation workspace is greater than allocated capacity");
+            }
+        }
+
+        m_ActivationsSize = std::max(m_ActivationsSize, activations);
+
+        LOG(INFO) << "-- Registering Model: " << name << " --";
+        LOG(INFO) << "Input/Output Tensors require " << BytesToString(model->GetBindingMemorySize());
+        LOG(INFO) << "Execution Activations require "
+                  << BytesToString(model->GetActivationsMemorySize());
+        auto weights = model->GetWeightsMemorySize();
+        if(weights)
+            LOG(INFO) << "Weights require " << BytesToString(weights);
+
+        model->SetName(name);
+        m_Models[name] = model;
+        m_ModelExecutionContexts[model.get()] = Pool<::nvinfer1::IExecutionContext>::Create();
+        for(int i = 0; i < max_concurrency; i++)
+        {
+            m_ModelExecutionContexts[model.get()]->Push(model->CreateExecutionContext());
         }
     }
-    if(m_ExecutionContexts)
-    {
-        if(activations > m_ActivationsSize)
-        {
-            throw std::runtime_error(
-                "Required activation workspace is greater than allocated capacity");
-        }
-    }
 
-    m_HostStackSize = m_HostStackSize + host;
-    m_DeviceStackSize = m_DeviceStackSize + device;
-    m_ActivationsSize = std::max(m_ActivationsSize, activations);
-
-    LOG(INFO) << "-- Registering Model: " << name << " --";
-    LOG(INFO) << "Input/Output Tensors require " << BytesToString(model->GetBindingMemorySize());
-    LOG(INFO) << "Execution Activations require "
-              << BytesToString(model->GetActivationsMemorySize());
-    auto weights = model->GetWeightsMemorySize();
-    if(weights)
-        LOG(INFO) << "Weights require " << BytesToString(weights);
-
-    model->SetName(name);
-    m_Models[name] = model;
-    m_ModelExecutionContexts[model.get()] = Pool<::nvinfer1::IExecutionContext>::Create();
-    for(int i = 0; i < max_concurrency; i++)
-    {
-        m_ModelExecutionContexts[model.get()]->Push(model->CreateExecutionContext());
-    }
-}
-
-Runtime& InferenceManager::ActiveRuntime()
-{
-    return *m_ActiveRuntime;
+    m_HostStackSize =  std::max(m_HostStackSize_temp, m_HostStackSize);
+    m_DeviceStackSize =  std::max(m_DeviceStackSize_temp, m_DeviceStackSize);
 }
 
 void InferenceManager::RegisterRuntime(const std::string& name, std::shared_ptr<Runtime> runtime)
