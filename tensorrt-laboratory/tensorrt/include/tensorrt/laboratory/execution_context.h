@@ -74,6 +74,28 @@ namespace TensorRT
         std::unique_ptr<Memory::CudaDeviceMemory> m_Workspace;
 
         friend class InferenceManager;
+        friend class SubExecutionContext;
+    };
+
+    class SubExecutionContext
+    {
+        std::shared_ptr<ExecutionContext> m_ExecutionContext;
+        std::shared_ptr<::nvinfer1::IExecutionContext> m_Context;
+        cudaEvent_t m_ExecutionContextFinished;
+      public:
+        SubExecutionContext(std::shared_ptr<ExecutionContext> ctx) : m_ExecutionContext(ctx) 
+        {
+            CHECK_EQ(cudaEventCreateWithFlags(&m_ExecutionContextFinished, cudaEventDisableTiming),
+                     CUDA_SUCCESS)
+                << "Failed to Create Execution Context Finished Event";
+        }
+        void SetContext(std::shared_ptr<::nvinfer1::IExecutionContext> ctx) { m_Context = ctx; ctx->setDeviceMemory(m_ExecutionContext->m_Workspace->Data()); }
+        void Infer(const std::shared_ptr<Bindings>& bindings) 
+        {        
+            DLOG(INFO) << "Launching Inference Execution via IExecutionContext::enqueue";
+            m_Context->enqueue(bindings->BatchSize(), bindings->DeviceAddresses(), bindings->Stream(),nullptr);
+            CHECK_EQ(cudaEventRecord(m_ExecutionContextFinished, bindings->Stream()), CUDA_SUCCESS);
+        }
     };
 
 } // namespace TensorRT

@@ -399,6 +399,47 @@ auto InferenceManager::GetExecutionContext(const std::shared_ptr<Model>& model)
     return GetExecutionContext(model.get());
 }
 
+/**
+ * @brief Get an Exeuction Context object from the Resource Pool (May Block!) without model
+ *
+ * @return std::shared_ptr<ExecutionContext>
+ */
+auto InferenceManager::GetExecutionContext() -> std::shared_ptr<ExecutionContext>
+{
+    CHECK(m_ExecutionContexts)
+        << "Call AllocateResources() before trying to acquire an ExeuctionContext.";
+
+    // This is the global concurrency limiter - it owns the activation scratch memory
+    auto ctx = m_ExecutionContexts->Pop([](ExecutionContext* ptr) {
+        ptr->Reset();
+        DLOG(INFO) << "Returning Execution Concurrency Limiter to Pool";
+    });
+
+    return ctx;
+}
+
+auto InferenceManager::GetSubExecutionContext(std::shared_ptr<ExecutionContext> ctx, const Model* model) -> std::shared_ptr<SubExecutionContext>
+{
+
+    auto item = m_ModelExecutionContexts.find(model);
+    CHECK(item != m_ModelExecutionContexts.end())
+        << "No ExectionContext for model " << model->Name();
+
+    auto subCtx = std::make_shared<SubExecutionContext>(ctx);
+    // This is the model concurrency limiter - it owns the TensorRT IExecutionContext
+    // for which the pointer to the global limiter's memory buffer will be set
+    subCtx->SetContext(item->second->Pop([](::nvinfer1::IExecutionContext* ptr) {
+        DLOG(INFO) << "Returning Model IExecutionContext to Pool";
+    }));
+    DLOG(INFO) << "Acquired Concurrency Limiting Execution Context";
+    return subCtx;
+}
+
+auto InferenceManager::GetSubExecutionContext(std::shared_ptr<ExecutionContext> ctx, const std::shared_ptr<Model>& model) -> std::shared_ptr<SubExecutionContext>
+{
+    return GetSubExecutionContext(ctx, model.get());
+}
+
 auto InferenceManager::AcquireThreadPool(const std::string& name) -> ThreadPool&
 {
     // std::shared_lock<std::shared_mutex> lock(m_ThreadPoolMutex);

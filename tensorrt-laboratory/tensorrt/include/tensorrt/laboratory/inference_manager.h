@@ -70,6 +70,10 @@ class InferenceManager : public ::trtlab::Resources
     auto GetModel(std::string model_name) -> std::shared_ptr<Model>;
     auto GetExecutionContext(const Model *model) -> std::shared_ptr<ExecutionContext>;
     auto GetExecutionContext(const std::shared_ptr<Model> &model) -> std::shared_ptr<ExecutionContext>;
+    auto GetExecutionContext() -> std::shared_ptr<ExecutionContext>;
+
+    auto GetSubExecutionContext(std::shared_ptr<ExecutionContext> ctx, const Model* model) -> std::shared_ptr<SubExecutionContext>;
+    auto GetSubExecutionContext(std::shared_ptr<ExecutionContext> ctx, const std::shared_ptr<Model>& model) -> std::shared_ptr<SubExecutionContext>;
 
     auto AcquireThreadPool(const std::string&) -> ThreadPool&;
     void RegisterThreadPool(const std::string&, std::unique_ptr<ThreadPool> threads);
