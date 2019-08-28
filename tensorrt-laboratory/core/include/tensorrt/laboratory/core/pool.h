@@ -106,6 +106,13 @@ class Queue : public std::enable_shared_from_this<Queue<T>>
         return queue_.size();
     }
 
+    bool Empty()
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return queue_.empty();
+    }
+
+
   private:
     mutable std::mutex mutex_;
     std::queue<T> queue_;

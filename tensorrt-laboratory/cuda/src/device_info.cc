@@ -113,4 +113,11 @@ std::string DeviceInfo::UUID(int device_id)
     return buffer;
 }
 
+int DeviceInfo::Count()
+{
+    int count;
+    CHECK_EQ(cudaGetDeviceCount(&count), CUDA_SUCCESS);
+    return count;
+}
+
 } // namespace trtlab

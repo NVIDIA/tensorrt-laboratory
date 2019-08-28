@@ -39,6 +39,7 @@ struct DeviceInfo
     static auto PowerUsage(int device_id) -> double;
     static auto PowerLimit(int device_id) -> double;
     static auto UUID(int device_id) -> std::string;
+    static auto Count() -> int;
 };
 
 } // namespace trtlab

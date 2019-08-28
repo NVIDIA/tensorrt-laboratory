@@ -153,6 +153,11 @@ RUN git clone -b v1.10.0 https://github.com/google/flatbuffers.git \
  && make -j$(nproc) install \
  && rm -rf /flatbuffers
 
+RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add - \
+ && apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-6.0 main" \
+ && apt update \
+ && apt install -y clang-format
+
 RUN apt update && apt install -y --no-install-recommends \
     pkg-config zip g++ zlib1g-dev unzip python \
  && rm -rf /var/lib/apt/lists/*
