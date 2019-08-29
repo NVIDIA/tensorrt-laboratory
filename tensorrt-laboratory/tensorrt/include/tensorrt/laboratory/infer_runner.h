@@ -98,13 +98,17 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
     void Enqueue(std::shared_ptr<Bindings> bindings, std::shared_ptr<AsyncCompute<T>> Post)
     {
         Workers("cuda").enqueue([this, bindings, Post]() mutable {
+            CHECK_EQ(cudaSetDevice(Resources().DeviceID()), CUDA_SUCCESS);
             DLOG(INFO) << "H2D";
             bindings->CopyToDevice(bindings->InputBindings());
             DLOG(INFO) << "Compute";
             auto trt_ctx = Compute(bindings);
             bindings->CopyFromDevice(bindings->OutputBindings());
             Workers("post").enqueue([this, bindings, trt_ctx, Post]() mutable {
+                CHECK_EQ(cudaSetDevice(Resources().DeviceID()), CUDA_SUCCESS);
+                DLOG(INFO) << trt_ctx.get() << ": sync trt_ctx";
                 trt_ctx->Synchronize();
+                DLOG(INFO) << trt_ctx.get() << ": sync trt_ctx - completed";
                 trt_ctx.reset();
                 DLOG(INFO) << "Sync TRT";
                 bindings->Synchronize();

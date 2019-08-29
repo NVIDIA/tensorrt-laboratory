@@ -57,7 +57,7 @@ namespace TensorRT {
  */
 InferenceManager::InferenceManager(int max_executions, int max_buffers)
     : m_MaxExecutions(max_executions), m_MaxBuffers(max_buffers ? max_buffers : max_executions * 2), m_HostStackSize(0),
-      m_DeviceStackSize(0), m_ActivationsSize(0), m_Buffers{nullptr}, m_ActiveRuntime{nullptr}
+      m_DeviceStackSize(0), m_ActivationsSize(0), m_Buffers{nullptr}, m_ActiveRuntime{nullptr}, m_DeviceID(-1)
 {
     // RegisterRuntime("default", std::make_unique<CustomRuntime<StandardAllocator>>());
     // SetActiveRuntime("default");
@@ -281,7 +281,9 @@ void InferenceManager::SetActiveRuntime(const std::string& name)
  */
 void InferenceManager::AllocateResources()
 {
-    LOG(INFO) << "-- Allocating TensorRT Resources --";
+    CHECK_EQ(cudaGetDevice(&m_DeviceID), CUDA_SUCCESS);
+
+    LOG(INFO) << "-- Allocating TensorRT Resources on GPU " << m_DeviceID << "--";
     LOG(INFO) << "Creating " << m_MaxExecutions << " TensorRT execution tokens.";
     LOG(INFO) << "Creating a Pool of " << m_MaxBuffers << " Host/Device Memory Stacks";
     LOG(INFO) << "Each Host Stack contains " << BytesToString(m_HostStackSize);
@@ -328,6 +330,11 @@ auto InferenceManager::GetModel(std::string model_name) -> std::shared_ptr<Model
     auto item = m_Models.find(model_name);
     CHECK(item != m_Models.end()) << "Unable to find entry for model: " << model_name;
     return item->second;
+}
+
+bool InferenceManager::HasBuffers()
+{
+    return !m_Buffers->Empty();
 }
 
 /**

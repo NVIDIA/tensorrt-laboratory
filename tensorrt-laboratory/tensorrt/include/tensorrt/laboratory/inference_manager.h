@@ -66,6 +66,9 @@ class InferenceManager : public ::trtlab::Resources
 
     void AllocateResources();
 
+    int DeviceID() const { return m_DeviceID; }
+
+    bool HasBuffers();
     auto GetBuffers() -> std::shared_ptr<Buffers>;
     auto GetModel(std::string model_name) -> std::shared_ptr<Model>;
     auto GetExecutionContext(const Model *model) -> std::shared_ptr<ExecutionContext>;
@@ -97,6 +100,7 @@ class InferenceManager : public ::trtlab::Resources
     size_t m_DeviceStackSize;
     size_t m_ActivationsSize;
     Runtime *m_ActiveRuntime;
+    int m_DeviceID;
 
     std::map<std::string, std::unique_ptr<ThreadPool>> m_ThreadPools;
     std::map<std::string, std::shared_ptr<Runtime>> m_Runtimes;

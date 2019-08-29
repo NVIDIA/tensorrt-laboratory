@@ -102,13 +102,13 @@ void GraphWorkspace::RegisterModel(const std::string& name, std::shared_ptr<Mode
     m_DeviceStackSize = std::max(m_DeviceStackSize, device);
     m_ActivationsSize = std::max(m_ActivationsSize, activations);
 
-    VLOG(1) << "-- Registering Model: " << name << " --";
-    VLOG(1) << "Input/Output Tensors require " << BytesToString(device);
-    VLOG(1) << "Execution Activations require " << BytesToString(activations);
+    VLOG(2) << "-- Registering Model: " << name << " --";
+    VLOG(2) << "Input/Output Tensors require " << BytesToString(device);
+    VLOG(2) << "Execution Activations require " << BytesToString(activations);
     auto weights = model->GetWeightsMemorySize();
     if(weights)
     {
-        VLOG(1) << "Weights require " << BytesToString(weights);
+        VLOG(2) << "Weights require " << BytesToString(weights);
     }
 
     model->SetName(name);
@@ -175,7 +175,12 @@ void GraphWorkspace::BuildGraphs()
         // CHECK_EQ(cudaStreamBeginCapture(m_Stream, cudaStreamCaptureModeGlobal), CUDA_SUCCESS);
         // CHECK_EQ(cudaStreamBeginCapture(m_Stream, cudaStreamCaptureModeThreadLocal),
         // CUDA_SUCCESS);
+
+#if (CUDA_VERSION >= 10010)
         CHECK_EQ(cudaStreamBeginCapture(m_Stream, cudaStreamCaptureModeRelaxed), CUDA_SUCCESS);
+#else
+        CHECK_EQ(cudaStreamBeginCapture(m_Stream), CUDA_SUCCESS);
+#endif
         ctx->enqueue(batch_size, (void**)bindings.data(), m_Stream, nullptr);
         CHECK_EQ(cudaStreamEndCapture(m_Stream, &graph), CUDA_SUCCESS);
 
