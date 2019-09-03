@@ -295,11 +295,11 @@ void InferenceManager::AllocateResources()
     m_Buffers = Pool<Buffers>::Create();
     for(int i = 0; i < m_MaxBuffers; i++)
     {
-        DLOG(INFO) << "Allocating Host/Device Buffers #" << i;
+        DVLOG(1) << "Allocating Host/Device Buffers #" << i;
         auto buffers = std::make_shared<FixedBuffers<CudaPinnedHostMemory, CudaDeviceMemory>>(
             m_HostStackSize, m_DeviceStackSize);
 
-        DLOG(INFO) << "Building Graphs for Buffer #" << i;
+        DVLOG(1) << "Building Graphs for Buffer #" << i;
         for(const auto& item : m_RegisteredGraphsByModelName)
         {
             const auto& key = item.first;
@@ -354,7 +354,7 @@ auto InferenceManager::GetBuffers() -> std::shared_ptr<Buffers>
     CHECK(m_Buffers) << "Call AllocateResources() before trying to acquire a Buffers object.";
     return m_Buffers->Pop([](Buffers* ptr) {
         ptr->Reset();
-        DLOG(INFO) << "Releasing Buffers";
+        DVLOG(2) << "Releasing Buffers: " << ptr;
     });
 }
 
@@ -381,14 +381,14 @@ auto InferenceManager::GetExecutionContext(const Model* model) -> std::shared_pt
     // This is the global concurrency limiter - it owns the activation scratch memory
     auto ctx = m_ExecutionContexts->Pop([](ExecutionContext* ptr) {
         ptr->Reset();
-        DLOG(INFO) << "Returning Execution Concurrency Limiter to Pool";
+        DVLOG(2) << "Returning Execution Concurrency Limiter to Pool: " << ptr;
     });
     // This is the model concurrency limiter - it owns the TensorRT IExecutionContext
     // for which the pointer to the global limiter's memory buffer will be set
     ctx->SetContext(item->second->Pop([](::nvinfer1::IExecutionContext* ptr) {
-        DLOG(INFO) << "Returning Model IExecutionContext to Pool";
+        DVLOG(2) << "Returning Model IExecutionContext to Pool: " << ptr;
     }));
-    DLOG(INFO) << "Acquired Concurrency Limiting Execution Context";
+    DVLOG(1) << "Acquired Concurrency Limiting Execution Context: " << ctx.get();
     return ctx;
 }
 
@@ -419,7 +419,7 @@ auto InferenceManager::GetExecutionContext() -> std::shared_ptr<ExecutionContext
     // This is the global concurrency limiter - it owns the activation scratch memory
     auto ctx = m_ExecutionContexts->Pop([](ExecutionContext* ptr) {
         ptr->Reset();
-        DLOG(INFO) << "Returning Execution Concurrency Limiter to Pool";
+        DVLOG(2) << "Returning Execution Concurrency Limiter to Pool: " << ptr;
     });
 
     return ctx;
@@ -436,9 +436,9 @@ auto InferenceManager::GetSubExecutionContext(std::shared_ptr<ExecutionContext> 
     // This is the model concurrency limiter - it owns the TensorRT IExecutionContext
     // for which the pointer to the global limiter's memory buffer will be set
     subCtx->SetContext(item->second->Pop([](::nvinfer1::IExecutionContext* ptr) {
-        DLOG(INFO) << "Returning Model IExecutionContext to Pool";
+        DVLOG(2) << "Returning Model IExecutionContext to Pool: " << ptr;
     }));
-    DLOG(INFO) << "Acquired Concurrency Limiting Execution Context";
+    DVLOG(1) << "Acquired Concurrency Limiting Execution SubContext: " << subCtx.get();
     return subCtx;
 }
 

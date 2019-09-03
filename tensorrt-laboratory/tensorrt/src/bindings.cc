@@ -132,7 +132,7 @@ void Bindings::CopyToDevice(const std::vector<uint32_t> &ids)
 void Bindings::CopyToDevice(uint32_t device_binding_id, void *src, size_t bytes)
 {
     auto dst = DeviceAddress(device_binding_id);
-    DLOG(INFO) << "CopyToDevice binding_id: " << device_binding_id << "; size: " << bytes;
+    DVLOG(2) << "CopyToDevice binding_id: " << device_binding_id << "; size: " << bytes;
     CHECK_EQ(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyHostToDevice, Stream()), CUDA_SUCCESS)
         << "CopyToDevice for Binding " << device_binding_id << " failed - (dst, src, bytes) = "
         << "(" << dst << ", " << src << ", " << bytes << ")";
@@ -156,7 +156,7 @@ void Bindings::CopyFromDevice(const std::vector<uint32_t> &ids)
 void Bindings::CopyFromDevice(uint32_t device_binding_id, void *dst, size_t bytes)
 {
     auto src = DeviceAddress(device_binding_id);
-    DLOG(INFO) << "CopyFromDevice binding_id: " << device_binding_id << "; size: " << bytes;
+    DVLOG(2) << "CopyFromDevice binding_id: " << device_binding_id << "; size: " << bytes;
     CHECK_EQ(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyDeviceToHost, Stream()), CUDA_SUCCESS)
         << "CopyFromDevice for Binding " << device_binding_id << " failed - (dst, src, bytes) = "
         << "(" << dst << ", " << src << ", " << bytes << ")";

@@ -102,13 +102,13 @@ void ExecutionContext::Infer(const std::shared_ptr<Bindings>& bindings)
     const auto& name = bindings->GetModel()->Name();
     if(m_GraphWorkspace) // this will prevent a hard fail && m_GraphWorkspace->IsGraphAvailable(name, bindings->BatchSize()))
     {
-        DLOG(INFO) << "Launching Inference Execution via cudaGraphs";
+        DVLOG(2) << "Launching Inference Execution via cudaGraphs: " << this;
         auto graph = m_GraphWorkspace->GetGraph(bindings->GetModel()->Name(), bindings->BatchSize());
         CHECK_EQ(cudaGraphLaunch(graph, bindings->Stream()), CUDA_SUCCESS);
     }
     else
     {
-        DLOG(INFO) << "Launching Inference Execution via IExecutionContext::enqueue";
+        DVLOG(2) << "Launching Inference Execution via IExecutionContext::enqueue: "  << this;
         m_Context->enqueue(bindings->BatchSize(), bindings->DeviceAddresses(), bindings->Stream(),
                            nullptr);
     }

@@ -99,23 +99,21 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
     {
         Workers("cuda").enqueue([this, bindings, Post]() mutable {
             CHECK_EQ(cudaSetDevice(Resources().DeviceID()), CUDA_SUCCESS);
-            DLOG(INFO) << "H2D";
             bindings->CopyToDevice(bindings->InputBindings());
-            DLOG(INFO) << "Compute";
             auto trt_ctx = Compute(bindings);
             bindings->CopyFromDevice(bindings->OutputBindings());
             Workers("post").enqueue([this, bindings, trt_ctx, Post]() mutable {
                 CHECK_EQ(cudaSetDevice(Resources().DeviceID()), CUDA_SUCCESS);
-                DLOG(INFO) << trt_ctx.get() << ": sync trt_ctx";
+                DVLOG(1) << this << " - " << trt_ctx.get() << ": sync trt_ctx";
                 trt_ctx->Synchronize();
-                DLOG(INFO) << trt_ctx.get() << ": sync trt_ctx - completed";
+                DVLOG(1) << this << " - " << trt_ctx.get() << ": sync trt_ctx - completed";
                 trt_ctx.reset();
-                DLOG(INFO) << "Sync TRT";
+                DVLOG(1) << this << " - " << bindings.get() << ": sync bindings";
                 bindings->Synchronize();
-                DLOG(INFO) << "Sync D2H";
+                DVLOG(1) << this << " - " << bindings.get() << ": sync bindings - completed";
                 (*Post)(bindings);
                 bindings.reset();
-                DLOG(INFO) << "Execute Finished";
+                DVLOG(2) << this << ": completed inference task";
             });
         });
     }
@@ -124,6 +122,7 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
     void EnqueueWithDeadline(std::shared_ptr<Bindings> bindings, std::shared_ptr<AsyncCompute<T>> Post,
             Deadline deadline, std::function<void(std::function<void()>)> on_timeout)
     {
+        CHECK(false) << "infer with deadline disabled";
         Workers("cuda").enqueue([this, bindings, Post, deadline, on_timeout]() mutable {
             if (Clock::now() > deadline)
             {

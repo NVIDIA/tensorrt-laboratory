@@ -66,8 +66,8 @@ void Buffers::ConfigureBindings(const std::shared_ptr<Model>& model,
     for(uint32_t i = 0; i < model->GetBindingsCount(); i++)
     {
         auto binding_size = model->GetBinding(i).bytesPerBatchItem * model->GetMaxBatchSize();
-        DLOG(INFO) << "Configuring Binding " << i << ": pushing " << binding_size
-                   << " to host/device stacks";
+        DVLOG(2) << "Configuring Binding " << i << ": pushing " << binding_size
+                 << " to host/device stacks";
         bindings->SetHostAddress(i, AllocateHost(binding_size));
         bindings->SetDeviceAddress(i, AllocateDevice(binding_size));
     }
