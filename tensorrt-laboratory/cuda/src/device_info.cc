@@ -81,7 +81,7 @@ CpuSet DeviceInfo::Affinity(int device_id)
         }
     }
 
-    DLOG(INFO) << "CPU Affinity for GPU " << device_id << ": " << cpus.GetCpuString();
+    DLOG(INFO) << "CPU Affinity for GPU " << device_id << ": " << cpus.CoresDescription();
     return std::move(cpus);
 }
 

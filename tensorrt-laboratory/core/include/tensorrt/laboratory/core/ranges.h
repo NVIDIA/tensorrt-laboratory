@@ -25,46 +25,48 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
-#include <map>
+#include <numeric>
+#include <vector>
+#include <utility>
+#include <type_traits>
 
-#include "cpuaff/cpuaff.hpp"
 
-namespace trtlab {
-
-struct CpuSet : public cpuaff::cpu_set
+template<typename T>
+std::vector<std::pair<T, T>> find_ranges(const std::vector<T>& values)
 {
-  public:
-    using cpuaff::cpu_set::cpu_set;
+    static_assert(std::is_integral<T>::value, "only integral types allowed");
 
-    CpuSet Intersection(const CpuSet& other) const;
-    CpuSet Union(const CpuSet& other) const;
-    CpuSet Difference(const CpuSet& other) const;
+    auto copy = values;
+    sort(copy.begin(), copy.end());
 
-    auto GetAllocator() const -> cpuaff::round_robin_allocator
+    std::vector<std::pair<T, T>> ranges;
+
+    auto it = copy.cbegin();
+    auto end = copy.cend();
+
+    while(it != end)
     {
-        return cpuaff::round_robin_allocator(*this);
+        auto low = *it;
+        auto high = *it;
+        for(T i=0; it != end && low + i == *it; it++, i++) { high = *it; }
+        ranges.push_back(std::make_pair(low, high));
     }
 
-    std::string GetCpuString() const;
-    std::string CoresDescription() const;
+    return ranges;
+}
 
-    std::map<cpuaff::socket_type, CpuSet> SocketMap();
-};
-
-struct Affinity
+template<typename T>
+std::string print_ranges(const std::vector<std::pair<T,T>>& ranges)
 {
-    static CpuSet GetAffinity();
-    static void SetAffinity(const CpuSet& cpus);
-
-    static CpuSet GetCpusByNuma(int numa_id);
-    static CpuSet GetCpusBySocket(int socket_id);
-    static CpuSet GetCpusByCore(int core_id);
-    static CpuSet GetCpusByProcessingUnit(int thread_id);
-
-    static CpuSet GetCpusFromString(const std::string& ids);
-    static cpuaff::cpu GetCpuFromId(int);
-
-    static int GetSocketCount();
-};
-
-} // namespace trtlab
+    return std::accumulate(std::begin(ranges), std::end(ranges), std::string(), 
+        [](std::string r, std::pair<T,T> p) {
+            if(p.first == p.second)
+            {
+                return r + (r.empty() ? "" : "," ) + std::to_string(p.first);
+            }
+            else
+            {
+                return r + (r.empty() ? "" : "," ) + std::to_string(p.first) + "-" + std::to_string(p.second);
+            }
+        });
+}

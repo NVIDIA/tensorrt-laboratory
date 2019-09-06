@@ -25,6 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "tensorrt/laboratory/core/affinity.h"
+#include "tensorrt/laboratory/core/ranges.h"
 
 #include <algorithm>
 #include <glog/logging.h>
@@ -181,6 +182,32 @@ std::vector<int> ParseIDs(const std::string data)
         }
     }
     return result;
+}
+
+
+
+std::string CpuSet::CoresDescription() const
+{
+    std::vector<cpuaff::core_type> cores;
+    auto allocator = GetAllocator();
+    for(int i=0; i<allocator.size(); i++)
+    {
+        auto cpu = allocator.allocate();
+        cores.push_back(cpu.id().get());
+    }
+    return print_ranges(find_ranges(cores));
+}
+
+std::map<cpuaff::socket_type, CpuSet> CpuSet::SocketMap()
+{
+    std::map<cpuaff::socket_type, CpuSet> socket_map;
+    auto rr = GetAllocator();
+    for(int i=0; i<rr.size(); i++)
+    {
+        auto cpu = rr.allocate();
+        socket_map[cpu.socket()].insert(cpu);
+    }
+    return socket_map;
 }
 
 } // namespace trtlab

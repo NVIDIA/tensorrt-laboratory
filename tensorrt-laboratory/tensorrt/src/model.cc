@@ -88,10 +88,10 @@ Model::TensorBindingInfo Model::ConfigureBinding(uint32_t i)
     binding.elementsPerBatchItem = elements;
     binding.bytesPerBatchItem = elements * binding.dtypeSize;
     binding.isInput = m_Engine->bindingIsInput(i);
-    LOG(INFO) << "Binding: " << binding.name
-              << "; isInput: " << (binding.isInput ? "true" : "false")
-              << "; dtype size: " << binding.dtypeSize
-              << "; bytes per batch item: " << binding.bytesPerBatchItem;
+    VLOG(2) << "Binding: " << binding.name
+            << "; isInput: " << (binding.isInput ? "true" : "false")
+            << "; dtype size: " << binding.dtypeSize
+            << "; bytes per batch item: " << binding.bytesPerBatchItem;
     return binding;
 }
 

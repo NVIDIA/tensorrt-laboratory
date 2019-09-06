@@ -61,9 +61,9 @@ InferenceManager::InferenceManager(int max_executions, int max_buffers)
 {
     // RegisterRuntime("default", std::make_unique<CustomRuntime<StandardAllocator>>());
     // SetActiveRuntime("default");
-    LOG(INFO) << "-- Initialzing TensorRT Resource Manager --";
-    LOG(INFO) << "Maximum Execution Concurrency: " << m_MaxExecutions;
-    LOG(INFO) << "Maximum Copy Concurrency: " << m_MaxBuffers;
+    VLOG(1) << "-- Initialzing TensorRT Resource Manager --";
+    VLOG(1) << "Maximum Execution Concurrency: " << m_MaxExecutions;
+    VLOG(1) << "Maximum Copy Concurrency: " << m_MaxBuffers;
 }
 
 InferenceManager::~InferenceManager()
@@ -146,13 +146,13 @@ void InferenceManager::RegisterModel(const std::string& name, std::shared_ptr<Mo
     m_DeviceStackSize = std::max(m_DeviceStackSize, device);
     m_ActivationsSize = std::max(m_ActivationsSize, activations);
 
-    LOG(INFO) << "-- Registering Model: " << name << " --";
-    LOG(INFO) << "Input/Output Tensors require " << BytesToString(model->GetBindingMemorySize());
-    LOG(INFO) << "Execution Activations require "
+    VLOG(1) << "-- Registering Model: " << name << " --";
+    VLOG(1) << "Input/Output Tensors require " << BytesToString(model->GetBindingMemorySize());
+    VLOG(1) << "Execution Activations require "
               << BytesToString(model->GetActivationsMemorySize());
     auto weights = model->GetWeightsMemorySize();
     if(weights)
-        LOG(INFO) << "Weights require " << BytesToString(weights);
+        VLOG(1) << "Weights require " << BytesToString(weights);
 
     model->SetName(name);
     m_Models[name] = model;
@@ -237,13 +237,13 @@ void InferenceManager::RegisterModel(const std::vector<std::string>& names, std:
 
         m_ActivationsSize = std::max(m_ActivationsSize, activations);
 
-        LOG(INFO) << "-- Registering Model: " << name << " --";
-        LOG(INFO) << "Input/Output Tensors require " << BytesToString(model->GetBindingMemorySize());
-        LOG(INFO) << "Execution Activations require "
+        VLOG(1) << "-- Registering Model: " << name << " --";
+        VLOG(2) << "Input/Output Tensors require " << BytesToString(model->GetBindingMemorySize());
+        VLOG(2) << "Execution Activations require "
                   << BytesToString(model->GetActivationsMemorySize());
         auto weights = model->GetWeightsMemorySize();
         if(weights)
-            LOG(INFO) << "Weights require " << BytesToString(weights);
+            VLOG(2) << "Weights require " << BytesToString(weights);
 
         model->SetName(name);
         m_Models[name] = model;
@@ -283,12 +283,12 @@ void InferenceManager::AllocateResources()
 {
     CHECK_EQ(cudaGetDevice(&m_DeviceID), CUDA_SUCCESS);
 
-    LOG(INFO) << "-- Allocating TensorRT Resources on GPU " << m_DeviceID << "--";
-    LOG(INFO) << "Creating " << m_MaxExecutions << " TensorRT execution tokens.";
-    LOG(INFO) << "Creating a Pool of " << m_MaxBuffers << " Host/Device Memory Stacks";
-    LOG(INFO) << "Each Host Stack contains " << BytesToString(m_HostStackSize);
-    LOG(INFO) << "Each Device Stack contains " << BytesToString(m_DeviceStackSize);
-    LOG(INFO) << "Total GPU Memory: "
+    VLOG(1) << "-- Allocating TensorRT Resources on GPU " << m_DeviceID << "--";
+    VLOG(1) << "Creating " << m_MaxExecutions << " TensorRT execution tokens.";
+    VLOG(1) << "Creating a Pool of " << m_MaxBuffers << " Host/Device Memory Stacks";
+    VLOG(1) << "Each Host Stack contains " << BytesToString(m_HostStackSize);
+    VLOG(1) << "Each Device Stack contains " << BytesToString(m_DeviceStackSize);
+    VLOG(1) << "Total GPU Memory: "
               << BytesToString(m_MaxBuffers * m_DeviceStackSize +
                                m_MaxExecutions * m_ActivationsSize);
 
@@ -456,10 +456,10 @@ auto InferenceManager::AcquireThreadPool(const std::string& name) -> ThreadPool&
 }
 
 void InferenceManager::RegisterThreadPool(const std::string& name,
-                                          std::unique_ptr<ThreadPool> threads)
+                                          std::shared_ptr<ThreadPool> threads)
 {
     // std::unique_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
-    DLOG(INFO) << "Registering ThreadPool: " << name;
+    DVLOG(3) << "Registering ThreadPool: " << name;
     // Old threadpools will continute to live until all threads are joined.
     // this may need a mutex
     m_ThreadPools[name].swap(threads);
@@ -474,9 +474,9 @@ bool InferenceManager::HasThreadPool(const std::string& name) const
 void InferenceManager::JoinAllThreads()
 {
     // std::unique_lock<std::shared_mutex> lock(m_ThreadPoolMutex);
-    DLOG(INFO) << "Joining All Threads";
+    DVLOG(3) << "Joining All Threads";
     m_ThreadPools.clear();
-    DLOG(INFO) << "All Threads Checked-In and Joined";
+    DVLOG(3) << "All Threads Checked-In and Joined";
 }
 
 void InferenceManager::ForEachModel(std::function<void(const Model&)> callback)

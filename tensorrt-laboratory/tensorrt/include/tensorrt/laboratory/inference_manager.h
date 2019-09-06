@@ -79,7 +79,7 @@ class InferenceManager : public ::trtlab::Resources
     auto GetSubExecutionContext(std::shared_ptr<ExecutionContext> ctx, const std::shared_ptr<Model>& model) -> std::shared_ptr<SubExecutionContext>;
 
     auto AcquireThreadPool(const std::string&) -> ThreadPool&;
-    void RegisterThreadPool(const std::string&, std::unique_ptr<ThreadPool> threads);
+    void RegisterThreadPool(const std::string&, std::shared_ptr<ThreadPool> threads);
     bool HasThreadPool(const std::string&) const;
     void JoinAllThreads();
 
@@ -102,7 +102,7 @@ class InferenceManager : public ::trtlab::Resources
     Runtime *m_ActiveRuntime;
     int m_DeviceID;
 
-    std::map<std::string, std::unique_ptr<ThreadPool>> m_ThreadPools;
+    std::map<std::string, std::shared_ptr<ThreadPool>> m_ThreadPools;
     std::map<std::string, std::shared_ptr<Runtime>> m_Runtimes;
     std::map<std::string, std::shared_ptr<Model>> m_Models;
     std::map<const Model *, std::shared_ptr<Pool<::nvinfer1::IExecutionContext>>> m_ModelExecutionContexts;

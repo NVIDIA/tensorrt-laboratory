@@ -56,7 +56,7 @@ Runtime::~Runtime()
 
 std::shared_ptr<Model> Runtime::DeserializeEngine(const std::string& plan_file)
 {
-    DLOG(INFO) << "Deserializing TensorRT ICudaEngine from file: " << plan_file;
+    VLOG(2) << "Deserializing TensorRT ICudaEngine from file: " << plan_file;
     const auto& buffer = ReadEngineFile(plan_file);
     return DeserializeEngine(buffer.data(), buffer.size(), nullptr);
 }
@@ -64,7 +64,7 @@ std::shared_ptr<Model> Runtime::DeserializeEngine(const std::string& plan_file)
 std::shared_ptr<Model> Runtime::DeserializeEngine(const std::string& plan_file,
                                                   ::nvinfer1::IPluginFactory* plugin_factory)
 {
-    DLOG(INFO) << "Deserializing TensorRT ICudaEngine from file: " << plan_file;
+    VLOG(2) << "Deserializing TensorRT ICudaEngine from file: " << plan_file;
     const auto& buffer = ReadEngineFile(plan_file);
     return DeserializeEngine(buffer.data(), buffer.size(), plugin_factory);
 }
@@ -76,7 +76,7 @@ std::shared_ptr<Model> Runtime::DeserializeEngine(const void* data, size_t size)
 
 std::vector<char> Runtime::ReadEngineFile(const std::string& plan_file) const
 {
-    DLOG(INFO) << "Reading Engine: " << plan_file;
+    DVLOG(2) << "Reading Engine: " << plan_file;
     std::ifstream file(plan_file, std::ios::binary | std::ios::ate);
     std::streamsize size = file.tellg();
     std::vector<char> buffer(size);
@@ -87,7 +87,7 @@ std::vector<char> Runtime::ReadEngineFile(const std::string& plan_file) const
 
 Runtime::Logger::~Logger()
 {
-    DLOG(INFO) << "Destroying Logger";
+    DVLOG(2) << "Destroying Logger";
 }
 
 void Runtime::Logger::log(::nvinfer1::ILogger::Severity severity, const char* msg)
@@ -101,13 +101,13 @@ void Runtime::Logger::log(::nvinfer1::ILogger::Severity severity, const char* ms
             LOG(FATAL) << "[TensorRT.ERROR]: " << msg;
             break;
         case Severity::kWARNING:
-            LOG(WARNING) << "[TensorRT.WARNING]: " << msg;
+            VLOG(1) << "[TensorRT.WARNING]: " << msg;
             break;
         case Severity::kINFO:
-            DLOG(INFO) << "[TensorRT.INFO]: " << msg;
+            VLOG(1) << "[TensorRT.INFO]: " << msg;
             break;
         default:
-            DLOG(INFO) << "[TensorRT.DEBUG]: " << msg;
+            DVLOG(1) << "[TensorRT.DEBUG]: " << msg;
             break;
     }
 }
@@ -128,18 +128,18 @@ std::shared_ptr<Model>
     RuntimeWithAllocator::DeserializeEngine(const void* data, size_t size,
                                                   ::nvinfer1::IPluginFactory* plugin_factory)
 {
-    DLOG(INFO) << "Deserializing Custom TensorRT ICudaEngine";
+    DVLOG(2) << "Deserializing Custom TensorRT ICudaEngine";
     return Allocator().UseWeightAllocator(
         [this, data, size, plugin_factory]() mutable -> std::shared_ptr<Model> {
             auto runtime = this->shared_from_this();
             auto engine = nv_shared(NvRuntime().deserializeCudaEngine(data, size, plugin_factory),
-                                    [runtime] { DLOG(INFO) << "Destroying ICudaEngine"; });
+                                    [runtime] { DVLOG(2) << "Destroying ICudaEngine"; });
             CHECK(engine) << "Unable to create ICudaEngine";
             auto model = std::make_shared<Model>(engine);
             for(const auto& ptr : Allocator().GetPointers())
             {
                 model->AddWeights(ptr.addr, ptr.size);
-                DLOG(INFO) << "TensorRT weights: " << ptr.addr << "; size=" << ptr.size;
+                DVLOG(3) << "TensorRT weights: " << ptr.addr << "; size=" << ptr.size;
             }
             return model;
         });
