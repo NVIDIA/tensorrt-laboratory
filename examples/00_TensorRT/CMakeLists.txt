@@ -49,6 +49,7 @@ target_link_libraries(infer.x
     trtlab::nvrpc
     trtlab::tensorrt
     gflags
+    nvinfer_plugin
 )
 
 if(YAIS_ENABLE_MPI)

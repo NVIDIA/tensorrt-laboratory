@@ -68,6 +68,7 @@ InferenceManager::InferenceManager(int max_executions, int max_buffers)
 
 InferenceManager::~InferenceManager()
 {
+    CHECK_EQ(cudaSetDevice(m_DeviceID), CUDA_SUCCESS);
     JoinAllThreads();
 }
 

@@ -27,6 +27,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "NvInferPlugin.h"
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -106,6 +108,8 @@ int main(int argc, char* argv[])
     {
         LOG(FATAL) << "Invalid TensorRT Runtime";
     }
+
+    initLibNvInferPlugins(runtime->GetLogger(), "");
 
     std::vector<std::shared_ptr<Model>> models;
 

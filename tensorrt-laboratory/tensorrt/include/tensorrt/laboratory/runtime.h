@@ -60,6 +60,8 @@ class Runtime : public std::enable_shared_from_this<Runtime>
     std::shared_ptr<Model> DeserializeEngine(const void*, size_t);
     virtual std::shared_ptr<Model> DeserializeEngine(const void*, size_t, ::nvinfer1::IPluginFactory*) = 0;
 
+    ::nvinfer1::ILogger* GetLogger() { return m_Logger.get(); }
+
   protected:
     Runtime();
 
