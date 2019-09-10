@@ -50,6 +50,7 @@ CoreMemory& CoreMemory::operator=(CoreMemory&& other) noexcept
     m_MemoryAddress = std::exchange(other.m_MemoryAddress, nullptr);
     m_BytesAllocated = std::exchange(other.m_BytesAllocated, 0);
     m_Allocated = std::exchange(other.m_Allocated, false);
+    return *this;
 }
 
 CoreMemory::~CoreMemory() {}
