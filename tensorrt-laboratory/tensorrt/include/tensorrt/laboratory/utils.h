@@ -38,6 +38,7 @@ namespace TensorRT
  * @brief Number of bytes for a given TensorRT DataType
  */
 std::size_t SizeofDataType(::nvinfer1::DataType dtype);
+std::size_t ElementsofVolume(const ::nvinfer1::Dims& d, const ::nvinfer1::TensorFormat& format);
 
 } // namespace TensorRT
 } // namespace trtlab

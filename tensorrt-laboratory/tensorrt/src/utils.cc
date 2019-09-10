@@ -30,6 +30,8 @@
 
 #include <glog/logging.h>
 
+#include <numeric>
+
 namespace trtlab {
 namespace TensorRT {
 
@@ -47,6 +49,34 @@ std::size_t SizeofDataType(::nvinfer1::DataType dtype)
         default:
             LOG(FATAL) << "Unknown TensorRT DataType";
     }
+}
+
+static int RoundUp(int m, int n)
+{
+    return ((m + n - 1) / n) * n;
+}
+
+std::size_t ElementsofVolume(const ::nvinfer1::Dims& d, const ::nvinfer1::TensorFormat& format)
+{
+    nvinfer1::Dims d_new = d;
+    // Get number of scalars per vector.
+    int spv{1};
+    switch(format)
+    {
+        case nvinfer1::TensorFormat::kCHW2: spv = 2; break;
+        case nvinfer1::TensorFormat::kCHW4: spv = 4; break;
+        case nvinfer1::TensorFormat::kHWC8: spv = 8; break;
+        case nvinfer1::TensorFormat::kCHW16: spv = 16; break;
+        case nvinfer1::TensorFormat::kCHW32: spv = 32; break;
+        case nvinfer1::TensorFormat::kLINEAR:
+        default: spv = 1; break;
+    }
+    if (spv > 1)
+    {
+        if (d.nbDims < 3) LOG(FATAL) << "Vectorized format only makes sense when nbDims>=3";
+        d_new.d[d_new.nbDims - 3] = RoundUp(d_new.d[d_new.nbDims - 3], spv);
+    }
+    return std::accumulate(d_new.d, d_new.d + d_new.nbDims, 1, std::multiplies<int64_t>());
 }
 
 } // namespace TensorRT
