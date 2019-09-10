@@ -74,19 +74,13 @@ Model::~Model()
 Model::TensorBindingInfo Model::ConfigureBinding(uint32_t i)
 {
     TensorBindingInfo binding;
-    auto dims = m_Engine->getBindingDimensions(i);
-    size_t elements = 1;
-    for(int j = 0; j < dims.nbDims; j++)
-    {
-        binding.dims.push_back(dims.d[j]);
-        elements *= dims.d[j];
-    }
 
     binding.name = m_Engine->getBindingName(i);
     binding.dtype = m_Engine->getBindingDataType(i);
     binding.dtypeSize = SizeofDataType(binding.dtype);
-    binding.elementsPerBatchItem = elements;
-    binding.bytesPerBatchItem = elements * binding.dtypeSize;
+    binding.elementsPerBatchItem = ElementsofVolume(m_Engine->getBindingDimensions(i),
+                                                    m_Engine->getBindingFormat(i));
+    binding.bytesPerBatchItem = binding.elementsPerBatchItem * binding.dtypeSize;
     binding.isInput = m_Engine->bindingIsInput(i);
     VLOG(2) << "Binding: " << binding.name
             << "; isInput: " << (binding.isInput ? "true" : "false")

@@ -27,6 +27,7 @@
 #include "tensorrt/laboratory/core/utils.h"
 
 #include <regex>
+#include <cmath>
 #include <stdio.h>
 
 #include <glog/logging.h>
