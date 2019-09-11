@@ -62,6 +62,7 @@
 #include "tensorrt/laboratory/core/affinity.h"
 #include "tensorrt/laboratory/core/utils.h"
 
+#include <functional>
 #include <future>
 #include <queue>
 
