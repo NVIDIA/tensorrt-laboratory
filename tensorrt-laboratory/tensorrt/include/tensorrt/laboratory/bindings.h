@@ -104,10 +104,10 @@ class Bindings
     std::shared_ptr<GraphWorkspace> GetGraphWorkspace() { return m_GraphWorkspace; }
 
   private:
-    Bindings(const std::shared_ptr<Model>, const std::shared_ptr<Buffers>);
+    Bindings(std::shared_ptr<Model>, std::shared_ptr<Buffers>);
 
-    const std::shared_ptr<Model> m_Model;
-    const std::shared_ptr<Buffers> m_Buffers;
+    std::shared_ptr<Model> m_Model;
+    std::shared_ptr<Buffers> m_Buffers;
     uint32_t m_BatchSize;
 
     std::vector<void *> m_HostAddresses;
