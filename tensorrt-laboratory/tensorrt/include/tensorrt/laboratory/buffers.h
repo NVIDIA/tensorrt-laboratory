@@ -54,7 +54,7 @@ class Buffers : public std::enable_shared_from_this<Buffers>
     Buffers();
     virtual ~Buffers();
 
-    auto CreateBindings(const std::shared_ptr<Model>&) -> std::shared_ptr<Bindings>;
+    auto CreateBindings(std::shared_ptr<Model>) -> std::shared_ptr<Bindings>;
 
     inline cudaStream_t Stream()
     {
@@ -64,7 +64,7 @@ class Buffers : public std::enable_shared_from_this<Buffers>
 
   protected:
     virtual void Reset(bool writeZeros = false){};
-    void ConfigureBindings(const std::shared_ptr<Model>& model, std::shared_ptr<Bindings>);
+    void ConfigureBindings(const Model& model, Bindings&);
 
     virtual std::unique_ptr<Memory::HostMemory> AllocateHost(size_t size) = 0;
     virtual std::unique_ptr<Memory::DeviceMemory> AllocateDevice(size_t size) = 0;
