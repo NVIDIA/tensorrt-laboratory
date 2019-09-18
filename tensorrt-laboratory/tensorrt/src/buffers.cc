@@ -53,27 +53,30 @@ Buffers::~Buffers()
     // CHECK_EQ(cudaStreamDestroy(m_Stream), CUDA_SUCCESS);
 }
 
-auto Buffers::CreateBindings(const std::shared_ptr<Model>& model) -> std::shared_ptr<Bindings>
+auto Buffers::CreateBindings(std::shared_ptr<Model> model) -> std::shared_ptr<Bindings>
 {
-    auto bindings = std::shared_ptr<Bindings>(new Bindings(model, shared_from_this()));
-    ConfigureBindings(model, bindings);
+    auto buffers = shared_from_this();
+    auto use_count = buffers.use_count();
+    CHECK_GT(use_count, 1);
+    auto bindings = std::shared_ptr<Bindings>(new Bindings(model, buffers));
+    ConfigureBindings(*model, *bindings);
+    CHECK_EQ(buffers.use_count(), use_count+1);
     return bindings;
 }
 
-void Buffers::ConfigureBindings(const std::shared_ptr<Model>& model,
-                                std::shared_ptr<Bindings> bindings)
+void Buffers::ConfigureBindings(const Model& model, Bindings& bindings)
 {
-    for(uint32_t i = 0; i < model->GetBindingsCount(); i++)
+    for(uint32_t i = 0; i < model.GetBindingsCount(); i++)
     {
-        auto binding_size = model->GetBinding(i).bytesPerBatchItem * model->GetMaxBatchSize();
+        auto binding_size = model.GetBinding(i).bytesPerBatchItem * model.GetMaxBatchSize();
         DVLOG(2) << "Configuring Binding " << i << ": pushing " << binding_size
                  << " to host/device stacks";
-        bindings->SetHostAddress(i, AllocateHost(binding_size));
-        bindings->SetDeviceAddress(i, AllocateDevice(binding_size));
+        bindings.SetHostAddress(i, AllocateHost(binding_size));
+        bindings.SetDeviceAddress(i, AllocateDevice(binding_size));
     }
-    if(m_GraphWorkspace->IsModelRegistered(model->Name()))
+    if(m_GraphWorkspace->IsModelRegistered(model.Name()))
     {
-        bindings->RegisterGraphWorkspace(m_GraphWorkspace);
+        bindings.RegisterGraphWorkspace(m_GraphWorkspace);
     }
 }
 

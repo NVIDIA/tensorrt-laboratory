@@ -48,7 +48,7 @@ namespace
 namespace trtlab {
 namespace TensorRT {
 
-Bindings::Bindings(const std::shared_ptr<Model> model, const std::shared_ptr<Buffers> buffers)
+Bindings::Bindings(std::shared_ptr<Model> model, std::shared_ptr<Buffers> buffers)
     : m_Model(model), m_Buffers(buffers), m_BatchSize(0)
 {
     auto count = model->GetBindingsCount();
