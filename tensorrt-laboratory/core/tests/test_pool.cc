@@ -49,6 +49,12 @@ struct Object
     std::string m_Original;
 };
 
+struct ShareableObject : public Object, public std::enable_shared_from_this<ShareableObject> 
+{
+    using Object::Object;
+    auto Copy() { return shared_from_this(); }
+};
+
 class TestPool : public ::testing::Test
 {
   protected:
@@ -57,11 +63,11 @@ class TestPool : public ::testing::Test
         p0 = Pool<Object>::Create();
 
         p1 = Pool<Object>::Create();
-        p1->EmplacePush("Foo");
+        p1->Push(std::make_shared<Object>("Foo"));
 
         p2 = Pool<Object>::Create();
-        p2->EmplacePush("Foo");
-        p2->EmplacePush("Bar");
+        p2->Push(std::make_shared<Object>("Foo"));
+        p2->Push(std::make_shared<Object>("Bar"));
     }
 
     virtual void TearDown()
@@ -107,6 +113,7 @@ TEST_F(TestPool, Pop)
         ASSERT_EQ(0, p1->Size());
     }
     ASSERT_EQ(1, p1->Size());
+
 }
 
 TEST_F(TestPool, PopOnReturn)
@@ -189,4 +196,35 @@ TEST_F(TestPool, PopWithoutReturn)
     ASSERT_EQ(0, p1->Size());
     obj.reset();
     ASSERT_EQ(0, p1->Size());
+}
+
+TEST_F(TestPool, EnableSharedFromThis)
+{
+
+    auto p1 = Pool<ShareableObject>::Create();
+    p1->Push(std::make_shared<ShareableObject>("Foo"));
+
+    {
+	auto scoped_obj = p1->Pop();
+	ASSERT_EQ(scoped_obj.use_count(), 1);
+    ASSERT_EQ(0, p1->Size());
+
+    auto explicit_copy = scoped_obj;
+	ASSERT_EQ(scoped_obj.use_count(), 2);
+	ASSERT_EQ(explicit_copy.use_count(), 2);
+    ASSERT_EQ(0, p1->Size());
+    explicit_copy.reset();
+	ASSERT_EQ(scoped_obj.use_count(), 1);
+    ASSERT_EQ(0, p1->Size());
+
+	auto copy_via_sft = scoped_obj->Copy();
+    ASSERT_EQ(copy_via_sft.get(), scoped_obj.get());
+	ASSERT_EQ(scoped_obj.use_count(), 2);
+	ASSERT_EQ(copy_via_sft.use_count(), 2);
+
+	scoped_obj.reset();
+	ASSERT_EQ(copy_via_sft.use_count(), 1);
+    ASSERT_EQ(0, p1->Size());
+    }
+
 }
