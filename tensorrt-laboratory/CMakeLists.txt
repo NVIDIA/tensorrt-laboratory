@@ -6,11 +6,7 @@ include(GNUInstallDirs)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-option(BUILD_CUDA "Build with NVIDIA CUDA Support" ON)
-option(BUILD_TENSORRT "Build with NVIDIA TensorRT Support" ON)
-option(BUILD_NVRPC "Build with NVIDIA RPC Support" ON)
-option(BUILD_PYTHON "Build Python bindings" OFF)
-option(ENABLE_TESTING "Build tests" ON)
+
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS Off)

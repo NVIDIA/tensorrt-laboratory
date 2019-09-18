@@ -40,7 +40,19 @@ set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
-add_subdirectory(third_party/pybind11)
+option(BUILD_CUDA "Build with NVIDIA CUDA Support" ON)
+option(BUILD_TENSORRT "Build with NVIDIA TensorRT Support" ON)
+option(BUILD_NVRPC "Build with NVIDIA RPC Support" ON)
+option(BUILD_PYTHON "Build Python bindings" OFF)
+option(BUILD_EXAMPLES "Build trtlab examples" OFF)
+option(ENABLE_TESTING "Build tests" ON)
+
+if(BUILD_PYTHON)
+  add_subdirectory(third_party/pybind11)
+endif()
+
 add_subdirectory(tensorrt-laboratory)
-#add_subdirectory(examples/00_TensorRT)
-#add_subdirectory(examples)
+
+if(BUILD_EXAMPLES)
+  add_subdirectory(examples)
+endif()
