@@ -56,11 +56,8 @@ Buffers::~Buffers()
 auto Buffers::CreateBindings(std::shared_ptr<Model> model) -> std::shared_ptr<Bindings>
 {
     auto buffers = shared_from_this();
-    auto use_count = buffers.use_count();
-    CHECK_GT(use_count, 1);
     auto bindings = std::shared_ptr<Bindings>(new Bindings(model, buffers));
     ConfigureBindings(*model, *bindings);
-    CHECK_EQ(buffers.use_count(), use_count+1);
     return bindings;
 }
 
