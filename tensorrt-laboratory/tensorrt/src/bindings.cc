@@ -64,13 +64,13 @@ Bindings::~Bindings() {}
 
 typename Bindings::HostDescriptor& Bindings::HostMemoryDescriptor(int binding_id)
 {
-    CHECK_LT(binding_id, m_HostAddresses.size());
+    DCHECK_LT(binding_id, m_HostAddresses.size());
     return m_HostDescriptors[binding_id];
 }
 
 void Bindings::SetHostAddress(int binding_id, void *addr)
 {
-    CHECK_LT(binding_id, m_HostAddresses.size());
+    DCHECK_LT(binding_id, m_HostAddresses.size());
     auto mdesc = std::make_unique<RawHostMemoryDescriptor>(addr, BindingSize(binding_id));
     m_HostDescriptors[binding_id] = std::move(mdesc);
     m_HostAddresses[binding_id] = addr;
@@ -78,34 +78,34 @@ void Bindings::SetHostAddress(int binding_id, void *addr)
 
 void Bindings::SetDeviceAddress(int binding_id, void *addr)
 {
-    CHECK_LT(binding_id, m_DeviceAddresses.size());
+    DCHECK_LT(binding_id, m_DeviceAddresses.size());
     m_DeviceDescriptors.erase(binding_id);
     m_DeviceAddresses[binding_id] = addr;
 }
 
 void Bindings::SetHostAddress(int binding_id, DescriptorHandle<HostMemory> mdesc)
 {
-    CHECK_LT(binding_id, m_HostAddresses.size());
+    DCHECK_LT(binding_id, m_HostAddresses.size());
     m_HostAddresses[binding_id] = mdesc->Data();
     m_HostDescriptors[binding_id] = std::move(mdesc);
 }
 
 void Bindings::SetDeviceAddress(int binding_id, DescriptorHandle<DeviceMemory> mdesc)
 {
-    CHECK_LT(binding_id, m_DeviceAddresses.size());
+    DCHECK_LT(binding_id, m_DeviceAddresses.size());
     m_DeviceAddresses[binding_id] = mdesc->Data();
     m_DeviceDescriptors[binding_id] = std::move(mdesc);
 }
 
 void *Bindings::HostAddress(uint32_t binding_id)
 {
-    CHECK_LT(binding_id, m_HostAddresses.size());
+    DCHECK_LT(binding_id, m_HostAddresses.size());
     return m_HostAddresses[binding_id];
 }
 
 void *Bindings::DeviceAddress(uint32_t binding_id)
 {
-    CHECK_LT(binding_id, m_DeviceAddresses.size());
+    DCHECK_LT(binding_id, m_DeviceAddresses.size());
     return m_DeviceAddresses[binding_id];
 }
 
@@ -131,6 +131,7 @@ void Bindings::CopyToDevice(const std::vector<uint32_t> &ids)
 
 void Bindings::CopyToDevice(uint32_t device_binding_id, void *src, size_t bytes)
 {
+    if(src == nullptr) { return; }
     auto dst = DeviceAddress(device_binding_id);
     DVLOG(2) << "CopyToDevice binding_id: " << device_binding_id << "; size: " << bytes;
     CHECK_EQ(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyHostToDevice, Stream()), CUDA_SUCCESS)
@@ -155,6 +156,7 @@ void Bindings::CopyFromDevice(const std::vector<uint32_t> &ids)
 
 void Bindings::CopyFromDevice(uint32_t device_binding_id, void *dst, size_t bytes)
 {
+    if(dst == nullptr) { return; }
     auto src = DeviceAddress(device_binding_id);
     DVLOG(2) << "CopyFromDevice binding_id: " << device_binding_id << "; size: " << bytes;
     CHECK_EQ(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyDeviceToHost, Stream()), CUDA_SUCCESS)
@@ -192,6 +194,17 @@ void Bindings::RegisterGraphWorkspace(std::shared_ptr<GraphWorkspace> workspace)
 
 }
 
+void Bindings::UpdateModel(std::shared_ptr<Model> model)
+{
+    bool error = false;
+    error = (m_Model->GetBindingsCount() == model->GetBindingsCount());
+    for(int i=0; i<m_Model->GetBindingsCount() && !error; i++)
+    {
+        error = (m_Model->GetBinding(i).bytesPerBatchItem == model->GetBinding(i).bytesPerBatchItem);
+    }
+    if(error) { throw std::runtime_error("model update failed; completely different type of model");}
+    m_Model = model;
+}
 
 } // namespace TensorRT
 } // namespace trtlab

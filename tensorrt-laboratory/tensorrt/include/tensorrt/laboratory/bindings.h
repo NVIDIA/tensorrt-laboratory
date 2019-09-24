@@ -74,6 +74,8 @@ class Bindings
     void SetHostAddress(int binding_id, HostDescriptor);
     void SetDeviceAddress(int binding_id, DeviceDescriptor);
 
+    void UpdateModel(std::shared_ptr<Model>);
+
     HostDescriptor& HostMemoryDescriptor(int binding_id);
     // const Memory::HostMemory& HostMemory(int binding_id) const;
 
