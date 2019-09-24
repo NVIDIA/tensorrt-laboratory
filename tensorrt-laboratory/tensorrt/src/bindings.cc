@@ -196,14 +196,18 @@ void Bindings::RegisterGraphWorkspace(std::shared_ptr<GraphWorkspace> workspace)
 
 void Bindings::UpdateModel(std::shared_ptr<Model> model)
 {
+    /*
+    LOG(INFO) << "update model";
     bool error = false;
     error = (m_Model->GetBindingsCount() == model->GetBindingsCount());
-    for(int i=0; i<m_Model->GetBindingsCount() && !error; i++)
+    for(std::size_t i=0; i<m_Model->GetBindingsCount() && !error; i++)
     {
         error = (m_Model->GetBinding(i).bytesPerBatchItem == model->GetBinding(i).bytesPerBatchItem);
     }
     if(error) { throw std::runtime_error("model update failed; completely different type of model");}
+    */
     m_Model = model;
+    // LOG(INFO) << "update model - completed";
 }
 
 } // namespace TensorRT
