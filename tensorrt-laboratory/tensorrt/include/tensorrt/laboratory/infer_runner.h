@@ -95,26 +95,32 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
     }
 
     template<typename T>
+    void Launch(std::shared_ptr<Bindings> bindings, std::shared_ptr<AsyncCompute<T>> Post)
+    {
+        CHECK_EQ(cudaSetDevice(Resources().DeviceID()), CUDA_SUCCESS);
+        bindings->CopyToDevice(bindings->InputBindings());
+        auto trt_ctx = Compute(bindings);
+        bindings->CopyFromDevice(bindings->OutputBindings());
+        Workers("post").enqueue([this, bindings, trt_ctx, Post]() mutable {
+            CHECK_EQ(cudaSetDevice(Resources().DeviceID()), CUDA_SUCCESS);
+            DVLOG(1) << this << " - " << trt_ctx.get() << ": sync trt_ctx";
+            trt_ctx->Synchronize();
+            DVLOG(1) << this << " - " << trt_ctx.get() << ": sync trt_ctx - completed";
+            trt_ctx.reset();
+            DVLOG(1) << this << " - " << bindings.get() << ": sync bindings";
+            bindings->Synchronize();
+            DVLOG(1) << this << " - " << bindings.get() << ": sync bindings - completed";
+            (*Post)(bindings);
+            bindings.reset();
+            DVLOG(2) << this << ": completed inference task";
+        });
+    }
+
+    template<typename T>
     void Enqueue(std::shared_ptr<Bindings> bindings, std::shared_ptr<AsyncCompute<T>> Post)
     {
         Workers("cuda").enqueue([this, bindings, Post]() mutable {
-            CHECK_EQ(cudaSetDevice(Resources().DeviceID()), CUDA_SUCCESS);
-            bindings->CopyToDevice(bindings->InputBindings());
-            auto trt_ctx = Compute(bindings);
-            bindings->CopyFromDevice(bindings->OutputBindings());
-            Workers("post").enqueue([this, bindings, trt_ctx, Post]() mutable {
-                CHECK_EQ(cudaSetDevice(Resources().DeviceID()), CUDA_SUCCESS);
-                DVLOG(1) << this << " - " << trt_ctx.get() << ": sync trt_ctx";
-                trt_ctx->Synchronize();
-                DVLOG(1) << this << " - " << trt_ctx.get() << ": sync trt_ctx - completed";
-                trt_ctx.reset();
-                DVLOG(1) << this << " - " << bindings.get() << ": sync bindings";
-                bindings->Synchronize();
-                DVLOG(1) << this << " - " << bindings.get() << ": sync bindings - completed";
-                (*Post)(bindings);
-                bindings.reset();
-                DVLOG(2) << this << ": completed inference task";
-            });
+            Launch(bindings, Post);
         });
     }
 
@@ -129,21 +135,7 @@ struct InferRunner : public AsyncComputeWrapper<void(std::shared_ptr<Bindings>&)
                 on_timeout();
                 return;
             }
-            DLOG(INFO) << "H2D";
-            bindings->CopyToDevice(bindings->InputBindings());
-            DLOG(INFO) << "Compute";
-            auto trt_ctx = Compute(bindings);
-            bindings->CopyFromDevice(bindings->OutputBindings());
-            Workers("post").enqueue([this, bindings, trt_ctx, Post]() mutable {
-                trt_ctx->Synchronize();
-                trt_ctx.reset();
-                DLOG(INFO) << "Sync TRT";
-                bindings->Synchronize();
-                DLOG(INFO) << "Sync D2H";
-                (*Post)(bindings);
-                bindings.reset();
-                DLOG(INFO) << "Execute Finished";
-            });
+            Launch(std::move(bindings), Post);
         });
     }
 
