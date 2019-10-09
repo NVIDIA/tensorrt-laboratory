@@ -5,6 +5,8 @@ examples that extend the scope of the examples provided with each of the NVIDIA 
 products, i.e. CUDA, TensorRT, TensorRT Inference Server, and DeepStream.  We hope that 
 the examples and ideas found in the playground will resonate and possibly inspire.
 
+NVIDIA's MLPerf submission branch is found on the [`mlperf` branch](https://github.com/NVIDIA/tensorrt-laboratory/tree/mlperf)
+
 ## Quickstart
 
   * Install [nvidia-docker](https://github.com/NVIDIA/nvidia-docker)
