@@ -28,6 +28,7 @@
 
 #include <regex>
 #include <stdio.h>
+#include <cmath>
 
 #include <glog/logging.h>
 
