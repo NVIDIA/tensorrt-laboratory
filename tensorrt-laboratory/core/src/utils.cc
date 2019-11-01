@@ -45,7 +45,7 @@ std::string BytesToString(size_t bytes)
     char buffer[50];
     int unit = 1024;
     const char prefixes[] = "KMGTPE";
-    if(bytes < unit)
+    if(bytes < (size_t) unit)
     {
         sprintf(buffer, "%ld B", bytes);
         return std::string(buffer);
