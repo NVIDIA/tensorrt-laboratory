@@ -66,9 +66,12 @@ def repositories():
 cc_library(
     name = "cpuaff",
     srcs = glob([
-        "include/**/*.hpp",
+        "include/**/*.hpp","include/**/*.h",
     ]),
-    hdrs = ["cpuaff/cpuaff.hpp"],
+    hdrs = glob([
+        "include/**/*.hpp","include/**/*.h",
+    ]),
+    #hdrs = ["include/cpuaff/cpuaff.hpp"],
     strip_include_prefix = "include",
     visibility = ["//visibility:public"],
 )
