@@ -28,6 +28,7 @@
 
 #include <regex>
 #include <stdio.h>
+#include <cmath>
 
 #include <glog/logging.h>
 
@@ -44,13 +45,13 @@ std::string BytesToString(size_t bytes)
     char buffer[50];
     int unit = 1024;
     const char prefixes[] = "KMGTPE";
-    if(bytes < unit)
+    if(bytes < (size_t) unit)
     {
         sprintf(buffer, "%ld B", bytes);
         return std::string(buffer);
     }
-    int exp = (int)(log(bytes) / log(unit));
-    sprintf(buffer, "%.1f %ciB", bytes / pow(unit, exp), prefixes[exp - 1]);
+    int exp = (int)(std::log(bytes) / std::log(unit));
+    sprintf(buffer, "%.1f %ciB", bytes / std::pow(unit, exp), prefixes[exp - 1]);
     return std::string(buffer);
 }
 
@@ -70,7 +71,7 @@ std::uint64_t StringToBytes(const std::string str)
     const std::uint64_t base = m.empty() || (m.size() > 3 && m[3] == "") ? 1000 : 1024;
     auto exponent = prefix[m[2].str()[0]];
     auto scalar = std::stod(m[1]);
-    return (std::uint64_t)(scalar * pow(base, exponent));
+    return (std::uint64_t)(scalar * std::pow(base, exponent));
 }
 
 } // namespace trtlab

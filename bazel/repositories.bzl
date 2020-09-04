@@ -54,6 +54,30 @@ def repositories():
         ],
     )
 
+    _maybe(
+        http_archive,
+        name = "com_github_dcdillon_cpuaff",
+        sha256 = "3be034ef633b1785c47fe21458e3577875abd24b520a7d8dd69b33183202d5fd",
+        strip_prefix = "cpuaff-a0ca467d6eaad865862b95d16279787b5d24493f",
+        urls = [
+            "https://github.com/dcdillon/cpuaff/archive/a0ca467.zip",
+        ],
+        build_file_content = """
+cc_library(
+    name = "cpuaff",
+    srcs = glob([
+        "include/**/*.hpp","include/**/*.h",
+    ]),
+    hdrs = glob([
+        "include/**/*.hpp","include/**/*.h",
+    ]),
+    #hdrs = ["include/cpuaff/cpuaff.hpp"],
+    strip_include_prefix = "include",
+    visibility = ["//visibility:public"],
+)
+        """
+    )
+
 def load_trtis():
     http_archive(
         name = "com_github_nvidia_trtis",

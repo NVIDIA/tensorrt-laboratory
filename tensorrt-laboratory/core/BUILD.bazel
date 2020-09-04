@@ -9,6 +9,7 @@ cc_library(
     ),
     deps = [
         "@com_google_glog//:glog",
+        "@com_github_dcdillon_cpuaff//:cpuaff"
     ],
     strip_include_prefix = "include",
     visibility = ["//visibility:public"],
