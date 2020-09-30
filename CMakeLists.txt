@@ -33,7 +33,7 @@ option (BUILD_CUDA "Whether or not build trtlab/cuda" ON)
 option (BUILD_NVRPC "Whether or not build trtlab/nvrpc" ON)
 option (BUILD_TENSORRT "Whether or not build trtlab/tensorrt" ON)
 option (BUILD_PYTHON "Whether or not build trtlab/pybind" OFF)
-option (BUILD_EXAMPLES "Whether or not to build trtlab examples", OFF)
+option (BUILD_EXAMPLES "Whether or not to build trtlab examples" OFF)
 
 if (BUILD_DEPENDENCIES)
   project (trtlab_dependencies NONE)
