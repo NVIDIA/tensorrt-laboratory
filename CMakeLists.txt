@@ -24,22 +24,32 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
-project(tensorrt-laboratory)
+option (BUILD_DEPENDENCIES "Whether or not a superbuild should be invoked" ON)
+option (BUILD_MEMORY "Whether or not build trtlab/memory" ON)
+option (BUILD_CORE "Whether or not build trtlab/core" ON)
+option (BUILD_CUDA "Whether or not build trtlab/cuda" ON)
+option (BUILD_NVRPC "Whether or not build trtlab/nvrpc" ON)
+option (BUILD_TENSORRT "Whether or not build trtlab/tensorrt" ON)
+option (BUILD_PYTHON "Whether or not build trtlab/pybind" OFF)
+option (BUILD_EXAMPLES "Whether or not to build trtlab examples", OFF)
 
-include(GNUInstallDirs)
-
-# Build options
-set(CMAKE_CXX_STANDARD 17)
-#set(default_build_type "Release")
-#set(CMAKE_DEBUG_POSTFIX "-d")
-set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+if (BUILD_DEPENDENCIES)
+  project (trtlab_dependencies NONE)
+  include (cmake/dependencies.cmake)
+  return() # stop processing this file further
+else()
+  project (trtlab)
+endif()
 
 # CMake path
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
-add_subdirectory(third_party/pybind11)
-add_subdirectory(tensorrt-laboratory)
-add_subdirectory(examples)
+# trtlab 
+add_subdirectory(trtlab)
+
+if (BUILD_EXAMPLES)
+  add_subdirectory(examples)
+endif()
