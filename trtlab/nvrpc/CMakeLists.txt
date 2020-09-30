@@ -6,7 +6,7 @@
 #set(CMAKE_DEBUG_POSTFIX "-d")
 #set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
-add_subdirectory(tests)
+#add_subdirectory(tests)
 
 # Find Protobuf installation
 # Looks for protobuf-config.cmake file installed by Protobuf's cmake installation.
@@ -30,7 +30,7 @@ add_library(nvrpc
 )
 
 add_library(nvrpc-client
-  src/client/executor.cc
+  src/client/client_executor.cc
 )
 
 add_library(${PROJECT_NAME}::nvrpc ALIAS nvrpc)
@@ -38,14 +38,14 @@ add_library(${PROJECT_NAME}::nvrpc-client ALIAS nvrpc-client)
 
 target_link_libraries(nvrpc
   PUBLIC
-    ${PROJECT_NAME}::core
+    core
     ${_GRPC_GRPCPP_UNSECURE}
     gRPC::gpr
 )
 
 target_link_libraries(nvrpc-client
   PUBLIC
-    ${PROJECT_NAME}::core
+    core
     ${_GRPC_GRPCPP_UNSECURE}
 )
 
@@ -86,7 +86,7 @@ install(
 )
 
 #if(ENABLE_TESTING)
-#  add_subdirectory(tests)
+   add_subdirectory(tests)
 #endif()
 
 #if(benchmark_FOUND)

@@ -2,13 +2,17 @@
 find_package(CUDA REQUIRED)
 message(STATUS "CUDA IncludeDir ${CUDA_INCLUDE_DIRS}")
 
+set(header_path ${CMAKE_CURRENT_SOURCE_DIR}/include/trtlab/cuda)
+
 add_library(cuda
-  src/copy.cc
-  src/cuda_device.cc
-  src/cuda_managed.cc
-  src/cuda_pinned_host.cc
+# src/copy.cc
+# src/cuda_device.cc
+# src/cuda_managed.cc
+# src/cuda_pinned_host.cc
   src/device_info.cc
-  src/device_memory.cc
+  src/device_guard.cc
+# src/device_memory.cc
+  src/cuda_allocators.cc
 )
 
 add_library(${PROJECT_NAME}::cuda ALIAS cuda)
@@ -23,6 +27,8 @@ target_include_directories(cuda
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     ${CUDA_INCLUDE_DIRS}
+  PRIVATE
+    ${header_path}
 )
 
 set_target_properties(cuda PROPERTIES OUTPUT_NAME ${PROJECT_NAME}-cuda)
@@ -41,10 +47,6 @@ install(
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-if(ENABLE_TESTING)
   add_subdirectory(tests)
-endif()
 
-if(benchmark_FOUND)
-  add_subdirectory(benchmarks)
-endif()
+# add_subdirectory(benchmarks)

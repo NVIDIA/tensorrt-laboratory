@@ -24,10 +24,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/core/utils.h"
+#include "trtlab/core/utils.h"
 
-#include <regex>
+#include <math.h>
 #include <stdio.h>
+
+#include <cmath>
+#include <regex>
 
 #include <glog/logging.h>
 
@@ -40,7 +43,7 @@ namespace trtlab {
  */
 std::string BytesToString(size_t bytes)
 {
-    // Credits: https://stackoverflow.com/questions/3758606
+    // C++ implentation inspired from: https://stackoverflow.com/questions/3758606
     char buffer[50];
     int unit = 1024;
     const char prefixes[] = "KMGTPE";
@@ -49,8 +52,8 @@ std::string BytesToString(size_t bytes)
         sprintf(buffer, "%ld B", bytes);
         return std::string(buffer);
     }
-    int exp = (int)(log(bytes) / log(unit));
-    sprintf(buffer, "%.1f %ciB", bytes / pow(unit, exp), prefixes[exp - 1]);
+    int exp = (int)(std::log(bytes) / std::log(unit));
+    sprintf(buffer, "%.1f %ciB", bytes / std::pow(unit, exp), prefixes[exp - 1]);
     return std::string(buffer);
 }
 
@@ -70,7 +73,7 @@ std::uint64_t StringToBytes(const std::string str)
     const std::uint64_t base = m.empty() || (m.size() > 3 && m[3] == "") ? 1000 : 1024;
     auto exponent = prefix[m[2].str()[0]];
     auto scalar = std::stod(m[1]);
-    return (std::uint64_t)(scalar * pow(base, exponent));
+    return (std::uint64_t)(scalar * std::pow(base, exponent));
 }
 
 } // namespace trtlab

@@ -24,21 +24,37 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include_directories(${GTEST_INCLUDE_DIRS})
+find_package(GTest)
 
 add_executable(test_core
+  test_main.cc
+# test_batcher.cc
+  test_common.cc
+  test_cyclic_windowed_buffer.cc
+  test_async.cc
+# test_types.cc
   test_memory.cc
-  test_memory_stack.cc
+# test_memory_stack.cc
   test_pool.cc
   test_thread_pool.cc
-  test_cyclic_allocator.cc
+# test_cyclic_allocator.cc
   test_async_compute.cc
+# test_tensor.cc
+# test_stl_allocator.cc
+# test_foo_memory.cc
+# test_sysv_allocator.cc
+# test_affinity.cc
 )
 
 target_link_libraries(test_core
-  PRIVATE 
-    ${PROJECT_NAME}::core 
-    ${GTEST_BOTH_LIBRARIES}
+  PRIVATE
+    ${PROJECT_NAME}::core
+    GTest::gtest
+)
+
+target_include_directories(test_core
+  PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
 add_test(

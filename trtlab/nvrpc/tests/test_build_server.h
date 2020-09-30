@@ -40,24 +40,24 @@ namespace testing {
 template<typename Context>
 std::unique_ptr<Server> BuildServer();
 
-template<typename T>
+template<typename T, typename ExecutorType = Executor>
 std::unique_ptr<Server> BuildStreamingServer()
 {
     auto server = std::make_unique<Server>("0.0.0.0:13377");
     auto resources = std::make_shared<TestResources>(3);
-    auto executor = server->RegisterExecutor(new Executor(1));
+    auto executor = server->RegisterExecutor(new ExecutorType(1));
     auto service = server->RegisterAsyncService<TestService>();
     auto rpc_streaming = service->RegisterRPC<T>(&TestService::AsyncService::RequestStreaming);
     executor->RegisterContexts(rpc_streaming, resources, 10);
     return std::move(server);
 }
 
-template<typename UnaryContext, typename StreamingContext>
+template<typename UnaryContext, typename StreamingContext, typename ExecutorType = Executor>
 std::unique_ptr<Server> BuildServer()
 {
     auto server = std::make_unique<Server>("0.0.0.0:13377");
     auto resources = std::make_shared<TestResources>(3);
-    auto executor = server->RegisterExecutor(new Executor(1));
+    auto executor = server->RegisterExecutor(new ExecutorType(1));
     auto service = server->RegisterAsyncService<TestService>();
     auto rpc_unary = service->RegisterRPC<UnaryContext>(&TestService::AsyncService::RequestUnary);
     auto rpc_streaming =

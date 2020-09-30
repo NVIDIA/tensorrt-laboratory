@@ -78,11 +78,11 @@ class LifeCycleBatching : public IContextLifeCycle
     using RequestType = Request;
     using ResponseType = Response;
     using ServiceQueueFuncType = std::function<void(
-        ::grpc::ServerContext*, ::grpc::ServerAsyncReaderWriter<ResponseType, RequestType>*,
+        ::grpc::ServerContext*, ::grpc_impl::ServerAsyncReaderWriter<ResponseType, RequestType>*,
         ::grpc::CompletionQueue*, ::grpc::ServerCompletionQueue*, void*)>;
     using ExecutorQueueFuncType =
         std::function<void(::grpc::ServerContext*,
-                           ::grpc::ServerAsyncReaderWriter<ResponseType, RequestType>*, void*)>;
+                           ::grpc_impl::ServerAsyncReaderWriter<ResponseType, RequestType>*, void*)>;
 
     virtual ~LifeCycleBatching() override {}
 
@@ -113,7 +113,7 @@ class LifeCycleBatching : public IContextLifeCycle
     std::vector<RequestType> m_Requests;
     std::vector<ResponseType> m_Responses;
     std::unique_ptr<::grpc::ServerContext> m_Context;
-    std::unique_ptr<::grpc::ServerAsyncReaderWriter<ResponseType, RequestType>> m_Stream;
+    std::unique_ptr<::grpc_impl::ServerAsyncReaderWriter<ResponseType, RequestType>> m_Stream;
     typename std::vector<ResponseType>::const_iterator m_ResponseIterator;
 
   public:
@@ -163,7 +163,7 @@ void LifeCycleBatching<Request, Response>::Reset()
     m_Requests.clear();
     m_Responses.clear();
     m_Context.reset(new ::grpc::ServerContext);
-    m_Stream.reset(new ::grpc::ServerAsyncReaderWriter<ResponseType, RequestType>(m_Context.get()));
+    m_Stream.reset(new ::grpc_impl::ServerAsyncReaderWriter<ResponseType, RequestType>(m_Context.get()));
     m_NextState = &LifeCycleBatching<RequestType, ResponseType>::StateRequestDone;
     m_QueuingFunc(m_Context.get(), m_Stream.get(), IContext::Tag());
 }

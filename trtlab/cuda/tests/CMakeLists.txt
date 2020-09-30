@@ -24,10 +24,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include_directories(${GTEST_INCLUDE_DIRS})
+find_package(GTest)
 
 add_executable(test_cuda
-  test_memory.cc
+# test_memory.cc
+  test_main.cc
+  test_allocators.cc
   test_device_info.cc
 )
 
@@ -35,7 +37,7 @@ target_link_libraries(test_cuda
   PRIVATE 
     ${PROJECT_NAME}::core
     ${PROJECT_NAME}::cuda
-    ${GTEST_BOTH_LIBRARIES}
+    GTest::gtest
 )
 
 add_test(

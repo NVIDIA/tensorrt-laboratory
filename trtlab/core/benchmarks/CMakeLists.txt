@@ -24,18 +24,21 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+find_package(benchmark)
+
 add_executable(bench_core
   main.cc
   bench_pool.cc
   bench_thread_pool.cc
-  bench_memory.cc
-  bench_memory_stack.cc
+  bench_batcher.cc
+# bench_memory.cc
+# bench_memory_stack.cc
 )
 
 target_link_libraries(bench_core 
   PRIVATE 
     ${PROJECT_NAME}::core
-    benchmark
+    benchmark::benchmark
 )
 
 add_test(NAME bench_core COMMAND $<TARGET_FILE:bench_core>)

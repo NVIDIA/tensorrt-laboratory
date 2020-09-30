@@ -24,6 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+find_package(GTest)
 set(protobuf_MODULE_COMPATIBLE TRUE)
 find_package(Protobuf CONFIG REQUIRED)
 message(STATUS "Using protobuf ${protobuf_VERSION}")
@@ -68,7 +69,7 @@ target_link_libraries(test_nvrpc
     nvrpc
     nvrpc-client
     nvrpc-testing-protos
-    ${GTEST_BOTH_LIBRARIES}
+    GTest::gtest_main
 )
 
 add_test(

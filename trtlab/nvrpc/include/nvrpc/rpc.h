@@ -28,7 +28,7 @@
 #define NVIS_RPC_H_
 
 #include "nvrpc/context.h"
-#include "tensorrt/laboratory/core/resources.h"
+#include "trtlab/core/resources.h"
 
 namespace nvrpc {
 

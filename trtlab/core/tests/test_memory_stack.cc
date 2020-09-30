@@ -24,11 +24,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/core/memory/cyclic_allocator.h"
-#include "tensorrt/laboratory/core/memory/malloc.h"
-#include "tensorrt/laboratory/core/memory/memory_stack.h"
-#include "tensorrt/laboratory/core/memory/smart_stack.h"
-#include "tensorrt/laboratory/core/memory/system_v.h"
+#include "trtlab/core/memory/cyclic_allocator.h"
+#include "trtlab/core/memory/malloc.h"
+#include "trtlab/core/memory/memory_stack.h"
+#include "trtlab/core/memory/smart_stack.h"
+#include "trtlab/core/memory/sysv_allocator.h"
 
 #include "gtest/gtest.h"
 
@@ -113,6 +113,7 @@ TEST_F(TestSmartStack, AllocateAndReset)
     auto p0 = stack->Allocate(128 * 1024);
     ASSERT_TRUE(p0);
     EXPECT_EQ(128 * 1024, stack->Allocated());
+    EXPECT_EQ(p0->DataType(), types::bytes);
     stack->Reset();
     EXPECT_EQ(0, stack->Allocated());
     auto p1 = stack->Allocate(1);
@@ -138,8 +139,6 @@ TEST_F(TestSmartStack, Unaligned)
     EXPECT_EQ(p0->Offset(), 0);
     EXPECT_EQ(p1->Offset(), stack->Alignment());
 
-    EXPECT_EQ(stack->Memory().Type(), "SystemV");
-
     EXPECT_GE(p0->Stack().Memory().ShmID(), 0);
     // EXPECT_EQ(p0->ShmID(), -1);
 
@@ -151,6 +150,28 @@ TEST_F(TestSmartStack, Unaligned)
     DLOG(INFO) << "delete stack";
 
     stack.reset();
+}
+
+TEST_F(TestSmartStack, PassMemory)
+{
+    auto memory = std::make_unique<Allocator<Malloc>>(one_mb);
+    auto s = SmartStack<Malloc>::Create(std::move(memory));
+}
+
+TEST_F(TestSmartStack, PassSpecializedMemory)
+{
+    auto memory = std::make_unique<Allocator<Malloc>>(one_mb);
+    memory->Reshape({512, 512}, types::fp32);
+    EXPECT_EQ(memory->DataType(), types::fp32);
+
+    auto s = SmartStack<Malloc>::Create(std::move(memory));
+    // MemoryStack will Reshape any CoreMemory object to bytes at full capacity
+    // This is ok since the MemoryStack is taking ownership of the object.
+    EXPECT_EQ(s->Memory().DataType(), types::bytes);
+
+    // This no longer fails because MemoryStack is converting our memory object
+    // back into a useable form
+    // EXPECT_THROW(auto p0 = s->Allocate(1), std::invalid_argument);
 }
 
 } // namespace

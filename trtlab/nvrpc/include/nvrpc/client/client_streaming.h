@@ -32,7 +32,7 @@
 
 #include "nvrpc/client/base_context.h"
 #include "nvrpc/client/executor.h"
-#include "tensorrt/laboratory/core/async_compute.h"
+#include "trtlab/core/async_compute.h"
 
 #include <glog/logging.h>
 
@@ -44,14 +44,14 @@ struct ClientStreaming : public BaseContext
 {
   public:
     using PrepareFn =
-        std::function<std::unique_ptr<::grpc::ClientAsyncReaderWriter<Request, Response>>(
+        std::function<std::unique_ptr<::grpc_impl::ClientAsyncReaderWriter<Request, Response>>(
             ::grpc::ClientContext*, ::grpc::CompletionQueue*)>;
 
     using ReadCallback = std::function<void(Response&&)>;
     using WriteCallback = std::function<void(Request&&)>;
 
     ClientStreaming(PrepareFn, std::shared_ptr<Executor>, WriteCallback, ReadCallback);
-    ~ClientStreaming() { DLOG(INFO) << "ClientStreaming dtor"; }
+    ~ClientStreaming() { DVLOG(1) << "ClientStreaming dtor"; }
 
     // void Write(Request*);
     bool Write(Request&&);
@@ -84,7 +84,7 @@ struct ClientStreaming : public BaseContext
       private:
         bool RunNextState(bool ok) final override
         {
-            // DLOG(INFO) << "Event for Tag: " << Tag();
+            // DVLOG(1) << "Event for Tag: " << Tag();
             return static_cast<ClientStreaming*>(m_MasterContext)->RunNextState(m_NextState, ok);
         }
 
@@ -97,7 +97,7 @@ struct ClientStreaming : public BaseContext
 
     ::grpc::Status m_Status;
     ::grpc::ClientContext m_Context;
-    std::unique_ptr<::grpc::ClientAsyncReaderWriter<Request, Response>> m_Stream;
+    std::unique_ptr<::grpc_impl::ClientAsyncReaderWriter<Request, Response>> m_Stream;
     std::promise<::grpc::Status> m_Promise;
 
     PrepareFn m_PrepareFn;
@@ -177,7 +177,7 @@ bool ClientStreaming<Request, Response>::Write(Request&& request)
     Actions actions;
     {
         std::lock_guard<std::mutex> lock(m_Mutex);
-        DLOG(INFO) << "Writing Request";
+        DVLOG(1) << "Writing Request";
 
         if(m_WritesDone)
         {
@@ -200,7 +200,7 @@ std::shared_future<::grpc::Status> ClientStreaming<Request, Response>::Done()
     Actions actions;
     {
         std::lock_guard<std::mutex> lock(m_Mutex);
-        DLOG(INFO) << "Sending WritesDone - Closing Client -> Server side of the stream";
+        DVLOG(1) << "Sending WritesDone - Closing Client -> Server side of the stream";
 
         m_WritesDone = true;
 
@@ -229,7 +229,7 @@ typename ClientStreaming<Request, Response>::Actions
 
     if(m_NextState == &ClientStreaming<Request, Response>::StateStreamInitialized)
     {
-        DLOG(INFO) << "Action Queued: Stream Initializing";
+        DVLOG(1) << "Action Queued: Stream Initializing";
     }
     else
     {
@@ -270,8 +270,8 @@ typename ClientStreaming<Request, Response>::Actions
     }
 
     // clang-format off
-    DLOG(INFO) << (should_read ? 1 : 0) << (should_write ? 1 : 0) << (should_execute ? 1 : 0)
-               << (should_finish ? 1 : 0) 
+    DVLOG(1) << (should_read ? 1 : 0) << (should_write ? 1 : 0) << (should_execute ? 1 : 0)
+               << (should_finish ? 1 : 0)
                << " -- " << m_Reading << m_Writing << m_Finishing
                << " -- " << m_ReadsDone << m_WritesDone
                << " -- " << m_Finishing;
@@ -293,12 +293,12 @@ void ClientStreaming<Request, Response>::ForwardProgress(Actions& actions)
 
     if(should_read)
     {
-        DLOG(INFO) << "Posting Read/Recv";
+        DVLOG(1) << "Posting Read/Recv";
         m_Stream->Read(&m_ReadQueue.back(), m_ReadState.Tag());
     }
     if(should_write)
     {
-        DLOG(INFO) << "Writing/Sending Request";
+        DVLOG(1) << "Writing/Sending Request";
         if(m_Corked)
         {
             ::grpc::WriteOptions options;
@@ -312,22 +312,22 @@ void ClientStreaming<Request, Response>::ForwardProgress(Actions& actions)
     }
     if(should_close)
     {
-        DLOG(INFO) << "Sending WritesDone to Server";
+        DVLOG(1) << "Sending WritesDone to Server";
         m_Stream->WritesDone(m_WriteState.Tag());
     }
     if(should_execute)
     {
-        DLOG(INFO) << "Kicking off Execution of Received Request";
+        DVLOG(1) << "Kicking off Execution of Received Request";
         should_execute();
     }
     if(should_finish)
     {
-        DLOG(INFO) << "Closing Stream - Finish";
+        DVLOG(1) << "Closing Stream - Finish";
         m_Stream->Finish(&m_Status, Tag());
     }
     if(should_complete)
     {
-        DLOG(INFO) << "Completing Promise";
+        DVLOG(1) << "Completing Promise";
         m_Promise.set_value(std::move(m_Status));
     }
 }
@@ -337,14 +337,14 @@ bool ClientStreaming<Request, Response>::StateStreamInitialized(bool ok)
 {
     if(!ok)
     {
-        DLOG(INFO) << "Stream Failed to Initialize";
+        DVLOG(1) << "Stream Failed to Initialize";
         return false;
     }
 
     Actions actions;
     {
         std::lock_guard<std::mutex> lock(m_Mutex);
-        DLOG(INFO) << "StreamInitialized";
+        DVLOG(1) << "StreamInitialized";
 
         m_NextState = &ClientStreaming<Request, Response>::StateInvalid;
 
@@ -354,7 +354,7 @@ bool ClientStreaming<Request, Response>::StateStreamInitialized(bool ok)
 
         actions = EvaluateState();
     }
-    DLOG(INFO) << "Posting Initial Read/Recv";
+    DVLOG(1) << "Posting Initial Read/Recv";
     m_Stream->Read(&m_ReadQueue.back(), m_ReadState.Tag());
     ForwardProgress(actions);
     return true;
@@ -366,14 +366,14 @@ bool ClientStreaming<Request, Response>::StateReadDone(bool ok)
     Actions actions;
     {
         std::lock_guard<std::mutex> lock(m_Mutex);
-        DLOG(INFO) << "ReadDone: " << (ok ? "OK" : "NOT OK");
+        DVLOG(1) << "ReadDone: " << (ok ? "OK" : "NOT OK");
 
         m_Reading = false;
         m_ReadState.m_NextState = &ClientStreaming<Request, Response>::StateInvalid;
 
         if(!ok)
         {
-            DLOG(INFO) << "Server is closing the read/download portion of the stream";
+            DVLOG(1) << "Server is closing the read/download portion of the stream";
             m_ReadsDone = true;
             m_WritesDone = true;
             m_Closing = true;
@@ -395,7 +395,7 @@ bool ClientStreaming<Request, Response>::StateWriteDone(bool ok)
     Actions actions;
     {
         std::lock_guard<std::mutex> lock(m_Mutex);
-        DLOG(INFO) << "WriteDone: " << (ok ? "OK" : "NOT OK");
+        DVLOG(1) << "WriteDone: " << (ok ? "OK" : "NOT OK");
 
         m_Writing = false;
         m_WriteQueue.pop();
@@ -425,7 +425,7 @@ bool ClientStreaming<Request, Response>::StateWritesDoneDone(bool ok)
     Actions actions;
     {
         std::lock_guard<std::mutex> lock(m_Mutex);
-        DLOG(INFO) << "WritesDoneDone: " << (ok ? "OK" : "NOT OK");
+        DVLOG(1) << "WritesDoneDone: " << (ok ? "OK" : "NOT OK");
 
         // m_Closing = false;  // keep m_Closing true
         m_WriteState.m_NextState = &ClientStreaming<Request, Response>::StateInvalid;
@@ -452,7 +452,7 @@ bool ClientStreaming<Request, Response>::StateFinishDone(bool ok)
     Actions actions;
     {
         std::lock_guard<std::mutex> lock(m_Mutex);
-        DLOG(INFO) << "FinishedDone: " << (ok ? "OK" : "NOT OK");
+        DVLOG(1) << "FinishedDone: " << (ok ? "OK" : "NOT OK");
 
         m_Finishing = false;
         m_FinishDone = true;
@@ -470,19 +470,19 @@ bool ClientStreaming<Request, Response>::StateFinishDone(bool ok)
     return true;
 }
 /*
-        DLOG(INFO) << "Read/Download portion of the stream has closed";
+        DVLOG(1) << "Read/Download portion of the stream has closed";
 
         std::lock_guard<std::mutex> lock(m_Mutex);
 
         if(m_WriteState.m_NextState == &ClientStreaming<Request, Response>::StateInvalid)
         {
-            DLOG(INFO) << "Write/Upload has already finished - completing future";
+            DVLOG(1) << "Write/Upload has already finished - completing future";
 
             m_ReadState.m_NextState = &ClientStreaming<Request, Response>::StateInvalid;
         }
         else
         {
-            DLOG(INFO) << "Received Finished from Server before Client has sent Done writing";
+            DVLOG(1) << "Received Finished from Server before Client has sent Done writing";
             m_Context.TryCancel();
         }
         return true;

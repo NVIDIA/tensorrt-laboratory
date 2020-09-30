@@ -24,9 +24,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/core/memory/cyclic_allocator.h"
-#include "tensorrt/laboratory/core/memory/malloc.h"
-#include "tensorrt/laboratory/core/memory/system_v.h"
+#include "trtlab/core/memory/cyclic_allocator.h"
+#include "trtlab/core/memory/malloc.h"
+#include "trtlab/core/memory/sysv_allocator.h"
 #include "gtest/gtest.h"
 
 using namespace trtlab;

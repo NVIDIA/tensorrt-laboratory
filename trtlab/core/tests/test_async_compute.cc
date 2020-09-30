@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/core/async_compute.h"
+#include "trtlab/core/async_compute.h"
 #include "gtest/gtest.h"
 
 #include <glog/logging.h>
@@ -39,17 +39,16 @@ class TestAsyncCompute : public ::testing::Test
 
 TEST_F(TestAsyncCompute, EvenTest)
 {
-    auto compute =
-        AsyncComputeWrapper<void(int)>::Wrap([](int i) -> bool { return (bool)((i % 2) == 0); });
+    auto compute = async_compute<void(int)>::wrap([](int i) -> bool { return (bool)((i % 2) == 0); });
 
     /*
     // fails to compile: the class was defined to accept a user function with only 1 int, not 2
-    auto compute2ints = AsyncComputeWrapper<void(int)>::Wrap([](int i, int j) -> bool {
+    auto compute2ints = async_compute<void(int)>::wrap([](int i, int j) -> bool {
          return (bool)((i % 2) == 0);
     });
     */
 
-    auto future = compute->Future();
+    auto future = compute->get_future();
     (*compute)(42);
     // (*compute)(42, -2); // fails to compile, 2 ints instead of 1
     auto value = future.get();
@@ -60,9 +59,9 @@ TEST_F(TestAsyncCompute, EvenTest)
 TEST_F(TestAsyncCompute, OddTest)
 {
     auto compute =
-        AsyncComputeWrapper<void(int)>::Wrap([](int i) -> bool { return (bool)((i % 2) == 0); });
+        async_compute<void(int)>::wrap([](int i) -> bool { return (bool)((i % 2) == 0); });
 
-    auto future = compute->Future();
+    auto future = compute->get_future();
     (*compute)(41);
     auto value = future.get();
 
@@ -71,11 +70,11 @@ TEST_F(TestAsyncCompute, OddTest)
 
 TEST_F(TestAsyncCompute, ReturnUniquePtr)
 {
-    auto compute = AsyncComputeWrapper<void(int)>::Wrap([](int i) -> std::unique_ptr<bool> {
+    auto compute = async_compute<void(int)>::wrap([](int i) -> std::unique_ptr<bool> {
         return std::make_unique<bool>((bool)((i % 2) == 0));
     });
 
-    auto future = compute->Future();
+    auto future = compute->get_future();
     (*compute)(41);
     auto value = std::move(future.get());
 
@@ -86,24 +85,33 @@ TEST_F(TestAsyncCompute, ReturnUniquePtr)
 
 TEST_F(TestAsyncCompute, ReturnVoid)
 {
-    auto compute = AsyncComputeWrapper<void(int)>::Wrap([](int i) { LOG(INFO) << "Inner"; });
+    auto compute = async_compute<void(int)>::wrap([](int i) { DVLOG(1) << "Inner"; });
 
-    auto future = compute->Future();
-    (*compute)(41);
+    auto future = compute->get_future();
+    (*compute)(42);
+    future.wait();
+}
+
+TEST_F(TestAsyncCompute, PackagedTask)
+{
+    auto task = std::make_shared<std::packaged_task<void(int)>>([](int i) { DVLOG(1) << "Inner : " << i; });
+
+    auto future = task->get_future();
+    (*task)(42);
     future.wait();
 }
 
 /*
 TEST_F(TestAsyncCompute, ReturnBoolInputs1xInt)
 {
-    struct ReturnBoolInputs1xInt : public AsyncComputeWrapper<bool(int)>
+    struct ReturnBoolInputs1xInt : public async_compute<bool(int)>
     {
         template<typename T, typename ...Args>
         auto Compute(T(Args...) UserFn) {
             std::vector<std::future<T>> futures;
             for(int i=0; i<10; i++) {
-                auto compute = Wrap(UserFn);
-                futures.push_back(std::move(compute->Future()));
+                auto compute = wrap(UserFn);
+                futures.push_back(std::move(compute->get_future()));
                 m_ThreadPool.enqueue([compute](int i) {
                     (*compute)(i);
                 })
@@ -112,10 +120,10 @@ TEST_F(TestAsyncCompute, ReturnBoolInputs1xInt)
         }
       protected:
         template<typename T, typename... Args>
-        auto Enqueue(std::shared_ptr<AsyncComputeWrapper<T>> UserFn, Args&&... args)
+        auto Enqueue(std::shared_ptr<async_compute<T>> UserFn, Args&&... args)
         {
-            auto compute = Wrap(UserFn);
-            auto future = compute->Future();
+            auto compute = wrap(UserFn);
+            auto future = compute->get_future();
             m_ThreadPool.enqueue([compute](Args&&... args) mutable {
                 (*compute)(args...);
             });

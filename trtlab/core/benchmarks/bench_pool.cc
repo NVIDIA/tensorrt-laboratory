@@ -24,12 +24,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/core/pool.h"
+#include "trtlab/core/pool.h"
+#include "trtlab/core/userspace_threads.h"
 #include <benchmark/benchmark.h>
 
-static void BM_Pool_Pop(benchmark::State& state)
+static void BM_Pool_v1_Pop(benchmark::State& state)
 {
-    using trtlab::Pool;
+    using trtlab::v1::Pool;
     struct Object
     {
     };
@@ -41,4 +42,85 @@ static void BM_Pool_Pop(benchmark::State& state)
         auto obj = pool->Pop();
     }
 }
-BENCHMARK(BM_Pool_Pop);
+
+static void BM_Pool_v2_Pop(benchmark::State& state)
+{
+    using trtlab::v2::Pool;
+    struct Object
+    {
+    };
+    auto pool = Pool<Object>::Create();
+    pool->EmplacePush();
+
+    for(auto _ : state)
+    {
+        auto obj = pool->Pop();
+    }
+}
+
+static void BM_Pool_v3_Pop(benchmark::State& state)
+{
+    using trtlab::v3::Pool;
+    struct Object
+    {
+    };
+    auto pool = Pool<Object>::Create();
+    pool->emplace_push();
+
+    for(auto _ : state)
+    {
+        auto obj = std::move(pool->pop());
+    }
+}
+
+static void BM_Pool_v4_Pop(benchmark::State& state)
+{
+    using trtlab::v4::Pool;
+    struct Object
+    {
+    };
+    auto pool = Pool<Object>::Create();
+    pool->EmplacePush();
+
+    for(auto _ : state)
+    {
+        auto obj = std::move(pool->pop_unique());
+    }
+}
+
+static void BM_Pool_v4_Pop_Shared(benchmark::State& state)
+{
+    using trtlab::v4::Pool;
+    struct Object
+    {
+    };
+    auto pool = Pool<Object>::Create();
+    pool->emplace_push();
+
+    for(auto _ : state)
+    {
+        auto obj = std::move(pool->pop_shared());
+    }
+}
+
+static void BM_Pool_v3_Pop_Userspace(benchmark::State& state)
+{
+    using trtlab::v3::Pool;
+    struct Object
+    {
+    };
+    auto pool = Pool<Object, trtlab::userspace_threads>::Create();
+    pool->emplace_push();
+
+    for(auto _ : state)
+    {
+        auto obj = std::move(pool->pop());
+    }
+}
+
+BENCHMARK(BM_Pool_v1_Pop);
+BENCHMARK(BM_Pool_v2_Pop);
+BENCHMARK(BM_Pool_v3_Pop);
+BENCHMARK(BM_Pool_v4_Pop);
+BENCHMARK(BM_Pool_v4_Pop_Shared);
+BENCHMARK(BM_Pool_v3_Pop_Userspace);

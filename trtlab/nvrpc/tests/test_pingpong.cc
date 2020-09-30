@@ -32,16 +32,18 @@
 #include "test_build_client.h"
 #include "test_build_server.h"
 
+#include <nvrpc/fiber/executor.h>
+
 #include <gtest/gtest.h>
 
 #define PINGPONG_SEND_COUNT 10
 
-namespace nvrpc {
-namespace testing {
+using namespace nvrpc;
+using namespace nvrpc::testing;
 
 void PingPongUnaryContext::ExecuteRPC(Input& input, Output& output)
 {
-    auto headers = ClientMetadata();
+    auto headers    = ClientMetadata();
     auto model_name = headers.find("x-content-model");
     EXPECT_NE(model_name, headers.end());
     EXPECT_EQ(model_name->second, "flowers-152");
@@ -51,14 +53,19 @@ void PingPongUnaryContext::ExecuteRPC(Input& input, Output& output)
 
 void PingPongStreamingContext::RequestReceived(Input&& input, std::shared_ptr<ServerStream> stream)
 {
-    static size_t counter = 0;
-    EXPECT_EQ(++counter, input.batch_id());
+    EXPECT_EQ(++m_Counter, input.batch_id());
 
     EXPECT_NE(stream, nullptr);
     Output output;
     output.set_batch_id(input.batch_id());
     stream->WriteResponse(std::move(output));
 }
+
+void PingPongStreamingContext::StreamInitialized(std::shared_ptr<ServerStream> stream)
+{
+    m_Counter = 0;
+}
+
 
 /**
  * @brief Server->Client stream closes with OK before Client->Server stream
@@ -72,23 +79,23 @@ void PingPongStreamingContext::RequestReceived(Input&& input, std::shared_ptr<Se
  * In the EarlyCancel test, we call CancelStream, which will also immediately stop and drain the
  * processing of incoming requests.
  */
-void PingPongStreamingEarlyFinishContext::RequestReceived(Input&& input,
-                                                          std::shared_ptr<ServerStream> stream)
+void PingPongStreamingEarlyFinishContext::RequestReceived(Input&& input, std::shared_ptr<ServerStream> stream)
 {
-    static size_t counter = 0;
-    m_Counter = ++counter;
+    //static size_t counter = 0;
+    //m_Counter             = ++counter;
+    m_Counter++;
     EXPECT_EQ(m_Counter, input.batch_id());
 
-    if(stream && counter > PINGPONG_SEND_COUNT / 2)
+    if (stream && m_Counter > PINGPONG_SEND_COUNT / 2)
     {
         // We are closing the server->client portion of the stream early
         EXPECT_NE(stream, nullptr);
         stream->FinishStream();
     }
-    if(!stream || !stream->IsConnected())
+    if (!stream || !stream->IsConnected())
     {
         // Stream was closed
-        EXPECT_GT(counter, PINGPONG_SEND_COUNT / 2);
+        EXPECT_GT(m_Counter, PINGPONG_SEND_COUNT / 2);
         return;
     }
 
@@ -96,6 +103,11 @@ void PingPongStreamingEarlyFinishContext::RequestReceived(Input&& input,
     Output output;
     output.set_batch_id(input.batch_id());
     stream->WriteResponse(std::move(output));
+}
+
+void PingPongStreamingEarlyFinishContext::StreamInitialized(std::shared_ptr<ServerStream> stream)
+{
+    m_Counter = 0;
 }
 
 void PingPongStreamingEarlyFinishContext::RequestsFinished(std::shared_ptr<ServerStream> stream)
@@ -113,23 +125,23 @@ void PingPongStreamingEarlyFinishContext::RequestsFinished(std::shared_ptr<Serve
  * The server will stop processing incoming requests from the client and will not be able to
  * send back responses.
  */
-void PingPongStreamingEarlyCancelContext::RequestReceived(Input&& input,
-                                                          std::shared_ptr<ServerStream> stream)
+void PingPongStreamingEarlyCancelContext::RequestReceived(Input&& input, std::shared_ptr<ServerStream> stream)
 {
-    static size_t counter = 0;
-    m_Counter = ++counter;
+    // static size_t counter = 0;
+    // m_Counter             = ++counter;
+    m_Counter++;
     EXPECT_EQ(m_Counter, input.batch_id());
 
-    if(stream && counter > PINGPONG_SEND_COUNT / 2)
+    if (stream && m_Counter > PINGPONG_SEND_COUNT / 2)
     {
         // We are closing the server->client portion of the stream early
         EXPECT_NE(stream, nullptr);
         stream->CancelStream();
     }
-    if(!stream || !stream->IsConnected())
+    if (!stream || !stream->IsConnected())
     {
         // Stream was closed
-        EXPECT_EQ(counter, PINGPONG_SEND_COUNT / 2 + 1);
+        EXPECT_EQ(m_Counter, PINGPONG_SEND_COUNT / 2 + 1);
         return;
     }
 
@@ -137,6 +149,11 @@ void PingPongStreamingEarlyCancelContext::RequestReceived(Input&& input,
     Output output;
     output.set_batch_id(input.batch_id());
     stream->WriteResponse(std::move(output));
+}
+
+void PingPongStreamingEarlyCancelContext::StreamInitialized(std::shared_ptr<ServerStream> stream)
+{
+    m_Counter = 0;
 }
 
 void PingPongStreamingEarlyCancelContext::RequestsFinished(std::shared_ptr<ServerStream> stream)
@@ -151,14 +168,14 @@ class PingPongTest : public ::testing::Test
 
     void TearDown() override
     {
-        if(m_Server)
+        if (m_Server)
         {
             m_Server->Shutdown();
             m_Server.reset();
         }
     }
 
-  protected:
+protected:
     std::unique_ptr<Server> m_Server;
 };
 
@@ -168,8 +185,8 @@ TEST_F(PingPongTest, UnaryTest)
     m_Server->AsyncStart();
     EXPECT_TRUE(m_Server->Running());
 
-    std::mutex mutex;
-    std::size_t count = 0;
+    std::mutex  mutex;
+    std::size_t count      = 0;
     std::size_t recv_count = 0;
     std::size_t send_count = PINGPONG_SEND_COUNT;
 
@@ -177,7 +194,7 @@ TEST_F(PingPongTest, UnaryTest)
 
     std::vector<std::shared_future<void>> futures;
 
-    for(int i = 1; i <= send_count; i++)
+    for (int i = 1; i <= send_count; i++)
     {
         {
             std::lock_guard<std::mutex> lock(mutex);
@@ -186,19 +203,18 @@ TEST_F(PingPongTest, UnaryTest)
         Input input;
         input.set_batch_id(i);
         std::map<std::string, std::string> headers = {{"x-content-model", "flowers-152"}};
-        futures.push_back(client->Enqueue(
-            std::move(input),
-            [&mutex, &count, &recv_count, i](Input& input, Output& output, ::grpc::Status& status) {
-                EXPECT_EQ(output.batch_id(), i);
-                EXPECT_TRUE(status.ok());
-                std::lock_guard<std::mutex> lock(mutex);
-                --count;
-                ++recv_count;
-            },
-            headers));
+        futures.push_back(client->Enqueue(std::move(input),
+                                          [&mutex, &count, &recv_count, i](Input& input, Output& output, ::grpc::Status& status) {
+                                              EXPECT_EQ(output.batch_id(), i);
+                                              EXPECT_TRUE(status.ok());
+                                              std::lock_guard<std::mutex> lock(mutex);
+                                              --count;
+                                              ++recv_count;
+                                          },
+                                          headers));
     }
 
-    for(auto& future : futures)
+    for (auto& future : futures)
     {
         future.wait();
     }
@@ -211,14 +227,84 @@ TEST_F(PingPongTest, UnaryTest)
     EXPECT_FALSE(m_Server->Running());
 }
 
+TEST_F(PingPongTest, FibersUnaryTest)
+{
+    // set up worker fiber pool
+    trtlab::ThreadPool                    workers(1);
+    bool                                  workers_running = true;
+    std::mutex                            workers_mutex;
+    boost::fibers::condition_variable_any workers_cv;
+    for (int i = 0; i < workers.Size(); i++)
+    {
+        workers.enqueue([&workers_mutex, &workers_cv, &workers_running] {
+            // start the fiber scheduler and put the main to deferred sleep
+            LOG(INFO) << "fiber runner thread id: " << std::this_thread::get_id();
+            boost::fibers::use_scheduling_algorithm<boost::fibers::algo::shared_work>();
+            std::unique_lock<std::mutex> lock(workers_mutex);
+            workers_cv.wait(lock, [&workers_running]() { return !workers_running; });
+        });
+    }
+
+    m_Server = BuildServer<PingPongUnaryContext, PingPongStreamingContext, FiberExecutor>();
+    m_Server->AsyncStart();
+    EXPECT_TRUE(m_Server->Running());
+
+    std::mutex  mutex;
+    std::size_t count      = 0;
+    std::size_t recv_count = 0;
+    std::size_t send_count = PINGPONG_SEND_COUNT;
+
+    auto client = BuildUnaryClient();
+
+    std::vector<std::shared_future<void>> futures;
+
+    for (int i = 1; i <= send_count; i++)
+    {
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            ++count;
+        }
+        Input input;
+        input.set_batch_id(i);
+        std::map<std::string, std::string> headers = {{"x-content-model", "flowers-152"}};
+        futures.push_back(client->Enqueue(std::move(input),
+                                          [&mutex, &count, &recv_count, i](Input& input, Output& output, ::grpc::Status& status) {
+                                              EXPECT_EQ(output.batch_id(), i);
+                                              EXPECT_TRUE(status.ok());
+                                              std::lock_guard<std::mutex> lock(mutex);
+                                              --count;
+                                              ++recv_count;
+                                          },
+                                          headers));
+    }
+
+    for (auto& future : futures)
+    {
+        future.wait();
+    }
+
+    EXPECT_EQ(count, 0UL);
+    EXPECT_EQ(send_count, recv_count);
+    EXPECT_TRUE(m_Server->Running());
+
+    m_Server->Shutdown();
+    EXPECT_FALSE(m_Server->Running());
+
+    // shutdown worker fibers
+    std::unique_lock<std::mutex> lock(workers_mutex);
+    workers_running = false;
+    lock.unlock();
+    workers_cv.notify_all();
+}
+
 TEST_F(PingPongTest, StreamingTest)
 {
     m_Server = BuildServer<PingPongUnaryContext, PingPongStreamingContext>();
     m_Server->AsyncStart();
     EXPECT_TRUE(m_Server->Running());
 
-    std::mutex mutex;
-    std::size_t count = 0;
+    std::mutex  mutex;
+    std::size_t count      = 0;
     std::size_t recv_count = 0;
     std::size_t send_count = PINGPONG_SEND_COUNT;
 
@@ -232,7 +318,7 @@ TEST_F(PingPongTest, StreamingTest)
 
     auto stream = BuildStreamingClient([](Input&&) {}, on_recv);
 
-    for(int i = 1; i <= send_count; i++)
+    for (int i = 1; i <= send_count; i++)
     {
         {
             std::lock_guard<std::mutex> lock(mutex);
@@ -255,14 +341,31 @@ TEST_F(PingPongTest, StreamingTest)
     EXPECT_FALSE(m_Server->Running());
 }
 
-TEST_F(PingPongTest, ServerEarlyFinish)
+TEST_F(PingPongTest, FibersStreamingTest)
 {
-    m_Server = BuildStreamingServer<PingPongStreamingEarlyFinishContext>();
+
+    // set up worker fiber pool
+    trtlab::ThreadPool                    workers(4);
+    bool                                  workers_running = true;
+    std::mutex                            workers_mutex;
+    boost::fibers::condition_variable_any workers_cv;
+    for (int i = 0; i < workers.Size(); i++)
+    {
+        workers.enqueue([&workers_mutex, &workers_cv, &workers_running] {
+            // start the fiber scheduler and put the main to deferred sleep
+            LOG(INFO) << "fiber runner thread id: " << std::this_thread::get_id();
+            boost::fibers::use_scheduling_algorithm<boost::fibers::algo::shared_work>();
+            std::unique_lock<std::mutex> lock(workers_mutex);
+            workers_cv.wait(lock, [&workers_running]() { return !workers_running; });
+        });
+    }
+
+    m_Server = BuildServer<PingPongUnaryContext, PingPongStreamingContext, FiberExecutor>();
     m_Server->AsyncStart();
     EXPECT_TRUE(m_Server->Running());
 
-    std::mutex mutex;
-    std::size_t count = 0;
+    std::mutex  mutex;
+    std::size_t count      = 0;
     std::size_t recv_count = 0;
     std::size_t send_count = PINGPONG_SEND_COUNT;
 
@@ -276,7 +379,57 @@ TEST_F(PingPongTest, ServerEarlyFinish)
 
     auto stream = BuildStreamingClient([](Input&&) {}, on_recv);
 
-    for(int i = 1; i <= send_count; i++)
+    for (int i = 1; i <= send_count; i++)
+    {
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            ++count;
+        }
+        Input input;
+        input.set_batch_id(i);
+        EXPECT_TRUE(stream->Write(std::move(input)));
+    }
+
+    auto future = stream->Done();
+    auto status = future.get();
+
+    EXPECT_TRUE(status.ok());
+    EXPECT_EQ(count, 0UL);
+    EXPECT_EQ(send_count, recv_count);
+    EXPECT_TRUE(m_Server->Running());
+
+    m_Server->Shutdown();
+    EXPECT_FALSE(m_Server->Running());
+
+    // shutdown worker fibers
+    std::unique_lock<std::mutex> lock(workers_mutex);
+    workers_running = false;
+    lock.unlock();
+    workers_cv.notify_all();
+}
+
+TEST_F(PingPongTest, ServerEarlyFinish)
+{
+    m_Server = BuildStreamingServer<PingPongStreamingEarlyFinishContext>();
+    m_Server->AsyncStart();
+    EXPECT_TRUE(m_Server->Running());
+
+    std::mutex  mutex;
+    std::size_t count      = 0;
+    std::size_t recv_count = 0;
+    std::size_t send_count = PINGPONG_SEND_COUNT;
+
+    auto on_recv = [&mutex, &count, &recv_count](Output&& response) {
+        static size_t last = 0;
+        EXPECT_EQ(++last, response.batch_id());
+        std::lock_guard<std::mutex> lock(mutex);
+        --count;
+        ++recv_count;
+    };
+
+    auto stream = BuildStreamingClient([](Input&&) {}, on_recv);
+
+    for (int i = 1; i <= send_count; i++)
     {
         {
             std::lock_guard<std::mutex> lock(mutex);
@@ -304,8 +457,8 @@ TEST_F(PingPongTest, ServerEarlyCancel)
     m_Server->AsyncStart();
     EXPECT_TRUE(m_Server->Running());
 
-    std::mutex mutex;
-    std::size_t count = 0;
+    std::mutex  mutex;
+    std::size_t count      = 0;
     std::size_t recv_count = 0;
     std::size_t send_count = PINGPONG_SEND_COUNT;
 
@@ -319,7 +472,7 @@ TEST_F(PingPongTest, ServerEarlyCancel)
 
     auto stream = BuildStreamingClient([](Input&&) {}, on_recv);
 
-    for(int i = 1; i <= send_count; i++)
+    for (int i = 1; i <= send_count; i++)
     {
         {
             std::lock_guard<std::mutex> lock(mutex);
@@ -349,6 +502,3 @@ TEST_F(PingPongTest, ServerEarlyCancel)
     m_Server->Shutdown();
     EXPECT_FALSE(m_Server->Running());
 }
-
-} // namespace testing
-} // namespace nvrpc

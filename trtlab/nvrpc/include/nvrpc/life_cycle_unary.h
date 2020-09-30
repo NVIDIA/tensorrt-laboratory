@@ -36,11 +36,11 @@ class LifeCycleUnary : public IContextLifeCycle
     using RequestType = Request;
     using ResponseType = Response;
     using ServiceQueueFuncType = std::function<void(
-        ::grpc::ServerContext*, RequestType*, ::grpc::ServerAsyncResponseWriter<ResponseType>*,
+        ::grpc::ServerContext*, RequestType*, ::grpc_impl::ServerAsyncResponseWriter<ResponseType>*,
         ::grpc::CompletionQueue*, ::grpc::ServerCompletionQueue*, void*)>;
     using ExecutorQueueFuncType =
         std::function<void(::grpc::ServerContext*, RequestType*,
-                           ::grpc::ServerAsyncResponseWriter<ResponseType>*, void*)>;
+                           ::grpc_impl::ServerAsyncResponseWriter<ResponseType>*, void*)>;
 
     ~LifeCycleUnary() override {}
 
@@ -52,6 +52,8 @@ class LifeCycleUnary : public IContextLifeCycle
 
     void FinishResponse() final override;
     void CancelResponse() final override;
+
+    bool CheckDeadlineAndShouldContinue();
 
     const std::multimap<grpc::string_ref, grpc::string_ref>& ClientMetadata();
 
@@ -72,7 +74,7 @@ class LifeCycleUnary : public IContextLifeCycle
     std::unique_ptr<RequestType> m_Request;
     std::unique_ptr<ResponseType> m_Response;
     std::unique_ptr<::grpc::ServerContext> m_Context;
-    std::unique_ptr<::grpc::ServerAsyncResponseWriter<ResponseType>> m_ResponseWriter;
+    std::unique_ptr<::grpc_impl::ServerAsyncResponseWriter<ResponseType>> m_ResponseWriter;
 
   public:
     template<class RequestFuncType, class ServiceType>
@@ -80,7 +82,7 @@ class LifeCycleUnary : public IContextLifeCycle
         /*
         std::function<void(
             ServiceType *, ::grpc::ServerContext *, RequestType *,
-            ::grpc::ServerAsyncResponseWriter<ResponseType> *,
+            ::grpc_impl::ServerAsyncResponseWriter<ResponseType> *,
             ::grpc::CompletionQueue *, ::grpc::ServerCompletionQueue *, void *)>
         */
         RequestFuncType request_fn, ServiceType* service_type)
@@ -120,10 +122,10 @@ template<class Request, class Response>
 void LifeCycleUnary<Request, Response>::Reset()
 {
     OnLifeCycleReset();
-    m_Request = std::make_unique<RequestType>();
-    m_Response = std::make_unique<ResponseType>();
+    m_Request.reset(new Request);
+    m_Response.reset(new Response);
     m_Context.reset(new ::grpc::ServerContext);
-    m_ResponseWriter.reset(new ::grpc::ServerAsyncResponseWriter<ResponseType>(m_Context.get()));
+    m_ResponseWriter.reset(new ::grpc_impl::ServerAsyncResponseWriter<ResponseType>(m_Context.get()));
     m_NextState = &LifeCycleUnary<RequestType, ResponseType>::StateRequestDone;
     m_QueuingFunc(m_Context.get(), m_Request.get(), m_ResponseWriter.get(), IContext::Tag());
 }
@@ -136,6 +138,21 @@ const std::multimap<grpc::string_ref, grpc::string_ref>&
 }
 
 template<class Request, class Response>
+bool LifeCycleUnary<Request, Response>::CheckDeadlineAndShouldContinue()
+{
+    // this segfaults
+    // todo: work on the check deadline feature
+    /*
+    if(m_Context->IsCancelled())
+    {
+        CancelResponse();
+        return false;
+    }
+    */
+    return true;
+}
+
+template<class Request, class Response>
 bool LifeCycleUnary<Request, Response>::StateRequestDone(bool ok)
 {
     if(!ok)
@@ -143,7 +160,10 @@ bool LifeCycleUnary<Request, Response>::StateRequestDone(bool ok)
         return false;
     }
     OnLifeCycleStart();
-    ExecuteRPC(*m_Request, *m_Response);
+    if(CheckDeadlineAndShouldContinue())
+    {
+        ExecuteRPC(*m_Request, *m_Response);
+    }
     return true;
 }
 

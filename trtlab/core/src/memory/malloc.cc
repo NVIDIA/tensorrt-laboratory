@@ -24,27 +24,48 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/core/memory/malloc.h"
+#include "trtlab/core/memory/malloc.h"
+
+#include <foonathan/memory/namespace_alias.hpp>
+#include <foonathan/memory/error.hpp>
+
 
 #include <glog/logging.h>
 
 namespace trtlab {
 
-// Malloc
-
 void* Malloc::Allocate(size_t size)
 {
-    void* ptr = malloc(size);
+    void* ptr = std::malloc(size);
     CHECK(ptr) << "malloc(" << size << ") failed";
     return ptr;
 }
 
-void Malloc::Free() { free(Data()); }
-
-const std::string& Malloc::Type() const
+std::function<void()> Malloc::Free()
 {
-    static std::string type = "Malloc";
-    return type;
+    CHECK(Data());
+    CHECK(Size());
+    return [ptr = Data(), size = Size()] {
+        DLOG(INFO) << "Malloc: free " << ptr << "; size: " << size;
+        free(ptr);
+    };
+}
+
+const char* Malloc::TypeName() const
+{
+    return "Malloc";
 }
 
 } // namespace trtlab
+
+namespace foonathan { namespace memory { 
+
+memory::allocator_info detail::MallocAllocatorImpl::info() noexcept
+{
+        return {"trtlab::MallocAllocator", nullptr};
+}
+
+template class memory::detail::lowlevel_allocator<detail::MallocAllocatorImpl>;
+template class memory::allocator_traits<MallocAllocator>;
+
+}}

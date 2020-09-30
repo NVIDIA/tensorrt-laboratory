@@ -26,11 +26,12 @@
  */
 #pragma once
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include <grpc++/grpc++.h>
 
-#include "tensorrt/laboratory/core/thread_pool.h"
+#include <trtlab/core/thread_pool.h>
 
 namespace nvrpc {
 namespace client {
@@ -56,9 +57,10 @@ class Executor : public std::enable_shared_from_this<Executor>
   private:
     void ProgressEngine(::grpc::CompletionQueue&);
 
-    size_t m_Counter;
+    mutable std::size_t m_Counter;
     std::unique_ptr<::trtlab::ThreadPool> m_ThreadPool;
     std::vector<std::unique_ptr<::grpc::CompletionQueue>> m_CQs;
+    mutable std::mutex m_Mutex;
 };
 
 } // namespace client

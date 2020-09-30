@@ -40,7 +40,7 @@ namespace nvrpc {
 
 Server::Server(std::string server_address) : m_ServerAddress(server_address), m_Running(false)
 {
-    LOG(INFO) << "gRPC listening on: " << m_ServerAddress;
+    VLOG(1) << "gRPC will listening on: " << m_ServerAddress;
     m_Builder.AddListeningPort(m_ServerAddress, ::grpc::InsecureServerCredentials());
 }
 
@@ -99,6 +99,7 @@ void Server::AsyncStart()
         m_Running = true;
     }
     m_Condition.notify_all();
+    LOG(INFO) << "grpc server and event loop initialized and accepting connections";
 }
 
 void Server::Shutdown()

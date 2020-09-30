@@ -27,9 +27,9 @@
 #ifndef NVIS_INTERFACES_H_
 #define NVIS_INTERFACES_H_
 
-#include <grpc++/grpc++.h>
+#include <grpcpp/grpcpp.h>
 
-#include "tensorrt/laboratory/core/resources.h"
+#include "trtlab/core/resources.h"
 
 namespace nvrpc {
 
@@ -51,13 +51,13 @@ class IContext
     static IContext* Detag(void* tag) { return static_cast<IContext*>(tag); }
 
   protected:
-    IContext() : m_MasterContext(this) {}
-    IContext(IContext* master) : m_MasterContext(master) {}
+    IContext() : m_PrimaryContext(this) {}
+    IContext(IContext* primary_context) : m_PrimaryContext(primary_context) {}
 
     void* Tag() { return reinterpret_cast<void*>(this); }
 
   protected:
-    IContext* m_MasterContext;
+    IContext* m_PrimaryContext;
 
   private:
     virtual bool RunNextState(bool) = 0;

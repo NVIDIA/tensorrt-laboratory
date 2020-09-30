@@ -26,8 +26,8 @@
  */
 #pragma once
 
-#include "tensorrt/laboratory/core/resources.h"
-#include "tensorrt/laboratory/core/thread_pool.h"
+#include "trtlab/core/resources.h"
+#include "trtlab/core/thread_pool.h"
 
 #include "nvrpc/life_cycle_streaming.h"
 

@@ -25,7 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "glog/logging.h"
-#include "tensorrt/laboratory/core/thread_pool.h"
+#include "trtlab/core/thread_pool.h"
 #include "gtest/gtest.h"
 
 using namespace trtlab;
@@ -73,15 +73,15 @@ TEST_F(TestThreadPool, CaptureThis)
 
         ~ObjectThatOwnsAThreadPool()
         {
-            LOG(INFO) << "Destroying ObjectThatOwnsAThreadPool: " << this;
+            DVLOG(2) << "Destroying ObjectThatOwnsAThreadPool: " << this;
         }
         auto test()
         {
-            LOG(INFO) << "[before queue] val = " << m_Object.get();
+            DVLOG(2) << "[before queue] val = " << m_Object.get();
             return m_ThreadPool->enqueue([this]() {
-                LOG(INFO) << "[before sleep] val = " << m_Object.get();
+                DVLOG(2) << "[before sleep] val = " << m_Object.get();
                 std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-                LOG(INFO) << "[after  sleep] val = " << m_Object.get();
+                DVLOG(2) << "[after  sleep] val = " << m_Object.get();
                 return m_Object->value;
             });
         }
@@ -93,7 +93,7 @@ TEST_F(TestThreadPool, CaptureThis)
             ValueObject() : value(42) {}
             DELETE_COPYABILITY(ValueObject);
             DELETE_MOVEABILITY(ValueObject);
-            ~ValueObject() { LOG(INFO) << "Destroying ValueObject"; }
+            ~ValueObject() { DVLOG(2) << "Destroying ValueObject"; }
             int value;
         };
         std::unique_ptr<ValueObject> m_Object;
@@ -104,5 +104,4 @@ TEST_F(TestThreadPool, CaptureThis)
     auto future = obj->test();
     obj.reset();
     EXPECT_EQ(future.get(), 42);
-    LOG(INFO) << "done";
 }

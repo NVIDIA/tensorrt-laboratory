@@ -1,0 +1,22 @@
+
+cc_library(
+    name = "cuda",
+    srcs = glob([
+        "src/**/*.cc",
+        "src/**/*.h",
+    ]),
+    hdrs = glob([
+        "include/**/*.h",
+    ]),
+    deps = [
+        "//trtlab/core",
+        "@local_config_cuda//:cuda_headers",
+        "@local_config_cuda//:cuda_runtime",
+    ],
+    linkopts = [
+#       "-L/usr/local/cuda/lib64/stubs",
+        "-lnvidia-ml",
+    ],
+    strip_include_prefix = "include",
+    visibility = ["//visibility:public"],
+)

@@ -46,11 +46,11 @@ class BidirectionalLifeCycleStreaming : public IContextLifeCycle
     using RequestType = Request;
     using ResponseType = Response;
     using ServiceQueueFuncType = std::function<void(
-        ::grpc::ServerContext*, ::grpc::ServerAsyncReaderWriter<ResponseType, RequestType>*,
+        ::grpc::ServerContext*, ::grpc_impl::ServerAsyncReaderWriter<ResponseType, RequestType>*,
         ::grpc::CompletionQueue*, ::grpc::ServerCompletionQueue*, void*)>;
     using ExecutorQueueFuncType =
         std::function<void(::grpc::ServerContext*,
-                           ::grpc::ServerAsyncReaderWriter<ResponseType, RequestType>*, void*)>;
+                           ::grpc_impl::ServerAsyncReaderWriter<ResponseType, RequestType>*, void*)>;
 
     ~BidirectionalLifeCycleStreaming() override {}
 
@@ -69,7 +69,7 @@ class BidirectionalLifeCycleStreaming : public IContextLifeCycle
         // IContext Methods
         bool RunNextState(bool ok) final override
         {
-            return static_cast<BidirectionalLifeCycleStreaming*>(m_MasterContext)
+            return static_cast<BidirectionalLifeCycleStreaming*>(m_PrimaryContext)
                 ->RunNextState(m_NextState, ok);
         }
         void Reset() final override { LOG(FATAL) << "ooops; call reset on master"; }
@@ -126,7 +126,7 @@ class BidirectionalLifeCycleStreaming : public IContextLifeCycle
     bool m_Finishing;
 
     std::unique_ptr<::grpc::ServerContext> m_Context;
-    std::unique_ptr<::grpc::ServerAsyncReaderWriter<ResponseType, RequestType>> m_ReaderWriter;
+    std::unique_ptr<::grpc_impl::ServerAsyncReaderWriter<ResponseType, RequestType>> m_ReaderWriter;
 
     friend class StateContext<RequestType, ResponseType>;
 
@@ -136,7 +136,7 @@ class BidirectionalLifeCycleStreaming : public IContextLifeCycle
         /*
         std::function<void(
             ServiceType *, ::grpc::ServerContext *,
-            ::grpc::ServerAsyncReaderWriter<ResponseType, RequestType>*,
+            ::grpc_impl::ServerAsyncReaderWriter<ResponseType, RequestType>*,
             ::grpc::CompletionQueue *, ::grpc::ServerCompletionQueue *, void *)>
         */
         RequestFuncType request_fn, ServiceType* service_type)
@@ -206,7 +206,7 @@ void BidirectionalLifeCycleStreaming<Request, Response>::Reset()
         m_ResponseWriteBackQueue.swap(empty_response_write_back_queue);
         m_Context.reset(new ::grpc::ServerContext);
         m_ReaderWriter.reset(
-            new ::grpc::ServerAsyncReaderWriter<ResponseType, RequestType>(m_Context.get()));
+            new ::grpc_impl::ServerAsyncReaderWriter<ResponseType, RequestType>(m_Context.get()));
 
         m_NextState =
             &BidirectionalLifeCycleStreaming<RequestType, ResponseType>::StateInitializedDone;

@@ -25,7 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "glog/logging.h"
-#include "tensorrt/laboratory/cuda/device_info.h"
+#include "trtlab/cuda/device_info.h"
 #include "gtest/gtest.h"
 
 using namespace trtlab;

@@ -24,9 +24,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/core/hybrid_condition.h"
-#include "tensorrt/laboratory/core/hybrid_mutex.h"
-#include "tensorrt/laboratory/core/thread_pool.h"
+#include "trtlab/core/hybrid_condition.h"
+#include "trtlab/core/hybrid_mutex.h"
+#include "trtlab/core/thread_pool.h"
 #include <benchmark/benchmark.h>
 
 static void BM_ThreadPool_Enqueue(benchmark::State& state)
@@ -36,11 +36,13 @@ static void BM_ThreadPool_Enqueue(benchmark::State& state)
 
     for(auto _ : state)
     {
+        CHECK(pool);
+        // enqueue only
         auto future = pool->enqueue([] {});
-        future.get();
+        //future.get();
     }
 }
-BENCHMARK(BM_ThreadPool_Enqueue);
+BENCHMARK(BM_ThreadPool_Enqueue)->UseRealTime();
 
 static void BM_HybridThreadPool_Enqueue(benchmark::State& state)
 {
@@ -50,7 +52,6 @@ static void BM_HybridThreadPool_Enqueue(benchmark::State& state)
     for(auto _ : state)
     {
         auto future = pool->enqueue([] {});
-        future.get();
     }
 }
-BENCHMARK(BM_HybridThreadPool_Enqueue);
+BENCHMARK(BM_HybridThreadPool_Enqueue)->UseRealTime();

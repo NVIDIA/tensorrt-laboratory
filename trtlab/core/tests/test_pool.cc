@@ -25,7 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "glog/logging.h"
-#include "tensorrt/laboratory/core/pool.h"
+#include "trtlab/core/pool.h"
 #include "gtest/gtest.h"
 
 using namespace trtlab;
@@ -33,22 +33,43 @@ using namespace trtlab;
 struct Object
 {
     Object(std::string name) : m_Name(name), m_Original(name) {}
-    Object(Object&& other) : m_Name(std::move(other.m_Name)) {}
-    ~Object() { DLOG(INFO) << "Destroying Object " << m_Name; }
+    ~Object()
+    {
+        DVLOG(2) << "Destroying Object " << m_Name;
+    }
 
-    void SetName(std::string name) { m_Name = name; }
-    const std::string GetName() const { return m_Name; }
+    Object(Object&& other) noexcept = default;
+    Object& operator=(Object&& other) noexcept = default;
 
-    void Reset() { m_Name = m_Original; }
+    void SetName(std::string name)
+    {
+        m_Name = name;
+    }
+    const std::string GetName() const
+    {
+        return m_Name;
+    }
 
-  private:
+    void Reset()
+    {
+        m_Name = m_Original;
+    }
+
+private:
     std::string m_Name;
     std::string m_Original;
 };
 
+struct ShareableObject : public Object, public std::enable_shared_from_this<ShareableObject> 
+{
+    using Object::Object;
+    auto Copy() { return shared_from_this(); }
+};
+
+
 class TestPool : public ::testing::Test
 {
-  protected:
+protected:
     virtual void SetUp()
     {
         p0 = Pool<Object>::Create();
@@ -68,20 +89,17 @@ class TestPool : public ::testing::Test
     std::shared_ptr<Pool<Object>> p2;
 };
 
-TEST_F(TestPool, EmptyOnCreate) { ASSERT_EQ(0, p0->Size()); }
+TEST_F(TestPool, EmptyOnCreate)
+{
+    ASSERT_EQ(0, p0->Size());
+}
 
 TEST_F(TestPool, Push)
 {
     ASSERT_EQ(0, p0->Size());
 
-    p0->EmplacePush("Baz");
+    p0->EmplacePush(Object("Baz"));
     ASSERT_EQ(1, p0->Size());
-
-    p0->EmplacePush(new Object("Blah"));
-    ASSERT_EQ(2, p0->Size());
-
-    p0->Push(std::make_shared<Object>("Foo2"));
-    ASSERT_EQ(3, p0->Size());
 }
 
 TEST_F(TestPool, Pop)
@@ -106,7 +124,7 @@ TEST_F(TestPool, PopOnReturn)
     auto foo = std::string("Foo");
     auto bar = std::string("Bar");
     {
-        auto obj = p1->Pop([](Object* obj) { obj->Reset(); });
+        auto obj = p1->Pop([](Object& obj) { obj.Reset(); });
         ASSERT_TRUE(obj);
         ASSERT_EQ(foo, obj->GetName());
         obj->SetName(bar);
@@ -132,7 +150,7 @@ TEST_F(TestPool, PopOnReturnWithCapture)
     auto foo = std::string("Foo");
     auto bar = std::string("Bar");
 
-    auto obj = p1->Pop([](Object* obj) { obj->Reset(); });
+    auto obj = p1->Pop([](Object& obj) { obj.Reset(); });
     ASSERT_TRUE(obj);
     ASSERT_EQ(foo, obj->GetName());
     obj->SetName(bar);
@@ -140,11 +158,11 @@ TEST_F(TestPool, PopOnReturnWithCapture)
     ASSERT_EQ(1, obj.use_count());
 
     // Capture obj in onReturn lambda
-    auto from_p2_0 = p2->Pop([obj](Object* obj) {});
+    auto from_p2_0 = p2->Pop([obj](Object& obj) {});
     ASSERT_EQ(2, obj.use_count());
 
     // Capture obj again a second onReturn lambda
-    auto from_p2_1 = p2->Pop([obj](Object* obj) {});
+    auto from_p2_1 = p2->Pop([obj](Object& obj) {});
     ASSERT_EQ(3, obj.use_count());
 
     // Free one of the resources that captured obj
@@ -178,3 +196,34 @@ TEST_F(TestPool, PopWithoutReturn)
     obj.reset();
     ASSERT_EQ(0, p1->Size());
 }
+
+/*
+TEST_F(TestPool, EnableSharedFromThis)
+{
+    auto p1 = Pool<std::shared_ptr<ShareableObject>>::Create();
+    p1->Push(std::move(std::make_shared<ShareableObject>("Foo")));
+
+    {
+        auto scoped_obj = p1->Pop();
+        ASSERT_EQ(scoped_obj.use_count(), 1);
+        ASSERT_EQ(0, p1->Size());
+
+        auto explicit_copy = scoped_obj;
+        ASSERT_EQ(scoped_obj.use_count(), 2);
+        ASSERT_EQ(explicit_copy.use_count(), 2);
+        ASSERT_EQ(0, p1->Size());
+        explicit_copy.reset();
+        ASSERT_EQ(scoped_obj.use_count(), 1);
+        ASSERT_EQ(0, p1->Size());
+
+        auto copy_via_sft = scoped_obj->Copy();
+        ASSERT_EQ(copy_via_sft.get(), scoped_obj.get());
+        ASSERT_EQ(scoped_obj.use_count(), 2);
+        ASSERT_EQ(copy_via_sft.use_count(), 2);
+
+        scoped_obj.reset();
+        ASSERT_EQ(copy_via_sft.use_count(), 1);
+        ASSERT_EQ(0, p1->Size());
+    }
+}
+*/

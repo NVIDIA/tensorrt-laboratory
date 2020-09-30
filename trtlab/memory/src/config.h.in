@@ -1,0 +1,28 @@
+// MODIFICATION MESSAGE
+
+// Copyright (C) 2015-2016 Jonathan Müller <jonathanmueller.dev@gmail.com>
+// This file is subject to the license terms in the LICENSE file
+// found in the top-level directory of this distribution.
+
+#ifndef TRTLAB_MEMORY_IMPL_IN_CONFIG_H
+    #error "do not include this file directly, use config.h"
+#endif
+
+#include <cstddef>
+
+//=== options ===//
+// clang-format off
+#cmakedefine01 TRTLAB_MEMORY_CHECK_ALLOCATION_SIZE
+#define TRTLAB_MEMORY_IMPL_DEFAULT_ALLOCATOR ${TRTLAB_MEMORY_DEFAULT_ALLOCATOR}
+#cmakedefine01 TRTLAB_MEMORY_THREAD_SAFE_REFERENCE
+#cmakedefine01 TRTLAB_MEMORY_DEBUG_ASSERT
+#cmakedefine01 TRTLAB_MEMORY_DEBUG_FILL
+#define TRTLAB_MEMORY_DEBUG_FENCE ${TRTLAB_MEMORY_DEBUG_FENCE}
+#cmakedefine01 TRTLAB_MEMORY_DEBUG_LEAK_CHECK
+#cmakedefine01 TRTLAB_MEMORY_DEBUG_POINTER_CHECK
+#cmakedefine01 TRTLAB_MEMORY_DEBUG_DOUBLE_DEALLOC_CHECK
+#define TRTLAB_MEMORY_IMPL_MEMORY_RESOURCE_HEADER ${TRTLAB_MEMORY_MEMORY_RESOURCE_HEADER}
+#define TRTLAB_MEMORY_IMPL_MEMORY_RESOURCE ${TRTLAB_MEMORY_MEMORY_RESOURCE}
+#cmakedefine01 TRTLAB_MEMORY_EXTERN_TEMPLATE
+#define TRTLAB_MEMORY_TEMPORARY_STACK_MODE ${TRTLAB_MEMORY_TEMPORARY_STACK_MODE}
+// clang-format on

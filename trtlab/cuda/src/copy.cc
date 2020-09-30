@@ -24,14 +24,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/cuda/memory/copy.h"
+#include "trtlab/cuda/memory/copy.h"
 
 #include <cstring>
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <glog/logging.h>
 
-#include "tensorrt/laboratory/core/memory/memory.h"
+#include "trtlab/core/memory/memory.h"
 
 using trtlab::CoreMemory;
 

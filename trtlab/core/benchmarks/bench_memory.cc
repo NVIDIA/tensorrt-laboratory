@@ -26,20 +26,23 @@
  */
 #include <benchmark/benchmark.h>
 
-#include "tensorrt/laboratory/core/memory/allocator.h"
-#include "tensorrt/laboratory/core/memory/malloc.h"
-#include "tensorrt/laboratory/core/memory/system_v.h"
+#include "trtlab/core/memory/allocator.h"
+#include "trtlab/core/memory/malloc.h"
+#include "trtlab/core/memory/sysv_allocator.h"
 
 using namespace trtlab;
 using namespace trtlab;
+
 
 static void BM_Memory_SystemMalloc(benchmark::State& state)
 {
     for(auto _ : state)
     {
-        auto unique = std::make_unique<Allocator<Malloc>>(1024 * 1024);
-        auto shared = std::make_shared<Allocator<Malloc>>(1024 * 1024);
-        Allocator<Malloc> memory(1024 * 1024);
+        //auto unique = std::make_unique<Allocator<Malloc>>(1024 * 1024);
+        //auto shared = std::make_shared<Allocator<Malloc>>(1024 * 1024);
+        Allocator<Malloc> memory1(1024 * 1024);
+        Allocator<Malloc> memory2(1024 * 1024);
+        Allocator<Malloc> memory3(1024 * 1024);
     }
 }
 
@@ -52,5 +55,48 @@ static void BM_Memory_SystemV_descriptor(benchmark::State& state)
     }
 }
 
+/*
+static void BM_Memory_HostDescriptor(benchmark::State& state)
+{
+    void *ptr = (void*)0xDEADBEEF;
+    mem_size_t size = 1337;
+
+    for(auto _ : state)
+    {
+        nextgen::HostDescriptor hdesc(ptr, size, []{});
+    }
+}
+*/
+
+/*
+static void BM_Memory_SharedHostDescriptor(benchmark::State& state)
+{
+    void *ptr = (void*)0xDEADBEEF;
+    mem_size_t size = 1337;
+
+    for(auto _ : state)
+    {
+        nextgen::Descriptor<HostMemory> hdesc(ptr, size, []{});
+        auto shared = std::make_shared<nextgen::SharedDescriptor<HostMemory>>(std::move(hdesc));
+    }
+}
+*/
+
+/*
+static void BM_Memory_NextGenMalloc(benchmark::State& state)
+{
+    static mem_size_t one_mb = 1024*1024;
+
+    for(auto _ : state)
+    {
+        auto hdesc0 = nextgen::Malloc::Allocate(one_mb);
+        auto hdesc1 = nextgen::Malloc::Allocate(one_mb);
+    }
+}
+*/
+
 BENCHMARK(BM_Memory_SystemMalloc);
 BENCHMARK(BM_Memory_SystemV_descriptor);
+// BENCHMARK(BM_Memory_HostDescriptor);
+// BENCHMARK(BM_Memory_SharedHostDescriptor);
+// BENCHMARK(BM_Memory_NextGenMalloc);

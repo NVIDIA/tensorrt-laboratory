@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/core/memory/host_memory.h"
+#include "trtlab/core/memory/host_memory.h"
 
 #include <cstring>
 
@@ -34,14 +34,14 @@ namespace trtlab {
 
 // HostMemory
 
-const std::string& HostMemory::Type() const
-{
-    static std::string type = "HostMemory";
-    return type;
-}
-
 size_t HostMemory::DefaultAlignment() { return 64; }
 
-void HostMemory::Fill(char fill_value) { std::memset(Data(), fill_value, Size()); }
+DLContext HostMemory::DeviceContext()
+{
+    DLContext ctx;
+    ctx.device_type = kDLCPU;
+    ctx.device_id = 0;
+    return ctx;
+}
 
 } // namespace trtlab
