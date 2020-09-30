@@ -27,13 +27,13 @@
 #pragma once
 #include <map>
 
-#include "tensorrt/laboratory/buffers.h"
-#include "tensorrt/laboratory/common.h"
-#include "tensorrt/laboratory/model.h"
+#include "trtlab/tensorrt/buffers.h"
+#include "trtlab/tensorrt/common.h"
+#include "trtlab/tensorrt/model.h"
 
-#include "tensorrt/laboratory/core/memory/descriptor.h"
-#include "tensorrt/laboratory/core/memory/host_memory.h"
-#include "tensorrt/laboratory/cuda/memory/device_memory.h"
+//#include "trtlab/core/memory/descriptor.h"
+//#include "trtlab/core/memory/host_memory.h"
+//#include "trtlab/cuda/memory/device_memory.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -55,6 +55,8 @@ class Buffers;
  * A Bindings object holds the state of the input/output tensors over the course of an
  * inference calculation.
  */
+
+/*
 class Bindings
 {
   public:
@@ -116,11 +118,45 @@ class Bindings
 
     friend class Buffers;
 };
+*/
+
 
 /*
 class Workspace
 {
   public:
+    void RegisterModel(std::shared_ptr<Model>);
+
+    template<typename T>
+    void RegisterObject(const std::string& model_name, T obj);
+
+    template<typename T>
+    void RegisterObject(const std::string& model_name, std::shared_ptr<T> shared_obj);
+
+    template<typename T>
+    void RegisterObject(const std::string& model_name, std::unique_ptr<T> unique_obj);
+
+    void RegisterBindings(const std::string& model_name, ISmartAllocator& allocator);
+
+    template<typename T>
+    void RegisterBindings(const std::string& model_name, std::shared_ptr<MemoryStack<T>>& stack);
+
+    void RegisterBinding(const std::string& model_name, const std::string& binding_name, CoreMemory& memory);
+    void RegisterHostBinding(const std::string& model_name, const std::string& binding_name, void*);
+    void RegisterDeviceBinding(const std::string& model_name, const std::string& binding_name, void*);
+
+  protected:
+    class ModelWorkspace
+    {
+      private:
+        std::vector<void*> Bindings() const;
+
+        std::map<std::string, void*> m_HostPointers;
+        std::map<std::string, void*> m_DevicePointers;
+
+        std::vector<std::function<void()> m_CapturedObjects;
+    }
+
     HostMemory& HostDescriptor(const std::string&);
     const HostMemory& HostDescriptor(const std::string&) const;
     void HostDescriptor(const std::string&, DescriptorHandle<HostMemory>);

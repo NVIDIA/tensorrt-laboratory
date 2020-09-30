@@ -26,88 +26,72 @@
  */
 #pragma once
 
+#include <functional>
 #include <memory>
 
 #include <NvInfer.h>
 
-namespace trtlab {
-namespace TensorRT {
-
-class Runtime;
-class Model;
-class Buffers;
-class Bindings;
-class ExecutionContext;
-class InferenceManager;
-
-struct NvInferDeleter
+namespace trtlab
 {
-    NvInferDeleter()
+    namespace TensorRT
     {
-        NvInferDeleter([] {});
-    }
-    NvInferDeleter(std::function<void()> capture) : m_Capture{capture} {}
-
-    template<typename T>
-    void operator()(T* obj) const
-    {
-        if(obj)
+        struct NvInferDeleter
         {
-            obj->destroy();
-            if(m_Capture)
+            NvInferDeleter()
             {
-                m_Capture();
+                NvInferDeleter([] {});
             }
+            NvInferDeleter(std::function<void()> capture) : m_Capture{capture} {}
+
+            template <typename T>
+            void operator()(T* obj) const
+            {
+                if (obj)
+                {
+                    obj->destroy();
+                    if (m_Capture)
+                    {
+                        m_Capture();
+                    }
+                }
+            }
+
+        private:
+            std::function<void()> m_Capture;
+        };
+
+        template <typename T>
+        std::shared_ptr<T> nv_shared(T* obj)
+        {
+            if (!obj)
+            {
+                throw std::runtime_error("Failed to create object");
+            }
+            return std::shared_ptr<T>(obj, NvInferDeleter());
+        };
+
+        template <typename T>
+        std::shared_ptr<T> nv_shared(T* obj, std::function<void()> capture)
+        {
+            if (!obj)
+            {
+                throw std::runtime_error("Failed to create object");
+            }
+            return std::shared_ptr<T>(obj, NvInferDeleter(capture));
+        };
+
+        template <typename T>
+        using unique_t = std::unique_ptr<T, NvInferDeleter>;
+
+        template <typename T>
+        std::unique_ptr<T, NvInferDeleter> nv_unique(T* obj)
+        {
+            if (!obj)
+            {
+                throw std::runtime_error("Failed to create object");
+            }
+            return std::unique_ptr<T, NvInferDeleter>(obj);
         }
-    }
 
-  private:
-    std::function<void()> m_Capture;
-};
-
-/**
- * @brief Create a std::shared_ptr for an nvinfer interface object
- *
- * @tparam T
- * @param obj
- * @return std::shared_ptr<T>
- */
-template<typename T>
-std::shared_ptr<T> nv_shared(T* obj)
-{
-    if(!obj)
-    {
-        throw std::runtime_error("Failed to create object");
-    }
-    return std::shared_ptr<T>(obj, NvInferDeleter());
-};
-
-template<typename T>
-std::shared_ptr<T> nv_shared(T* obj, std::function<void()> capture)
-{
-    if(!obj)
-    {
-        throw std::runtime_error("Failed to create object");
-    }
-    return std::shared_ptr<T>(obj, NvInferDeleter(capture));
-};
-
-/**
- * @brief Create a std::unique_ptr for an nvinfer interface object
- *
- * @tparam T
- * @param obj
- * @return std::unique_ptr<T, NvInferDeleter>
- */
-template<typename T>
-std::unique_ptr<T, NvInferDeleter> nv_unique(T* obj)
-{
-    if(!obj)
-    {
-        throw std::runtime_error("Failed to create object");
-    }
-    return std::unique_ptr<T, NvInferDeleter>(obj);
-}
-
-} // namespace TensorRT
+    } // namespace TensorRT
 } // namespace trtlab

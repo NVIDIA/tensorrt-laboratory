@@ -24,17 +24,18 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/bindings.h"
+#include "trtlab/tensorrt/bindings.h"
 
 #include <glog/logging.h>
 
-#include "tensorrt/laboratory/core/memory/descriptor.h"
+#include "trtlab/core/memory/descriptor.h"
 
 using trtlab::Descriptor;
 using trtlab::DescriptorHandle;
 using trtlab::DeviceMemory;
 using trtlab::HostMemory;
 
+/*
 namespace {
 class RawHostMemoryDescriptor final : public Descriptor<HostMemory>
 {
@@ -46,6 +47,7 @@ class RawHostMemoryDescriptor final : public Descriptor<HostMemory>
     ~RawHostMemoryDescriptor() final override {}
 };
 } // namespace
+*/
 
 namespace trtlab {
 namespace TensorRT {
@@ -70,20 +72,23 @@ typename Bindings::HostDescriptor& Bindings::HostMemoryDescriptor(int binding_id
     return m_HostDescriptors[binding_id];
 }
 
+/*
 void Bindings::SetHostAddress(int binding_id, void* addr)
 {
     CHECK_LT(binding_id, m_HostAddresses.size());
     auto mdesc = std::make_unique<RawHostMemoryDescriptor>(addr, BindingSize(binding_id));
-    m_HostDescriptors[binding_id] = std::move(mdesc);
     m_HostAddresses[binding_id] = addr;
+    m_HostDescriptors[binding_id] = std::move(mdesc);
 }
+
 
 void Bindings::SetDeviceAddress(int binding_id, void* addr)
 {
     CHECK_LT(binding_id, m_DeviceAddresses.size());
-    m_DeviceDescriptors.erase(binding_id);
     m_DeviceAddresses[binding_id] = addr;
+    m_DeviceDescriptors.erase(binding_id);
 }
+*/
 
 void Bindings::SetHostAddress(int binding_id, DescriptorHandle<HostMemory> mdesc)
 {
@@ -132,9 +137,7 @@ void Bindings::CopyToDevice(uint32_t device_binding_id, void* src, size_t bytes)
 {
     auto dst = DeviceAddress(device_binding_id);
     DLOG(INFO) << "CopyToDevice binding_id: " << device_binding_id << "; size: " << bytes;
-    CHECK_EQ(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyHostToDevice, Stream()), CUDA_SUCCESS)
-        << "CopyToDevice for Binding " << device_binding_id << " failed - (dst, src, bytes) = "
-        << "(" << dst << ", " << src << ", " << bytes << ")";
+    CHECK_EQ(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyHostToDevice, Stream()), CUDA_SUCCESS);
 }
 
 void Bindings::CopyFromDevice(uint32_t device_binding_id)
@@ -156,9 +159,7 @@ void Bindings::CopyFromDevice(uint32_t device_binding_id, void* dst, size_t byte
 {
     auto src = DeviceAddress(device_binding_id);
     DLOG(INFO) << "CopyFromDevice binding_id: " << device_binding_id << "; size: " << bytes;
-    CHECK_EQ(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyDeviceToHost, Stream()), CUDA_SUCCESS)
-        << "CopyFromDevice for Binding " << device_binding_id << " failed - (dst, src, bytes) = "
-        << "(" << dst << ", " << src << ", " << bytes << ")";
+    CHECK_EQ(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyDeviceToHost, Stream()), CUDA_SUCCESS);
 }
 
 void Bindings::SetBatchSize(uint32_t batch_size)

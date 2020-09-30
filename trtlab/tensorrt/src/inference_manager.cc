@@ -24,13 +24,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/inference_manager.h"
+#include "trtlab/tensorrt/inference_manager.h"
 
 #include <glog/logging.h>
 
-#include "tensorrt/laboratory/cuda/device_info.h"
-#include "tensorrt/laboratory/cuda/memory/cuda_device.h"
-#include "tensorrt/laboratory/cuda/memory/cuda_pinned_host.h"
+#include "trtlab/cuda/device_info.h"
+#include "trtlab/cuda/memory/cuda_device.h"
+#include "trtlab/cuda/memory/cuda_pinned_host.h"
 
 using trtlab::CudaDeviceMemory;
 using trtlab::CudaPinnedHostMemory;

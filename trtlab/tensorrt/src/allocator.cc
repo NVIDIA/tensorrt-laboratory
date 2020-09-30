@@ -24,53 +24,54 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/allocator.h"
+#include "trtlab/tensorrt/allocator.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
-
 #include <glog/logging.h>
 
-namespace trtlab {
-namespace TensorRT {
+#include <trtlab/cuda/common.h>
+
+using namespace trtlab;
+using namespace TensorRT;
 
 void* NvAllocator::allocate(size_t size, uint64_t alignment, uint32_t flags)
 {
-    void* ptr;
+    void*                                 ptr;
     std::lock_guard<std::recursive_mutex> lock(m_Mutex);
-    if(m_UseWeightAllocator)
+    if (m_UseWeightAllocator)
     {
-        WeightAllocator(&ptr, size);
+        weights_allocate(&ptr, size);
         m_Pointers.push_back(Pointer{ptr, size});
     }
     else
     {
-        CHECK_EQ(cudaMalloc(&ptr, size), CUDA_SUCCESS);
-        DLOG(INFO) << "TensorRT cudaMalloc size = " << size;
+        CHECK_CUDA(cudaMalloc(&ptr, size));
+        VLOG(2) << "TensorRT cudaMalloc size = " << size;
     }
     return ptr;
 }
 
 void NvAllocator::free(void* ptr)
 {
-    DLOG(INFO) << "TensorRT cudaFree " << ptr;
-    CHECK_EQ(cudaFree(ptr), CUDA_SUCCESS) << "Failed to free TensorRT device memory";
+    VLOG(3) << "TensorRT cudaFree " << ptr;
+    CHECK_CUDA(cudaFree(ptr));
 }
 
-const std::vector<NvAllocator::Pointer>& NvAllocator::GetPointers() { return m_Pointers; }
-
-void StandardAllocator::WeightAllocator(void** ptr, size_t size)
+const std::vector<NvAllocator::Pointer>& NvAllocator::get_pointers()
 {
-    CHECK_EQ(cudaMalloc(ptr, size), CUDA_SUCCESS);
-    DLOG(INFO) << "TensorRT cudaMalloc size = " << size << "; " << *ptr;
+    return m_Pointers;
 }
 
-void ManagedAllocator::WeightAllocator(void** ptr, size_t size)
+void StandardAllocator::weights_allocate(void** ptr, size_t size)
 {
-    CHECK_EQ(cudaMallocManaged(ptr, size), CUDA_SUCCESS);
-    DLOG(INFO) << "TensorRT cudaMallocManaged size = " << size << "; " << *ptr;
-    CHECK_EQ(cudaMemAdvise(*ptr, size, cudaMemAdviseSetReadMostly, 0), CUDA_SUCCESS);
+    CHECK_CUDA(cudaMalloc(ptr, size));
+    VLOG(2) << "TensorRT cudaMalloc size = " << size << "; " << *ptr;
 }
 
-} // namespace TensorRT
-} // namespace trtlab
+void ManagedAllocator::weights_allocate(void** ptr, size_t size)
+{
+    CHECK_CUDA(cudaMallocManaged(ptr, size));
+    VLOG(2) << "TensorRT cudaMallocManaged size = " << size << "; " << *ptr;
+    CHECK_CUDA(cudaMemAdvise(*ptr, size, cudaMemAdviseSetReadMostly, 0));
+}

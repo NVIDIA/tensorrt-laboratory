@@ -24,117 +24,120 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/runtime.h"
+#include "trtlab/tensorrt/runtime.h"
 
-#include <memory>
-#include <vector>
-
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <glog/logging.h>
 
-namespace trtlab {
-namespace TensorRT {
+using namespace trtlab;
+using namespace TensorRT;
 
-Runtime::Runtime()
-    : m_Logger(std::make_unique<Logger>()),
-      m_NvRuntime(nv_unique(::nvinfer1::createInferRuntime(*(m_Logger.get()))))
+namespace
+{
+    bool file_exists(const std::string& name)
+    {
+        struct stat buffer;
+        return (stat(name.c_str(), &buffer) == 0);
+    }
+} // namespace
+
+Runtime::Runtime() : m_Logger(std::make_unique<Logger>()), m_Runtime(nv_unique(::nvinfer1::createInferRuntime(*(m_Logger.get()))))
 {
     m_Logger->log(::nvinfer1::ILogger::Severity::kINFO, "IRuntime Logger Initialized");
 }
 
-Runtime::~Runtime() { DLOG(INFO) << "Destorying Runtime " << this; }
-
-::nvinfer1::IRuntime& Runtime::NvRuntime() const { return *m_NvRuntime; }
-
-std::shared_ptr<Model> Runtime::DeserializeEngine(const std::string& plan_file)
+Runtime::~Runtime()
 {
-    DLOG(INFO) << "Deserializing TensorRT ICudaEngine from file: " << plan_file;
-    const auto& buffer = ReadEngineFile(plan_file);
-    return DeserializeEngine(buffer.data(), buffer.size(), nullptr);
+    VLOG(2) << "Destorying Runtime " << this;
 }
 
-std::shared_ptr<Model> Runtime::DeserializeEngine(const std::string& plan_file,
-                                                  ::nvinfer1::IPluginFactory* plugin_factory)
+::nvinfer1::IRuntime& Runtime::get_runtime() const
 {
-    DLOG(INFO) << "Deserializing TensorRT ICudaEngine from file: " << plan_file;
-    const auto& buffer = ReadEngineFile(plan_file);
-    return DeserializeEngine(buffer.data(), buffer.size(), plugin_factory);
+    return *m_Runtime;
 }
 
-std::shared_ptr<Model> Runtime::DeserializeEngine(const void* data, size_t size)
+std::shared_ptr<Model> Runtime::deserialize_engine(const std::string& plan_file)
 {
-    return DeserializeEngine(data, size, nullptr);
+    VLOG(2) << "Deserializing TensorRT ICudaEngine from file: " << plan_file;
+    const auto& buffer = read_engine_file(plan_file);
+    return deserialize_engine(buffer.data(), buffer.size(), nullptr);
 }
 
-std::vector<char> Runtime::ReadEngineFile(const std::string& plan_file) const
+std::shared_ptr<Model> Runtime::deserialize_engine(const std::string& plan_file, ::nvinfer1::IPluginFactory* plugin_factory)
 {
-    DLOG(INFO) << "Reading Engine: " << plan_file;
-    std::ifstream file(plan_file, std::ios::binary | std::ios::ate);
+    VLOG(2) << "Deserializing TensorRT ICudaEngine from file: " << plan_file;
+    const auto& buffer = read_engine_file(plan_file);
+    return deserialize_engine(buffer.data(), buffer.size(), plugin_factory);
+}
+
+std::shared_ptr<Model> Runtime::deserialize_engine(const void* data, size_t size)
+{
+    return deserialize_engine(data, size, nullptr);
+}
+
+std::vector<char> Runtime::read_engine_file(const std::string& plan_file) const
+{
+    if(!file_exists(plan_file))
+    {
+        throw std::runtime_error("tensorrt engine file does not exist: " + plan_file);
+    }
+    VLOG(2) << "Reading Engine: " << plan_file;
+    std::ifstream   file(plan_file, std::ios::binary | std::ios::ate);
     std::streamsize size = file.tellg();
+    CHECK_GT(size, 0);
     std::vector<char> buffer(size);
     file.seekg(0, std::ios::beg);
     CHECK(file.read(buffer.data(), size)) << "Unable to read engine file: " << plan_file;
     return buffer;
 }
 
-Runtime::Logger::~Logger() { DLOG(INFO) << "Destroying Logger"; }
+Runtime::Logger::~Logger()
+{
+    VLOG(2) << "Destroying Logger " << this;
+}
 
 void Runtime::Logger::log(::nvinfer1::ILogger::Severity severity, const char* msg)
 {
-    switch(severity)
+    switch (severity)
     {
-        case Severity::kINTERNAL_ERROR:
-            LOG(FATAL) << "[TensorRT.INTERNAL_ERROR]: " << msg;
-            break;
-        case Severity::kERROR:
-            LOG(FATAL) << "[TensorRT.ERROR]: " << msg;
-            break;
-        case Severity::kWARNING:
-            LOG(WARNING) << "[TensorRT.WARNING]: " << msg;
-            break;
-        case Severity::kINFO:
-            DLOG(INFO) << "[TensorRT.INFO]: " << msg;
-            break;
-        default:
-            DLOG(INFO) << "[TensorRT.DEBUG]: " << msg;
-            break;
+    case Severity::kINTERNAL_ERROR:
+        LOG(FATAL) << "[TensorRT.INTERNAL_ERROR]: " << msg;
+        break;
+    case Severity::kERROR:
+        LOG(FATAL) << "[TensorRT.ERROR]: " << msg;
+        break;
+    case Severity::kWARNING:
+        LOG(WARNING) << "[TensorRT.WARNING]: " << msg;
+        break;
+    case Severity::kINFO:
+        VLOG(2) << "[TensorRT.INFO]: " << msg;
+        break;
+    default:
+        VLOG(2) << "[TensorRT.DEBUG]: " << msg;
+        break;
     }
 }
 
-RuntimeWithAllocator::RuntimeWithAllocator(std::unique_ptr<NvAllocator> allocator)
-    : Runtime(), m_Allocator(std::move(allocator))
+RuntimeWithAllocator::RuntimeWithAllocator(std::unique_ptr<NvAllocator> allocator) : Runtime(), m_Allocator(std::move(allocator))
 {
-    NvRuntime().setGpuAllocator(m_Allocator.get());
+    get_runtime().setGpuAllocator(m_Allocator.get());
 }
 
 RuntimeWithAllocator::~RuntimeWithAllocator()
 {
-    // DLOG(INFO) << "Destroying CustomRuntime";
-    NvRuntime().setGpuAllocator(nullptr);
+    get_runtime().setGpuAllocator(nullptr);
 }
 
-std::shared_ptr<Model>
-    RuntimeWithAllocator::DeserializeEngine(const void* data, size_t size,
-                                            ::nvinfer1::IPluginFactory* plugin_factory)
+std::shared_ptr<Model> RuntimeWithAllocator::deserialize_engine(const void* data, size_t size, ::nvinfer1::IPluginFactory* plugin_factory)
 {
-    DLOG(INFO) << "Deserializing Custom TensorRT ICudaEngine";
-    return Allocator().UseWeightAllocator(
-        [this, data, size, plugin_factory]() mutable -> std::shared_ptr<Model> {
-            auto runtime = this->shared_from_this();
-            auto engine = nv_shared(NvRuntime().deserializeCudaEngine(data, size, plugin_factory),
-                                    [runtime] { DLOG(INFO) << "Destroying ICudaEngine"; });
-            CHECK(engine) << "Unable to create ICudaEngine";
-            auto model = std::make_shared<Model>(engine);
-            for(const auto& ptr : Allocator().GetPointers())
-            {
-                model->AddWeights(ptr.addr, ptr.size);
-                DLOG(INFO) << "TensorRT weights: " << ptr.addr << "; size=" << ptr.size;
-            }
-            return model;
-        });
+    VLOG(2) << "Deserializing Custom TensorRT ICudaEngine";
+    return get_allocator().use_weights_allocator([this, data, size, plugin_factory]() mutable -> std::shared_ptr<Model> {
+        auto runtime = this->shared_from_this();
+        auto engine  = nv_shared(get_runtime().deserializeCudaEngine(data, size, plugin_factory), [runtime]() mutable { runtime.reset(); });
+        CHECK(engine) << "Unable to create ICudaEngine";
+        return std::make_shared<Model>(engine, get_allocator().get_pointers());
+    });
 }
-
-} // namespace TensorRT
-} // namespace trtlab

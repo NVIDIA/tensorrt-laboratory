@@ -5,14 +5,15 @@ message(STATUS "TensorRT Version ${TensorRT_VERSION_STRING}")
 
 add_library(tensorrt
   src/allocator.cc
-  src/bindings.cc
-  src/buffers.cc
+# src/bindings.cc
+# src/buffers.cc
   src/execution_context.cc
-  src/inference_manager.cc
-  src/infer_bench.cc
+# src/inference_manager.cc
+# src/infer_bench.cc
   src/model.cc
   src/runtime.cc
   src/utils.cc
+  src/workspace.cc
 )
 
 add_library(${PROJECT_NAME}::tensorrt ALIAS tensorrt)
@@ -29,7 +30,7 @@ target_include_directories(tensorrt
     ${TensorRT_INCLUDE_DIRS}
 )
 
-set_target_properties(tensorrt PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
+set_target_properties(tensorrt PROPERTIES OUTPUT_NAME ${PROJECT_NAME}_tensorrt)
 
 install(
   TARGETS tensorrt

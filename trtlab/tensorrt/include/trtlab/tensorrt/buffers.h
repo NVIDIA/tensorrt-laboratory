@@ -31,11 +31,11 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "tensorrt/laboratory/common.h"
-#include "tensorrt/laboratory/core/memory/cyclic_allocator.h"
-#include "tensorrt/laboratory/core/memory/memory_stack.h"
-#include "tensorrt/laboratory/cuda/memory/cuda_device.h"
-#include "tensorrt/laboratory/cuda/memory/cuda_pinned_host.h"
+//#include "trtlab/tensorrt/common.h"
+//#include "trtlab/core/memory/cyclic_allocator.h"
+//#include "trtlab/core/memory/memory_stack.h"
+//#include "trtlab/cuda/memory/cuda_device.h"
+//#include "trtlab/cuda/memory/cuda_pinned_host.h"
 
 namespace trtlab {
 namespace TensorRT {
@@ -47,6 +47,8 @@ namespace TensorRT {
  * and owns the cudaStream_t that should be used for transfers or compute on these
  * resources.
  */
+
+/*
 class Buffers : public std::enable_shared_from_this<Buffers>
 {
   public:
@@ -59,7 +61,7 @@ class Buffers : public std::enable_shared_from_this<Buffers>
     void Synchronize();
 
   protected:
-    virtual void Reset(bool writeZeros = false){};
+    virtual void Reset() = 0;
     void ConfigureBindings(const std::shared_ptr<Model>& model, std::shared_ptr<Bindings>);
 
     virtual std::unique_ptr<HostMemory> AllocateHost(size_t size) = 0;
@@ -88,7 +90,8 @@ class FixedBuffers : public Buffers
     {
       public:
         BufferStackDescriptor(void* ptr, size_t size)
-            : Descriptor<MemoryType>(ptr, size, MemoryType::Type() + "Desc")
+            : Descriptor<MemoryType>(ptr, size, []{},
+                std::string("BufferStack<" + std::string(MemoryType::TypeName()) + ">").c_str())
         {
         }
         ~BufferStackDescriptor() final override {}
@@ -106,10 +109,10 @@ class FixedBuffers : public Buffers
             m_DeviceStack->Allocate(size), size));
     }
 
-    void Reset(bool writeZeros = false) final override
+    void Reset() final override
     {
-        m_HostStack->Reset(writeZeros);
-        m_DeviceStack->Reset(writeZeros);
+        m_HostStack->Reset();
+        m_DeviceStack->Reset();
     }
 
   private:
@@ -143,12 +146,13 @@ class CyclicBuffers : public Buffers
         return m_DeviceAllocator->Allocate(size);
     }
 
-    void Reset(bool writeZeros = false) final override {}
+    void Reset() final override {}
 
   private:
     HostAllocatorType m_HostAllocator;
     DeviceAllocatorType m_DeviceAllocator;
 };
+*/
 
 } // namespace TensorRT
 } // namespace trtlab

@@ -9,8 +9,8 @@ cc_library(
         "include/**/*.h",
     ]),
     deps = [
-        "//tensorrt-laboratory/core",
-        "//tensorrt-laboratory/cuda",
+        "//trtlab/core",
+        "//trtlab/cuda",
         "@local_config_tensorrt//:tensorrt_headers",
         "@local_config_tensorrt//:tensorrt_infer",
     ],

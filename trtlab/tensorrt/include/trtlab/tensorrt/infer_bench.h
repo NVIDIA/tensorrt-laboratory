@@ -26,49 +26,44 @@
  */
 #pragma once
 
-#include <functional>
-#include <memory>
-
-#include "tensorrt/laboratory/bindings.h"
-#include "tensorrt/laboratory/core/utils.h"
-#include "tensorrt/laboratory/cuda/memory/cuda_device.h"
-
-#include "NvInfer.h"
+#include "trtlab/tensorrt/inference_manager.h"
+#include "trtlab/tensorrt/model.h"
 
 namespace trtlab {
 namespace TensorRT {
-/**
- * @brief Manages the execution of an inference calculation
- *
- * The ExecutionContext is a limited quanity resource used to control the number
- * of simultaneous calculations allowed on the device at any given time.
- *
- * A properly configured Bindings object is required to initiate the TensorRT
- * inference calculation.
- */
-class ExecutionContext
+
+enum InferBenchKey
+{
+    kMaxExecConcurrency = 0,
+    kMaxCopyConcurrency,
+    kBatchSize,
+    kWalltime,
+    kBatchesComputed,
+    kBatchesPerSecond,
+    kInferencesPerSecond,
+    kSecondsPerBatch,
+    kExecutionTimePerBatch
+};
+
+class InferBench
 {
   public:
-    virtual ~ExecutionContext();
+    InferBench(std::shared_ptr<InferenceManager>);
+    virtual ~InferBench();
 
-    DELETE_COPYABILITY(ExecutionContext);
-    DELETE_MOVEABILITY(ExecutionContext);
+    using ModelsList = std::vector<std::shared_ptr<Model>>;
+    using Results = std::map<InferBenchKey, double>;
 
-    void SetContext(std::shared_ptr<::nvinfer1::IExecutionContext> context);
-    void Infer(const std::shared_ptr<Bindings>&);
-    auto Synchronize() -> double;
+    std::unique_ptr<Results> Run(const std::shared_ptr<Model> model, uint32_t batch_size,
+                                 double seconds = 5.0);
+    std::unique_ptr<Results> Run(const ModelsList& models, uint32_t batch_size,
+                                 double seconds = 5.0);
+
+  protected:
+    InferenceManager& InferResources() { return *m_Resources; }
 
   private:
-    ExecutionContext(size_t workspace_size);
-    void Reset();
-
-    std::function<double()> m_ElapsedTimer;
-    cudaEvent_t m_ExecutionContextFinished;
-    std::shared_ptr<::nvinfer1::IExecutionContext> m_Context;
-
-    std::unique_ptr<CudaDeviceMemory> m_Workspace;
-
-    friend class InferenceManager;
+    std::shared_ptr<InferenceManager> m_Resources;
 };
 
 } // namespace TensorRT

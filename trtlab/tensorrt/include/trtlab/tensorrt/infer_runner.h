@@ -26,10 +26,10 @@
  */
 #pragma once
 
-#include "tensorrt/laboratory/bindings.h"
-#include "tensorrt/laboratory/core/async_compute.h"
-#include "tensorrt/laboratory/inference_manager.h"
-#include "tensorrt/laboratory/model.h"
+#include "trtlab/tensorrt/bindings.h"
+#include "trtlab/core/async_compute.h"
+#include "trtlab/tensorrt/inference_manager.h"
+#include "trtlab/tensorrt/model.h"
 
 namespace trtlab {
 namespace TensorRT {

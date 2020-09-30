@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "tensorrt/laboratory/core/utils.h"
+#include "trtlab/core/utils.h"
 
 #include <NvInfer.h>
 
@@ -33,7 +33,7 @@
 namespace trtlab {
 namespace TensorRT {
 
-std::size_t SizeofDataType(::nvinfer1::DataType dtype)
+std::size_t SizeofDataType(const nvinfer1::DataType& dtype)
 {
     switch(dtype)
     {
@@ -47,6 +47,21 @@ std::size_t SizeofDataType(::nvinfer1::DataType dtype)
         default:
             LOG(FATAL) << "Unknown TensorRT DataType";
     }
+}
+
+std::size_t data_type_size(const nvinfer1::DataType& dtype)
+{
+    return SizeofDataType(dtype);
+}
+
+std::size_t dims_element_count(const nvinfer1::Dims& dims)
+{
+    std::size_t count = 1;
+    for(int i=0; i<dims.nbDims; i++)
+    {
+        count *= dims.d[i];
+    }
+    return count;
 }
 
 } // namespace TensorRT

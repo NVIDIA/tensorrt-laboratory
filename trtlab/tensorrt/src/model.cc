@@ -1,179 +1,117 @@
-/* Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-#include "tensorrt/laboratory/model.h"
-
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include "trtlab/tensorrt/model.h"
+#include "trtlab/tensorrt/utils.h"
 
 #include <glog/logging.h>
 
-#include "tensorrt/laboratory/bindings.h"
-#include "tensorrt/laboratory/execution_context.h"
-#include "tensorrt/laboratory/utils.h"
+using namespace trtlab;
+using namespace TensorRT;
 
-using ::nvinfer1::ICudaEngine;
-using ::nvinfer1::IExecutionContext;
-
-namespace trtlab {
-namespace TensorRT {
-
-void BaseModel::AddBinding(TensorBindingInfo&& binding)
+namespace
 {
-    const std::string name = binding.name;
-    m_Bindings.push_back(std::move(binding));
-    auto id = m_Bindings.size() - 1;
-    m_BindingIdByName[name] = id;
-    if(binding.isInput)
+    std::string ProfileSelectorString(nvinfer1::OptProfileSelector selector)
     {
-        m_InputBindings.push_back(id);
+        if (selector == nvinfer1::OptProfileSelector::kMIN)
+        {
+            return "MIN";
+        }
+        else if (selector == nvinfer1::OptProfileSelector::kOPT)
+        {
+            return "OPT";
+        }
+        else if (selector == nvinfer1::OptProfileSelector::kMAX)
+        {
+            return "MAX";
+        }
+        else
+        {
+            LOG(FATAL) << "unknown profile selector";
+        }
     }
-    else
+} // namespace
+
+Model::Model(engine_t engine, const weights_t& weights) : m_Engine(engine), m_Weights(weights) {}
+
+Model::~Model()
+{
+    VLOG(2) << "Destroying ICudaEngine " << m_Engine.get();
+}
+
+std::string Model::profiles_info() const
+{
+    std::stringstream ss;
+    ss << "Optimization Profiles" << std::endl;
+
+    for (int profile_id = 0; profile_id < m_Engine->getNbOptimizationProfiles(); profile_id++)
     {
-        m_OutputBindings.push_back(id);
+        for (auto selector : {nvinfer1::OptProfileSelector::kMIN, nvinfer1::OptProfileSelector::kOPT, nvinfer1::OptProfileSelector::kMAX})
+        {
+            ss << "Profile " << profile_id << " "  << profile_info(profile_id, selector);
+        }
     }
+    return ss.str();
 }
 
-Model::Model(std::shared_ptr<ICudaEngine> engine) : BaseModel(), m_Engine(engine)
+std::string Model::profile_info(std::uint32_t profile_id, nvinfer1::OptProfileSelector selector) const
 {
-    CHECK(m_Engine) << "Model required an initialzed ICudaEngine*";
-    DLOG(INFO) << "Initializing Bindings from Engine";
-    for(int i = 0; i < m_Engine->getNbBindings(); i++)
+    CHECK_LT(profile_id, m_Engine->getNbOptimizationProfiles());
+    std::stringstream ss;
+
+    for (int binding_id = 0; binding_id < m_Engine->getNbBindings(); binding_id++)
     {
-        AddBinding(ConfigureBinding(i));
+        if (m_Engine->bindingIsInput(binding_id))
+        {
+            auto dims = m_Engine->getProfileDimensions(binding_id, profile_id, selector);
+            ss << ProfileSelectorString(selector) << " - input_binding " << binding_id << ": name=" << m_Engine->getBindingName(binding_id)
+               << "; ";
+            ss << TensorRT::Model::dims_info(dims);
+            ss << std::endl;
+        }
     }
-    CHECK_EQ(GetBindingsCount(), m_Engine->getNbBindings());
+    return ss.str();
 }
 
-Model::~Model() { DLOG(INFO) << "Destroying Model: " << Name(); }
-
-Model::TensorBindingInfo Model::ConfigureBinding(uint32_t i)
+std::string Model::bindings_info() const
 {
-    TensorBindingInfo binding;
-    auto dims = m_Engine->getBindingDimensions(i);
-    size_t elements = 1;
-    for(int j = 0; j < dims.nbDims; j++)
+    std::stringstream ss;
+    for (int i = 0; i < m_Engine->getNbBindings(); i++)
     {
-        binding.dims.push_back(dims.d[j]);
-        elements *= dims.d[j];
+        ss << binding_info(i) << std::endl;
     }
-
-    binding.name = m_Engine->getBindingName(i);
-    binding.dtype = m_Engine->getBindingDataType(i);
-    binding.dtypeSize = SizeofDataType(binding.dtype);
-    binding.elementsPerBatchItem = elements;
-    binding.bytesPerBatchItem = elements * binding.dtypeSize;
-    binding.isInput = m_Engine->bindingIsInput(i);
-    LOG(INFO) << "Binding: " << binding.name
-              << "; isInput: " << (binding.isInput ? "true" : "false")
-              << "; dtype size: " << binding.dtypeSize
-              << "; bytes per batch item: " << binding.bytesPerBatchItem;
-    return binding;
+    return ss.str();
 }
 
-auto BaseModel::BindingId(const std::string& name) const -> uint32_t
+std::string Model::binding_info(std::uint32_t binding_id) const
 {
-    auto search = m_BindingIdByName.find(name);
-    CHECK(search != m_BindingIdByName.end());
-    return search->second;
+    std::stringstream ss;
+    ss << "binding " << binding_id << ": name=" << m_Engine->getBindingName(binding_id) << "; ";
+    ss << dims_info(m_Engine->getBindingDimensions(binding_id));
+    ss << "; isInput=" << (m_Engine->bindingIsInput(binding_id) ? "TRUE" : "FALSE");
+    return ss.str();
 }
 
-auto BaseModel::GetBinding(uint32_t id) const -> const TensorBindingInfo&
+std::string Model::dims_info(const nvinfer1::Dims& dims)
 {
-    CHECK_LT(id, m_Bindings.size())
-        << "Invalid BindingId; given: " << id << "; max: " << m_Bindings.size();
-    return m_Bindings[id];
+    std::stringstream ss;
+    ss << "ndims=" << dims.nbDims << "; [";
+    for (int i = 0; i < dims.nbDims; i++)
+        ss << " " << dims.d[i];
+    ss << " ]";
+    return ss.str();
 }
 
-BaseModel::BindingType BaseModel::GetBindingType(const std::string& name) const
+std::size_t Model::binding_element_count(std::uint32_t binding_id) const
 {
-    auto search = m_BindingIdByName.find(name);
-    if(search == m_BindingIdByName.end())
+    auto dims = m_Engine->getBindingDimensions(binding_id);
+    std::size_t count = 1;
+    for(int i=0; i<dims.nbDims; i++)
     {
-        return BindingType::Invalid;
+        count *= dims.d[i];
     }
-    const auto& binding = m_Bindings[search->second];
-    if(binding.isInput)
-    {
-        return BindingType::Input;
-    }
-    else
-    {
-        return BindingType::Output;
-    }
-    return BindingType::Invalid;
+    return count;
 }
 
-auto BaseModel::GetBinding(const std::string& name) const -> const TensorBindingInfo&
+std::size_t Model::binding_size_in_bytes(std::uint32_t binding_id) const
 {
-    auto search = m_BindingIdByName.find(name);
-    CHECK(search != m_BindingIdByName.end());
-    return m_Bindings[search->second];
+    auto dtype = m_Engine->getBindingDataType(binding_id);
+    return data_type_size(dtype) * binding_element_count(binding_id);
 }
-
-auto Model::CreateExecutionContext() const -> std::shared_ptr<IExecutionContext>
-{
-    return nv_shared<IExecutionContext>(m_Engine->createExecutionContextWithoutDeviceMemory(),
-                                        [engine = m_Engine, name = Name()]() mutable {
-                                            DLOG(INFO) << "Destroying IExecutionContext for Model: "
-                                                       << name;
-                                        });
-}
-
-void Model::AddWeights(void* ptr, size_t size) { m_Weights.push_back(Weights{ptr, size}); }
-
-void Model::PrefetchWeights(cudaStream_t stream) const
-{
-    for(auto weights : m_Weights)
-    {
-        CHECK_EQ(cudaMemPrefetchAsync(weights.addr, weights.size, 0, stream), CUDA_SUCCESS)
-            << "Failed to Prefetch Weights";
-    }
-}
-
-auto Model::GetWeightsMemorySize() const -> const size_t
-{
-    size_t total = 0;
-    for(auto weights : m_Weights)
-    {
-        total += weights.size;
-    }
-    return total;
-}
-
-auto BaseModel::GetBindingMemorySize() const -> const size_t
-{
-    size_t bytes = 0;
-    for(auto const& binding : m_Bindings)
-    {
-        bytes += binding.bytesPerBatchItem;
-    }
-    bytes *= GetMaxBatchSize();
-    return bytes;
-}
-
-} // namespace TensorRT
-} // namespace trtlab

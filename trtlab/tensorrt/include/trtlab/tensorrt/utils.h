@@ -24,73 +24,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#pragma once
 
 #include <memory>
-#include <mutex>
-#include <vector>
 
 #include <NvInfer.h>
 
 namespace trtlab {
 namespace TensorRT {
 
-class NvAllocator : public ::nvinfer1::IGpuAllocator
-{
-    struct Pointer;
+/**
+ * @brief Number of bytes for a given TensorRT DataType
+ */
+std::size_t SizeofDataType(const nvinfer1::DataType& dtype);
 
-  public:
-    NvAllocator() : m_UseWeightAllocator(false) {}
-    virtual ~NvAllocator() override {}
-
-    NvAllocator(const NvAllocator&) = delete;
-    NvAllocator& operator=(const NvAllocator&) = delete;
-
-    NvAllocator(NvAllocator&&) noexcept = delete;
-    NvAllocator& operator=(NvAllocator&&) noexcept = delete;
-
-    // TensorRT IGpuAllocator virtual overrides
-    void* allocate(uint64_t size, uint64_t alignment, uint32_t flags) final override;
-    void free(void* ptr) final override;
-
-    template<class F, class... Args>
-    auto UseWeightAllocator(F&& f, Args&&... args) -> typename std::result_of<F(Args...)>::type
-    {
-        std::lock_guard<std::recursive_mutex> lock(m_Mutex);
-        m_Pointers.clear();
-        m_UseWeightAllocator = true;
-        auto retval = f(std::forward<Args>(args)...);
-        m_UseWeightAllocator = false;
-        m_Pointers.clear();
-        return retval;
-    }
-
-    const std::vector<Pointer>& GetPointers();
-
-  private:
-    struct Pointer
-    {
-        void* addr;
-        size_t size;
-    };
-
-    bool m_UseWeightAllocator;
-    std::recursive_mutex m_Mutex;
-    std::vector<Pointer> m_Pointers;
-    virtual void WeightAllocator(void**, size_t) = 0;
-};
-
-class StandardAllocator : public NvAllocator
-{
-    using NvAllocator::NvAllocator;
-    void WeightAllocator(void** ptr, size_t) final override;
-};
-
-class ManagedAllocator : public NvAllocator
-{
-    using NvAllocator::NvAllocator;
-    void WeightAllocator(void** ptr, size_t) override;
-};
+std::size_t dims_element_count(const nvinfer1::Dims& dims);
+std::size_t data_type_size(const nvinfer1::DataType& dtype);
 
 } // namespace TensorRT
 } // namespace trtlab
